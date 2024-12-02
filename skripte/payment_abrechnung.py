@@ -3,8 +3,8 @@
 # Für den WEH e.V.
 # fiji@weh.rwth-aachen.de
 
-# Dieses Skript soll zum 01. jedes Monats gegen 4 Uhr morgens aufgerufen werden.
-# Es bucht Mitgliedsbeiträge vom Mitgliedskonto ab und sperrt User, die nicht genug Geld auf dem Konto haben.
+# Dieses Skript soll zum 01. jedes Monats morgens aufgerufen werden.
+# Es bucht Mitgliedsbeiträge vom Mitgliedskonto ab, sperrt User, die nicht genug Geld auf dem Konto haben und informiert alle Betroffenen
 
 # Größere Anpassung 06.04.2024:
 # Ab sofort wird der Anteil des tatsächlich bezahlten Hausbeitrags ermittelt und der Kassenausgleich in die Datenbank eingetragen.
@@ -17,6 +17,8 @@ from email.mime.multipart import MIMEMultipart
 from fcol import send_mail
 from fcol import connect_weh
 from fcol import get_constant
+
+DEBUG = False
 
 ## Grundprogramm ##
 
@@ -36,8 +38,6 @@ def abrechnung():
 
     wehdb = connect_weh()
     cursor = wehdb.cursor()
-    
-    # Für alle Mitglieder
     cursor.execute("SELECT uid, groups, honory, pid, name, username, turm FROM users WHERE pid IN (11,12,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
     bewohner = cursor.fetchall()
     for row in bewohner:
@@ -94,7 +94,7 @@ def abrechnung():
                 kassenausgleichbetrag += hausbeitrag
 
         if restcheck < monatsbeitrag and restcheck > 0 and (pid == 11 or pid == 12):
-            warnmail(uid,turm)
+            warnmail(uid,turm,monatsbeitrag)
             warncount += 1
             infostring = "Vorgewarnt"
         elif restcheck < 0 and pid == 13:
@@ -103,10 +103,11 @@ def abrechnung():
             infostring = "Insolvent"
         elif restcheck < 0:
             addsperre(uid,zeit)
-            sperrmail(uid, rest, name, username,turm)
+            sperrmail(uid, rest, name, username, turm)
             sperrcount += 1
             infostring = "Gesperrt"
         else:
+            confirmmail(uid,turm,monatsbeitrag)
             normalcount += 1
             infostring = "Gezahlt"
         
@@ -117,8 +118,9 @@ def abrechnung():
         print(ausgabe2)
         print(ausgabe3)
         print()
+        print()
+        print()
         
-    
     truenormalcount = normalcount + warncount
     
     ## Ungefähr 80% der gesperrten User sind ohne Abmeldung ausgezogen und werden hierüber gesperrt. 
@@ -130,7 +132,10 @@ def abrechnung():
     
     kassenausgleichinsert(zeit,kassenausgleichbetrag_2nachkommastellen,cursor)
     infomail(kassenausgleichbetrag_2nachkommastellen, truenormalcount, sperrcount, insolventcount, warncount)
-    wehdb.commit()
+    if DEBUG:
+        print("DEBUG MODE: Skipping database changes and emails")
+    else:
+        wehdb.commit()
     wehdb.close()
     
 ## Allgemeines ##
@@ -158,7 +163,10 @@ def addsperre(uid, zeit):
     insert_var = (uid, missedpayment, internet, waschen, mail, buchen, drucken, beschreibung, starttime, endtime, agent, zeit)
 
     fecursor.execute(insert_sql, insert_var)
-    fedb.commit()
+    if DEBUG:
+        print("DEBUG MODE: Skipping addsperre() database commit")
+    else:
+        fedb.commit()
 
 def insolvent(uid,zeit):
     cnx = connect_weh()
@@ -166,12 +174,18 @@ def insolvent(uid,zeit):
     insert_sql = "UPDATE users SET insolvent = %s WHERE uid = %s"
     insert_var = (zeit,uid)
     cursor.execute(insert_sql, insert_var)
-    cnx.commit()
+    if DEBUG:
+        print("DEBUG MODE: Skipping insolvent() database commit")
+    else:
+        cnx.commit()
 
 ## Funktionen für Mails ##
     
 def infomail(kassenausgleichbetrag, truenormalcount, sperrcount, insolventcount, warncount):
-    subject = "WEH Abrechnung"
+    if DEBUG:
+        subject = "WEH Abrechnung"
+    else:
+        subject = "[DEBUG] WEH Abrechnung"
     message = "Hallo Pappnasen (Netzwerk-AG und Haussprecher),"\
     "\ndie monatliche Abrechnung wurde erfolgreich durchgeführt."\
     "\n\n----------------------------------------"\
@@ -189,11 +203,13 @@ def infomail(kassenausgleichbetrag, truenormalcount, sperrcount, insolventcount,
     "\nNach 6 Monaten (Satzung §9.3) wird streichung.py diese User abmelden und dem Vorstand eine Namensliste schicken."\
     "\n\n----------------------------------------"\
     "\n\nViele Grüße,\npayment_abrechnung.py und Fiji"
-    # to_email = "fiji@weh.rwth-aachen.de"
-    to_email = "vorstand@weh.rwth-aachen.de"
+    if DEBUG:
+        to_email = "webmaster@weh.rwth-aachen.de"
+    else:
+        to_email = "vorstand@weh.rwth-aachen.de"
     send_mail(subject, message, to_email)
     
-def warnmail(uid,turm):
+def warnmail(uid,turm,monatsbeitrag):
     wehdb = connect_weh()
     wehcursor = wehdb.cursor()
     sql = "SELECT name, username FROM users WHERE uid = %s"
@@ -202,17 +218,62 @@ def warnmail(uid,turm):
     result = wehcursor.fetchone()
     name = result[0] if result else None
     username = result[1] if result else None
+    formatted_beitrag = f"{monatsbeitrag:.2f}€"
     
-    subject = "WEH Account Warning"
-    message = "Dear " + str(name) + ","\
-    "\n\nyou were able to pay your membership fees for this month, but your membership account balance is so low that if you don't top up your account balance this month,"\
-    "it would not be enough to extend your Internet access at the next billing in the coming month."\
-    "\n\nYou can check and refill your account here: https://backend.weh.rwth-aachen.de/UserKonto.php"\
-    "\n\nBest Regards,\nNetzwerk-AG WEH e.V."
+    subject = "WEH Confirmation of Monthly Payment"
+    message = (
+        f"Dear {name},\n\n"
+        f"Your monthly membership fee of {formatted_beitrag} has been deducted from your WEH account.\n\n"
+        "You can view all transactions and check your account balance here:\n"
+        "https://backend.weh.rwth-aachen.de/UserKonto.php\n\n"
+        "However, your current account balance is very low. While your membership fees for this month were covered, "
+        "if you don’t top up your account balance soon, it may not be enough to extend your Internet access "
+        "at the next billing cycle in the coming month.\n\n"
+        "Please ensure your account balance is sufficient to avoid interruptions.\n\n"
+        "Best regards,\n"
+        "Netzwerk-AG WEH e.V."
+    )
     to_email = username + "@" + str(turm) + ".rwth-aachen.de"
-    send_mail(subject, message, to_email)
 
-def sperrmail(uid, rest, name, username,turm):
+    if DEBUG:
+        print("DEBUG MODE: Email not sent. Here are the details:")
+        print(f"Subject: {subject}")
+        print(f"Message: {message}")
+        print(f"To: {to_email}")
+    else:
+        send_mail(subject, message, to_email)
+    
+def confirmmail(uid,turm,monatsbeitrag):
+    wehdb = connect_weh()
+    wehcursor = wehdb.cursor()
+    sql = "SELECT name, username FROM users WHERE uid = %s"
+    var = (uid,)
+    wehcursor.execute(sql, var)
+    result = wehcursor.fetchone()
+    name = result[0] if result else None
+    username = result[1] if result else None
+    formatted_beitrag = f"{monatsbeitrag:.2f}€"
+    
+    subject = "WEH Confirmation of Monthly Payment"
+    message = (
+        f"Dear {name},\n\n"
+        f"your monthly membership fee of {formatted_beitrag} has been deducted from your WEH account.\n\n"
+        "You can view all transactions and check your account balance here:\n"
+        "https://backend.weh.rwth-aachen.de/UserKonto.php\n\n"
+        "Best regards,\n"
+        "Netzwerk-AG WEH e.V."
+    )
+    to_email = username + "@" + str(turm) + ".rwth-aachen.de"
+
+    if DEBUG:
+        print("DEBUG MODE: Email not sent. Here are the details:")
+        print(f"Subject: {subject}")
+        print(f"Message: {message}")
+        print(f"To: {to_email}")
+    else:
+        send_mail(subject, message, to_email)
+
+def sperrmail(uid, rest, name, username, turm):
     posrest = - rest
     
     subject = "WEH Account Ban"
@@ -226,7 +287,14 @@ def sperrmail(uid, rest, name, username,turm):
     "If you have already moved out of WEH without deregistering, please ignore this email.\n\n"\
     "Best Regards,\nNetzwerk-AG WEH e.V."
     to_email = username + "@" + str(turm) + ".rwth-aachen.de"
-    send_mail(subject, message, to_email)
+    
+    if DEBUG:
+        print("DEBUG MODE: Email not sent. Here are the details:")
+        print(f"Subject: {subject}")
+        print(f"Message: {message}")
+        print(f"To: {to_email}")
+    else:
+        send_mail(subject, message, to_email)
 
 ## Funktionen zur Abrechnung ##        
 
