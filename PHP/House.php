@@ -593,48 +593,124 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
     $zeit = time();
 
-    $sql = "SELECT beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen 
-            FROM sperre 
-            WHERE uid = ? AND sperre.starttime <= ? AND sperre.endtime >= ?";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "iii", $_POST["id"], $zeit, $zeit);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen);
-    
-    $found = false;
-    
-    while (mysqli_stmt_fetch($stmt)) {
-        $found = true;
-    
-        // Array der betroffenen Services
+// Zuerst: Holen Sie alle Sperren und speichern Sie sie in einem Array
+$sql = "SELECT beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen, missedpayment
+        FROM sperre 
+        WHERE uid = ? AND sperre.starttime <= ? AND sperre.endtime >= ?";
+$stmt = mysqli_prepare($conn, $sql);
+mysqli_stmt_bind_param($stmt, "iii", $_POST["id"], $zeit, $zeit);
+mysqli_stmt_execute($stmt);
+mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $missedpayment);
+
+$sperren = []; // Array für Sperrendaten
+while (mysqli_stmt_fetch($stmt)) {
+    $sperren[] = [
+        'beschreibung' => $beschreibung,
+        'mail' => $mail,
+        'internet' => $internet,
+        'waschen' => $waschen,
+        'buchen' => $buchen,
+        'drucken' => $drucken,
+        'werkzeugbuchen' => $werkzeugbuchen,
+        'missedpayment' => $missedpayment
+    ];
+}
+mysqli_stmt_close($stmt);
+
+// Zweitens: Holen Sie die Summe der Beträge für die UID
+$sql = "SELECT SUM(betrag) FROM transfers WHERE uid = ?";
+$stmt = mysqli_prepare($conn, $sql);
+mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+mysqli_stmt_execute($stmt);
+mysqli_stmt_bind_result($stmt, $summe);
+mysqli_stmt_fetch($stmt);
+mysqli_stmt_close($stmt);
+
+if (is_null($summe)) {
+    $summe = 0.00;
+}
+$neg_summe = (-1) * $summe;
+
+// Ausgabe der Sperren
+if (empty($sperren)) {
+    echo "<div style='border: 2px solid rgb(0,200,0); border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
+            <span style='font-weight: bold; font-size: 25px; color: rgb(0,200,0);'>Keine Sperre vorhanden</span>
+          </div>";
+} else {
+    foreach ($sperren as $sperre) {
+        // Array der betroffenen Dienste
         $services = [];
-        if ($mail) $services[] = "Mail";
-        if ($internet) $services[] = "Internet";
-        if ($waschen) $services[] = "Waschen";
-        if ($buchen) $services[] = "Buchen";
-        if ($drucken) $services[] = "Drucken";
-        if ($werkzeugbuchen) $services[] = "Werkzeugbuchen";
-    
-        // Ausgabe der gesperrten Services
+        if ($sperre['mail']) $services[] = "Mail";
+        if ($sperre['internet']) $services[] = "Internet";
+        if ($sperre['waschen']) $services[] = "Waschen";
+        if ($sperre['buchen']) $services[] = "Buchen";
+        if ($sperre['drucken']) $services[] = "Drucken";
+        if ($sperre['werkzeugbuchen']) $services[] = "Werkzeugbuchen";
+
+        // Dienste-Ausgabe
         $servicesOutput = implode(", ", $services);
-    
-        // Ausgabe im HTML
+
         echo "<div style='border: 2px solid red; border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
                 <span style='font-weight: bold; font-size: 25px; color: red;'>Sperre:</span><br>
-                <span style='font-size: 20px; color: red;'>" . htmlspecialchars($beschreibung) . "</span><br><br>
+                <span style='font-size: 20px; color: red;'>" . htmlspecialchars($sperre['beschreibung']) . "</span><br><br>
                 <span style='font-weight: bold; font-size: 18px; color: red;'>Betroffene Dienste:</span><br>
-                <span style='font-size: 18px; color: red;'>" . htmlspecialchars($servicesOutput) . "</span>
-              </div>";
+                <span style='font-size: 18px; color: red;'>" . htmlspecialchars($servicesOutput) . "</span>";
+
+        // Wenn "missedpayment" aktiv ist, zeige den Mail-Button
+        if ($sperre['missedpayment'] == 1) {
+            echo '<form method="POST" style="margin-top: 20px;">';
+            echo '<input type="hidden" name="id" value="' . $_POST["id"] . '">';
+            echo '<button type="submit" name="send_mail_banned" class="red-center-btn" id="sendBtn" 
+                    style="transition: all 0.3s ease; font-size: 15px; padding: 10px 20px; border-radius: 5px; background-color: red; color: white; cursor: pointer;">';
+
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_mail_banned'])) {
+                $address = $mailconfig['address'];
+                $message = "Dear " . $firstname . ",\n\n" .
+                           "This is a reminder mail.\nThis information has already been sent to your email address of choice.\n\n" .
+                           "Your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n" .
+                           "To reactivate your internet connection, there are still " . $neg_summe . "€ missing.\n\n" .
+                           "Name: WEH e.V.\n" .
+                           "IBAN: DE90 3905 0000 1070 3346 00\n" .
+                           "Transfer Reference: W" . $_POST["id"] . "H\n" .
+                           "If you do not set this exact Transfer Reference, we will not be able to assign your payment to your account!\n\n" .
+                           "When your member account has a positive balance, your internet connection will be reactivated automatically.\n\n" .
+                           "It will take some time until the transfer will be entered for your account.\n\n" .
+                           "Best Regards,\nNetzwerk-AG WEH e.V.";
+
+                $to = $email;
+                $subject = "WEH - Currently Banned";
+                $headers = "From: " . $address . "\r\n";
+                $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
+
+                if (mail($to, $subject, $message, $headers)) {
+                    echo '<script>
+                            const btn = document.getElementById("sendBtn");
+                            btn.style.backgroundColor = "green";
+                            btn.textContent = "Mail erfolgreich versendet.";
+                            btn.disabled = true;
+                          </script>';
+                } else {
+                    echo '<script>
+                            const btn = document.getElementById("sendBtn");
+                            btn.style.backgroundColor = "red";
+                            btn.textContent = "Fehler beim Versenden der Mail.";
+                            btn.disabled = true;
+                          </script>';
+                }
+            } else {
+                echo 'Reminder mit Transferinfos an hinterlegte Mail senden.';
+            }
+
+            echo '</button>';
+            echo '</form>';
+        }
+
+        echo "</div>";
     }
-    
-    if (!$found) {
-      echo "<div style='border: 2px solid rgb(0,200,0); border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
-              <span style='font-weight: bold; font-size: 25px; color: rgb(0,200,0);'>Keine Sperre vorhanden</span>
-            </div>";
-    }
-  
-    
-    mysqli_stmt_close($stmt);
+}
+
+
+
 
 
     function calculateColor($diff_seconds) {
