@@ -199,14 +199,14 @@ $uid = $_SESSION['uid'];  // Wir verwenden noch die Session für die Benutzer-ID
 
 if (isset($_SESSION['adminview_agedit']) && $_SESSION['adminview_agedit'] == true) {
     // Admin View aktiviert: Alle aktiven Gruppen abfragen
-    $query = "SELECT g.id, g.name, g.session
+    $query = "SELECT g.id, g.name, g.session, g.turm
               FROM groups g
               WHERE active = TRUE 
               ORDER BY g.prio";
     $stmt = $conn->prepare($query);
 } else {
     // Normale Abfrage: Gruppen des Benutzers abfragen
-    $query = "SELECT g.id, g.name, g.session, u.sprecher, u.room
+    $query = "SELECT g.id, g.name, g.session, u.sprecher, u.room, g.turm
               FROM groups g 
               INNER JOIN users u ON FIND_IN_SET(g.id, u.groups)
               WHERE active = TRUE AND u.uid = ? AND u.pid IN (11,12) 
@@ -266,16 +266,21 @@ foreach ($groups as $index => $group) {
     if ($group['id'] === 19) {
         continue;
     }
-    // Gruppe in einer Box anzeigen, flex-column für gleiche Höhe und Button am unteren Rand
-    echo '<div class="ag-box">';
+
+    $randfarbe = [
+        "weh" => "#11a50d",
+        "tvk" => "#E49B0F"
+    ][$group["turm"]] ?? "white";   
+
+    echo '<div class="ag-box" style="border: 20px outset ' . $randfarbe . ';">';
 
     // Gruppenname in der Box
     echo '<div style="flex-grow: 1;">';  // Flex-grow sorgt dafür, dass der Gruppenname und Mitgliederliste den freien Platz einnehmen
-    echo '<h2 style="font-size:30px; font-weight:bold; color:white; text-align:center; margin-bottom:10px;">' . htmlspecialchars($group['name']) . '</h2>';
+    echo '<h2 style="font-size:28px; font-weight:bold; color:white; text-align:center; margin-bottom:10px;">' . htmlspecialchars($group['name']) . '</h2>';
 
 
     // Mitglieder der Gruppe anzeigen
-    $query = "SELECT u.uid, u.name, u.turm, u.room, u.sprecher FROM users u 
+    $query = "SELECT u.uid, u.firstname, u.lastname, u.turm, u.room, u.sprecher FROM users u 
               WHERE FIND_IN_SET(?, u.groups) 
               ORDER BY FIELD(turm, 'weh', 'tvk'), room";
     $stmt = $conn->prepare($query);
@@ -296,9 +301,9 @@ foreach ($groups as $index => $group) {
         
         // Wenn der Benutzer Sprecher der Gruppe ist, wird der Name mit der Klasse 'gold-text' dargestellt, sonst 'white-text'
         if ($isSpeaker) {
-            $name_output = '<span class="gold-text">' . htmlspecialchars($row['name']) . '</span>';
+            $name_output = '<span class="gold-text">' . explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0] . '</span>';
         } else {
-            $name_output = '<span class="white-text">' . htmlspecialchars($row['name']) . '</span>';
+            $name_output = '<span class="white-text">' . explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0] . '</span>';
         }
 
         // Formatierung der Raum- und Turm-Anzeige

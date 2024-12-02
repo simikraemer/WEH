@@ -17,7 +17,7 @@ if (auth($conn) && $_SESSION['valid']) {
     load_menu();
 
     $ag_complete = array();
-    $sql = "SELECT id, name, mail, link, session FROM groups WHERE active = 1 ORDER BY prio";
+    $sql = "SELECT id, name, mail, link, session, turm FROM groups WHERE active = 1 ORDER BY prio";
     $result = mysqli_query($conn, $sql);
 
     if ($result) {
@@ -27,6 +27,7 @@ if (auth($conn) && $_SESSION['valid']) {
                 "mail" => $row['mail'],
                 "link" => $row['link'],
                 "session" => $row['session'],
+                "turm" => $row['turm'],
                 "users" => array() // Platz für die zugehörigen Benutzer
             );
         }
@@ -43,7 +44,7 @@ if (auth($conn) && $_SESSION['valid']) {
                 if (isset($ag_complete[$group_id])) {
                     $ag_complete[$group_id]['users'][] = array(
                         "room" => $row['room'],
-                        "name" => $row['firstname'] . " " . $row['lastname'],
+                        "name" => explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0],
                         "turm" => $row['turm'],
                         "pid" => $row['pid'],
                         "username" => $row['username']
@@ -59,10 +60,16 @@ if (auth($conn) && $_SESSION['valid']) {
         if ($group_id === 26) {
             continue;
         }
-        echo '<div class="ag-box">';
 
+        $randfarbe = [
+            "weh" => "#11a50d",
+            "tvk" => "#E49B0F"
+        ][$group["turm"]] ?? "white";        
+        
+        echo '<div class="ag-box" style="border: 20px outset ' . $randfarbe . ';">';
+        
         // Gruppenname mit Gruppenlink
-        echo '<h2 class="white-text" style="font-size:30px; font-weight:bold; text-align:center; margin-bottom:10px;">';
+        echo '<h2 class="white-text" style="font-size:28px; font-weight:bold; text-align:center; margin-bottom:10px;">';
         echo '<a href="' . htmlspecialchars($group['link']) . '" class="white-text">' . htmlspecialchars($group['name']) . '</a>';
         echo '</h2>';
             
