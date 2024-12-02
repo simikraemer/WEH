@@ -59,7 +59,7 @@ if (auth($conn) && $_SESSION['valid']) {
         if ($group_id === 26) {
             continue;
         }
-        echo '<div style="flex:1 1 30%; margin:25px; padding:0px 0px 20px 0px; box-sizing:border-box; border: 2px solid white; border-radius:10px; background-color:rgba(255, 255, 255, 0);">';
+        echo '<div class="ag-box">';
 
         // Gruppenname mit Gruppenlink
         echo '<h2 class="white-text" style="font-size:30px; font-weight:bold; text-align:center; margin-bottom:10px;">';

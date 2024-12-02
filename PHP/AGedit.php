@@ -267,7 +267,7 @@ foreach ($groups as $index => $group) {
         continue;
     }
     // Gruppe in einer Box anzeigen, flex-column für gleiche Höhe und Button am unteren Rand
-    echo '<div style="flex:1 1 30%; margin:25px; padding:0px 0px 20px 0px; box-sizing:border-box; border: 2px solid white; border-radius:10px; background-color:rgba(255, 255, 255, 0); display:flex; flex-direction:column; justify-content:space-between;">';
+    echo '<div class="ag-box">';
 
     // Gruppenname in der Box
     echo '<div style="flex-grow: 1;">';  // Flex-grow sorgt dafür, dass der Gruppenname und Mitgliederliste den freien Platz einnehmen
