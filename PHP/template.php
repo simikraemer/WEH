@@ -355,6 +355,7 @@ function load_menu() {
         echo '<button onclick="window.location.href=\'AGs.php\';">AGs</button> ';
         echo '<button onclick="window.location.href=\'Etagensprecher.php\';">Etagensprecher</button> ';
         echo '<button onclick="window.location.href=\'Individuen.php\';"style="white-space: nowrap;">Übersicht Bewohner</button> ';
+        echo '<button onclick="window.location.href=\'MailOverview.php\';"style="white-space: nowrap;">Übersicht Mailadressen</button> ';
         echo '<button onclick="window.location.href=\'Alumni.php\';"style="white-space: nowrap;">Alumni-Newsletter</button>'; 
         echo '</div>';
         echo '</div>';
@@ -672,13 +673,26 @@ function getAgsIcons($ags, $icon_size) {
         "11" => "wasch",
         "12" => "ba",
         "13" => "werkzeug",
-        "23" => "sport",
-        "25" => "fahrrad",
-        "32" => "musik",
-        "69" => "party",
-        "66" => "datenschutz",
         "19" => "etagensprecher",
-        "24" => "hausmeister"
+        "20" => "etagensprecher",
+        "23" => "sport",
+        "24" => "hausmeister",
+        "25" => "fahrrad",
+        "27" => "hausmeister",
+        "32" => "musik",
+        "33" => "wasch",
+        "51" => "ba",
+        "52" => "vorstand",
+        "53" => "vorstand",
+        "54" => "werkzeug",
+        "55" => "eimer",
+        "56" => "drucker",
+        "57" => "wohnzimmer",
+        "58" => "kino",
+        "59" => "sauna",
+        "60" => "fitness",
+        "66" => "datenschutz",
+        "69" => "party",
     );
 
     // Zerlege den $ags-String anhand von Kommas in ein Array.
