@@ -54,13 +54,27 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
 
  
     if (isset($_POST["speichern"])) {
-        $sqlDelete = "UPDATE users SET etagensprecher = 0, groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', '19' , ','), ',')) WHERE etagensprecher = ? and turm = ?";
-        $stmtDelete = mysqli_prepare($conn, $sqlDelete);
-        mysqli_stmt_bind_param($stmtDelete, "is", $etagensprecher, $turm);
+        // Setze die Gruppen-ID basierend auf dem Turm
+        $group_id = ($turm === 'weh') ? 19 : (($turm === 'tvk') ? 20 : null);
+    
+        if ($group_id !== null) { // Nur fortfahren, wenn group_id zugeordnet werden kann
+            $sqlDelete = "UPDATE users 
+                          SET etagensprecher = 0, 
+                              groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', ?, ','), ',')) 
+                          WHERE etagensprecher = ? AND turm = ?";
+            $stmtDelete = mysqli_prepare($conn, $sqlDelete);
+            mysqli_stmt_bind_param($stmtDelete, "iis", $group_id, $etagensprecher, $turm);
+            mysqli_stmt_execute($stmtDelete);
+    
+            $sqlUpdate = "UPDATE users 
+                          SET etagensprecher = ?, 
+                              groups = TRIM(BOTH ',' FROM CONCAT_WS(',', groups, ?)) 
+                          WHERE uid = ?";
+            $stmtUpdate = mysqli_prepare($conn, $sqlUpdate);
+            mysqli_stmt_bind_param($stmtUpdate, "iii", $etagensprecher, $group_id, $uid);
+            mysqli_stmt_execute($stmtUpdate);
+        }
 
-        $sqlUpdate = "UPDATE users SET etagensprecher = ?, groups = CONCAT(groups, ',19') WHERE uid = ?";
-        $stmtUpdate = mysqli_prepare($conn, $sqlUpdate);
-        mysqli_stmt_bind_param($stmtUpdate, "ii", $etagensprecher, $uid);
 
         for ($etage = 0; $etage <= 17; $etage++) {
             $etagensprecher1Key = "etagensprecher1_" . $etage;

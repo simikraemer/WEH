@@ -33,7 +33,7 @@ if (auth($conn) && $_SESSION['valid']) {
     }
 
     // Abfrage der Benutzer und Zuordnung zu den AGs
-    $sql = "SELECT room, firstname, lastname, groups, sprecher, uid, turm FROM users ORDER BY room ASC";
+    $sql = "SELECT room, firstname, lastname, groups, sprecher, uid, turm, pid, username FROM users WHERE pid IN (11,12,64) ORDER BY room ASC";
     $result = mysqli_query($conn, $sql);
 
     if ($result) {
@@ -44,7 +44,9 @@ if (auth($conn) && $_SESSION['valid']) {
                     $ag_complete[$group_id]['users'][] = array(
                         "room" => $row['room'],
                         "name" => $row['firstname'] . " " . $row['lastname'],
-                        "turm" => $row['turm']
+                        "turm" => $row['turm'],
+                        "pid" => $row['pid'],
+                        "username" => $row['username']
                     );
                 }
             }
@@ -79,10 +81,13 @@ if (auth($conn) && $_SESSION['valid']) {
                 // Bestimme Raumfarbe basierend auf Turm
                 $room_color = ($user['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
                             
-                if ($group_id === 24) {
+                if ($group_id === 24 || $group_id === 27 ) {
                     // Mailto-Link für Hausmeister
                     $mailto = 'hausmeister@' . htmlspecialchars($user['turm']) . '.rwth-aachen.de';
-                    $output = '<strong>' . $turm_form . '</strong>';  // Ausgabe des Turms für Hausmeister
+                    $output = '<strong>' . $turm_form . '</strong>';
+                } elseif ($user["pid"] != 11) {                    
+                    $mailto = $user["username"] . '@' . htmlspecialchars($user['turm']) . '.rwth-aachen.de';
+                    $output = '<strong>' . $turm_form . '</strong>';
                 } else {
                     // Mailto-Link für normale Gruppenmitglieder
                     $formatted_room = str_pad($user['room'], 4, "0", STR_PAD_LEFT);

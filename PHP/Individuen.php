@@ -37,7 +37,7 @@ function printRoomCell($roomnumber, $user_by_id, $roomtype) {
             $ags_icons = getAgsIcons($entry["groups"], $icon_size);
             #$ags_icons = str_replace('<img src=\'images/ags/netzwerk.png\' width=\'' . $icon_size . '\' height=\'' . $icon_size . '\'>', '', $ags_icons);
             $honory = ($entry["honory"] == 1);
-            $onlyfs = ($entry["groups"] == "1,19");
+            $onlyfs = ($entry["groups"] == "1,19" || $entry["groups"] == "1,20");
             $today = getdate();
             $bdayUnix = $entry["bday"];
             $bdayDate = date("d-m", $bdayUnix);
