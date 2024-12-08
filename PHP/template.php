@@ -446,18 +446,24 @@ function load_menu() {
         }
 
         if ($_SESSION["aktiv"]) {            
-            echo '<span class="vertical-line"></span>';                
+            echo '<span class="vertical-line"></span>';                    
             echo '<div class="header-menu">';
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Aktiv</button>';
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
-            echo '<button onclick="window.location.href=\'AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
-            echo '<button onclick="window.location.href=\'LokiManagement.php\';" style="white-space: nowrap;">Infoterminal</button> ';
+            if ($_SESSION["turm"] != "weh") {
+                echo '<button style="white-space: nowrap; color: gray; cursor: not-allowed;" disabled>AG-Essen</button> ';
+                echo '<button style="white-space: nowrap; color: gray; cursor: not-allowed;" disabled>Infoterminal</button> ';
+            } else {
+                echo '<button onclick="window.location.href=\'AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
+                echo '<button onclick="window.location.href=\'LokiManagement.php\';" style="white-space: nowrap;">Infoterminal</button> ';
+            }
             echo '</div>';
             echo '</div>';
             echo '</div>';
         }
+        
 
         $firstag = true;
 
