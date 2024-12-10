@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # Geschrieben von Fiji
-# 2023-2024
+# Dezember 2024
 # Für den WEH e.V.
 # fiji@weh.rwth-aachen.de
 
@@ -7,16 +10,17 @@ import time
 from datetime import datetime
 from fcol import send_mail
 from fcol import connect_weh
-from fcol import connect_wp
+from fcol import connect_anmeldung
 
 ## Grundfunktion
 
-def wordpressformular(): # Überträgt neue Anmeldungen von Wordpress in anmeldungen
-    print("Starte wordpressformular")
+def anmeldung_übertragen():  # Überträgt neue Anmeldungen von WordPress in anmeldungen
+    print("Starte WordPress-Formular")
 
-    wpdb = connect_wp()
-    print("Verbindung zu WordPress-Datenbank hergestellt:", wpdb)
-    wpcursor = wpdb.cursor()
+    # Verbindung zu den Datenbanken herstellen
+    www2db = connect_anmeldung()
+    print("Verbindung zu WordPress-Datenbank hergestellt:", www2db)
+    wpcursor = www2db.cursor()
     print("WordPress-Datenbankcursor erstellt")
 
     wehdb = connect_weh()
@@ -24,146 +28,78 @@ def wordpressformular(): # Überträgt neue Anmeldungen von Wordpress in anmeldu
     wehcursor = wehdb.cursor()
     print("WEH-Datenbankcursor erstellt")
 
-    # Check ob neue Anmeldung vorliegt
-    wpcursor.execute("SELECT id FROM wp_frm_items WHERE form_id = 8")
-    neu = wpcursor.fetchall()
-    print("Neue Anmeldungen gefunden:", neu)
-    
-    for row in neu:
-        id = int(row[0])
-        print(f"Verarbeite Anmeldung mit ID: {id}")
-        
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 55 AND item_id = {}".format(id))
-        room = wpcursor.fetchall()[0][0]
-        print(f"Raum: {room}")
+    try:
+        # Alle Einträge aus der WordPress-Tabelle 'anmeldungen' abrufen
+        wpcursor.execute("SELECT tstamp, starttime, sublet, subletterend, username, room, turm, firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail FROM anmeldungen")
+        anmeldungen = wpcursor.fetchall()
+        print(f"{len(anmeldungen)} Anmeldungen aus WordPress-Datenbank abgerufen.")
 
-        # STW Übersetzung
-        if room == 0:
-            room = 2
-        elif room == 12:
-            room = 3
-        elif room == 1:
-            room = 1
-        elif room == 11:
-            room = 4
-        print(f"Übersetzter Raum: {room}")
-               
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 57 AND item_id = {}".format(id))
-        firstname = wpcursor.fetchall()[0][0]
-        print(f"Vorname: {firstname}")
+        for anmeldung in anmeldungen:
+            (
+                tstamp, starttime, sublet, subletterend, username, room, turm,
+                firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail
+            ) = anmeldung
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 58 AND item_id = {}".format(id))
-        lastname = wpcursor.fetchall()[0][0]
-        print(f"Nachname: {lastname}")
+            print(f"Übertrage Anmeldung für {firstname} {lastname}, Raum {room} ({turm})")
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 56 AND item_id = {}".format(id))
-        startdate = wpcursor.fetchall()[0][0]
-        print(f"Einzugsdatum: {startdate}")
+            # Eintrag in die WEH-Datenbank einfügen
+            try:
+                wehcursor.execute("""
+                    INSERT INTO registration (tstamp, starttime, sublet, subletterend, username, room, turm, firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    tstamp, starttime, sublet, subletterend, username, room, turm,
+                    firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail
+                ))
+                wehdb.commit()
+                print(f"Anmeldung erfolgreich übertragen: {firstname} {lastname}, Raum {room}")
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 60 AND item_id = {}".format(id))
-        geburtsort = wpcursor.fetchall()[0][0]
-        print(f"Geburtsort: {geburtsort}")
+                # Benachrichtigungsmail senden
+                newanmeldungmail(
+                    zeit=starttime, room=room, firstname=firstname,
+                    lastname=lastname, turm=turm
+                )
+                print(f"Benachrichtigung gesendet für {firstname} {lastname}.")
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 63 AND item_id = {}".format(id))
-        username = wpcursor.fetchall()[0][0]
-        print(f"Benutzername: {username}")
+                # Eintrag aus WordPress-Tabelle löschen
+                wpcursor.execute("DELETE FROM anmeldungen WHERE tstamp = %s", (tstamp,))
+                www2db.commit()
+                print(f"Eintrag aus WordPress-Datenbank gelöscht: {firstname} {lastname}, Raum {room}")
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 61 AND item_id = {}".format(id))
-        telephone_result = wpcursor.fetchall()
-        if telephone_result:
-            telefon = telephone_result[0][0]
-        else:
-            telefon = '' 
-        print(f"Telefon: {telefon}")
+            except Exception as e:
+                print(f"Fehler beim Übertragen oder Löschen der Anmeldung: {e}")
+                wehdb.rollback()
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 62 AND item_id = {}".format(id))
-        email = wpcursor.fetchall()[0][0]
-        print(f"E-Mail: {email}")
+            # Wartezeit zwischen den Iterationen
+            print("Warte 1 Sekunde, bevor der nächste Eintrag verarbeitet wird...")
+            time.sleep(1)
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 59 AND item_id = {}".format(id))
-        geburtstag = wpcursor.fetchall()[0][0]
-        print(f"Geburtstag: {geburtstag}")
+    except Exception as e:
+        print(f"Fehler beim Abrufen der Anmeldungen: {e}")
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 64 AND item_id = {}".format(id))
-        if (wpcursor.fetchone() != None):
-            forwardemail = '1'
-        else:
-            forwardemail = '0'
-        print(f"Forward E-Mail: {forwardemail}")
+    finally:
+        # Verbindungen schließen
+        www2db.close()
+        print("Verbindung zur WordPress-Datenbank geschlossen")
 
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 71 AND item_id = {}".format(id))
-        result_sub = wpcursor.fetchone()[0]
-        print(f"Sublet-Status: {result_sub}")
-
-        if result_sub == "Untermieter":
-            sublet = 1
-            wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 72 AND item_id = {}".format(id))
-            if wpcursor.fetchone() is not None:
-                wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 72 AND item_id = {}".format(id))
-                endofsublet = wpcursor.fetchall()[0][0]
-            else:
-                endofsublet = "!!!FEHLT!!!"
-            print(f"Ende des Untermietverhältnisses: {endofsublet}")
-
-        elif result_sub == "Hauptmieter":
-            sublet = 0
-            endofsublet = ''
-            print("Hauptmieter")
-        else:
-            print("Fehler bei Übertragung Subletvalue")
-            
-        wpcursor.execute("SELECT meta_value FROM wp_frm_item_metas WHERE field_id = 75 AND item_id = {}".format(id))
-        turm = wpcursor.fetchall()[0][0].lower()
-        print(f"Turm: {turm}")
-
-        status = 0
-        agent = None
-        kommentar = ''
-        zeit = int(time.time())
-        print(f"Zeitstempel: {zeit}")
-
-        sql_check = "SELECT COUNT(*) FROM anmeldungen WHERE room = %s AND username = %s AND (status = 0 OR status = 2)"
-        var_check = (room,username)
-        wehcursor.execute(sql_check, var_check)
-        record_count = wehcursor.fetchone()[0]
-        print(f"Anzahl der bestehenden Anmeldungen für Raum {room}: {record_count}")
-
-        if record_count < 1:  # No matching records found, so insert the data
-            sql_insert = "INSERT INTO anmeldungen (room, firstname, lastname, startdate, geburtsort, username, email, geburtstag, telefon, status, kommentar, forwardemail, agent, sublet, subletterend, tstamp, turm) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            var_insert = (room, firstname, lastname, startdate, geburtsort, username, email, geburtstag, telefon, status, kommentar, forwardemail, agent, sublet, endofsublet, zeit, turm)
-            wehcursor.execute(sql_insert, var_insert)
-            wehdb.commit()
-            print("Neue Anmeldung in die Datenbank eingefügt")
-
-            if room == 1504:
-                fijimail()
-                print("Fijimail gesendet")
-
-            newanmeldungmail(startdate, room, firstname, lastname, turm)
-
-        else:
-            duplicateanmeldungmail(zeit, room, firstname, lastname, email)
-
-        sql1 = "DELETE FROM wp_frm_item_metas WHERE item_id = {}".format(id)
-        wpcursor.execute(sql1)
-        sql2 = "DELETE FROM wp_frm_items WHERE id = {}".format(id)
-        wpcursor.execute(sql2)
-        wpdb.commit()
-        print(f"Eintrag mit ID {id} aus WordPress-Datenbank gelöscht")
-
-    wpdb.close()
-    print("Verbindung zur WordPress-Datenbank geschlossen")
+        wehdb.close()
+        print("Verbindung zur WEH-Datenbank geschlossen")
 
 ## Funktionen für Mails ##
-        
-def newanmeldungmail(zeit, room, firstname, lastname, turm): #sendet mail an uns, zur information über neue anmeldung
+
+def newanmeldungmail(zeit, room, firstname, lastname, turm):  # Sendet Mail an uns zur Information über neue Anmeldung
     subject = "Anmeldung " + str(turm) + "-" + str(room) + " - " + str(firstname) + " " + str(lastname)
-    message = "Neue Anmeldung\nEinzugsdatum: " + str(zeit) + "\nName: " + str(firstname) + " " + str(lastname) + "\nTurm: " + str(turm) + "\nRaum: " + str(room) + "\n\nHier bestätigen: https://backend.weh.rwth-aachen.de/Anmeldung.php"
+    message = (
+        f"Neue Anmeldung\nEinzugsdatum: {zeit}\n"
+        f"Name: {firstname} {lastname}\n"
+        f"Turm: {turm}\nRaum: {room}\n\n"
+        "Hier bestätigen: https://backend.weh.rwth-aachen.de/Anmeldung.php"
+    )
     to_email = "system@weh.rwth-aachen.de"
     send_mail(subject, message, to_email)
     print(f"Benachrichtigungsmail gesendet: {subject} an {to_email}")
-        
-def duplicateanmeldungmail(zeit, room, firstname, lastname, email): #sendet mail an user, wenn doppelt registriert
+
+def duplicateanmeldungmail(zeit, room, firstname, lastname, email):  # Sendet Mail an User, wenn doppelt registriert
     subject = "Anmeldung z" + str(room) + " - " + str(firstname) + " " + str(lastname)
     message = (
         f"Dear {firstname} {lastname},\n\n"
@@ -180,11 +116,4 @@ def duplicateanmeldungmail(zeit, room, firstname, lastname, email): #sendet mail
     send_mail(subject, message, to_email)
     print(f"Benachrichtigungsmail gesendet: {subject} an {to_email}")
 
-def fijimail(): # Top Secret
-    sendto = "fiji@weh.rwth-aachen.de"
-    subject = "Stellplatz frei!!!"
-    text = "Stellplatz 30 ist frei geworden (neuer User hat sich für R1504 angemeldet), du hast bis zum CleanUsersCron Zeit dich in weh.fahrrad auf Stellplatz 30 zu setzen.\nUnd stell dein Fahrrad um!\n\nYippie!"
-    send_mail(subject, text, sendto)
-    print(f"Fijimail gesendet: {subject} an {sendto}")
-
-wordpressformular()
+anmeldung_übertragen()

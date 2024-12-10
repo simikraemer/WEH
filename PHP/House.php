@@ -1,7 +1,6 @@
 <?php
   session_start();
   require('conn.php');
-
   $suche = FALSE;
   
   if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['search'])) {
@@ -777,10 +776,55 @@ if (empty($sperren)) {
     echo "<div style='display: flex; flex-direction: column; align-items: center;'>";
 
     echo "<div style='display: flex; justify-content: center;'>";
+
+
+
+    $uploadDir = "anmeldung/" . $username . "/"; // Neuer Pfad für die Dateien des Benutzers
+
+    // Datei-Pfade definieren
+    $idFile = glob($uploadDir . $username . "_id.*")[0] ?? null;
+    $mvFile = glob($uploadDir . $username . "_mv.*")[0] ?? null;
+    $afFile = glob($uploadDir . $username . "_af.*")[0] ?? null;
+    
+    // Flexbox-Container
+    echo "<div style='display: flex; flex-direction: column; align-items: center; gap: 20px;'>";
+    
+    // ID anzeigen (Bild oder PDF)
+    if ($idFile) {
+        $extension = pathinfo($idFile, PATHINFO_EXTENSION);
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+            echo "<img src=\"$idFile\" alt=\"ID\" style='max-width: 600px; max-height: 400px; height: auto;'>";
+        } elseif ($extension === 'pdf') {
+            echo "<embed src=\"$idFile#zoom=page-width\" type=\"application/pdf\" style='width: 100%; height: 600px;'>";
+        } else {
+            echo "<p>Dateiformat für ID wird nicht unterstützt.</p>";
+        }
+    }
+    
+    // Button-Container für Mietvertrag und Anmeldeformular
+    echo "<div style='display: flex; justify-content: center; gap: 20px;'>";
+    
+    if ($mvFile) {
+        echo "<a href=\"$mvFile\" target=\"_blank\" class=\"center-btn\">Mietvertrag</a>";
+    }
+    
+    if ($afFile) {
+        echo "<a href=\"$afFile\" target=\"_blank\" class=\"center-btn\">Anmeldeformular</a>";
+    }
+    
+    echo "</div>"; // Ende Button-Container
+    echo "</div>"; // Ende Flexbox-Container
+    
+    
+    
+    
+
+    
     
     $readonly = !$_SESSION["NetzAG"] ? "readonly" : "";
     $disabled = !$_SESSION["NetzAG"] ? "disabled" : "";
     $ausgegraut = !$_SESSION["NetzAG"] ? "grayed-out" : "";
+
     
     echo "<tr><th colspan='2'><br>Userdaten:</th></tr>";
     

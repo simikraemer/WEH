@@ -303,6 +303,277 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
           <span style='color: red; font-size: 20px;'>Kein Subnetz gefunden!</span>
           </div>";
         }
+      } elseif($_POST["decision"] == "accept_new") { 
+        $kommentar = $_POST["kommentar"];
+        $username = $_POST['username'];
+        $agent = $_SESSION['username'];
+        $id = $_POST["id"];
+
+        // Username wird zu localpart der Mail, hier wird überprüft ob eindeutig!
+        $restrictedNames = [
+          'netag', 'waschen', 'sprecher', 'community', 'important', 'essential', 'kasse', 'werkzeug', 'ags', 'hausmeister',
+          'mailer-daemon', 'nobody', 'news', 'daemon', 'security', 'root', 'clamav', 'mail', 'postmaster', 'hostmaster',
+          'virusalert', 'www', 'www2', 'www-data', 'www2-data', 'dns', 'ftp', 'usenet', 'noc', 'abuse', 'syslog', 'nagios',
+          'domain', 'drucker', 'spam', 'ftp-admin', 'kontowecker', 'info', 'netz-ag', 'netzag', 'netz', 'netzwerk-ag',
+          'netzwerkag', 'netzwerk', 'buchungssystem', 'cloud', 'no-reply', 'noreply', 'wlan', 'ipv6', 'cacti', 'graph', 
+          'system', 'verwaltung', 'kamera', 'lernraum', 'net', 'haussprecher', 'vorstand', 'pappnasen', 'wag', 'werkzeuge', 
+          'werkzeugbuchung', 'spuelen', 'wasch'
+        ];
+      
+        $roomMailLocalParts = [];
+        for ($etage = 0; $etage <= 17; $etage++) {
+            for ($zimmer = 1; $zimmer <= 16; $zimmer++) {
+                $roomMailLocalParts[] = 'z' . str_pad($etage, 2, '0', STR_PAD_LEFT) . str_pad($zimmer, 2, '0', STR_PAD_LEFT);
+            }
+            $roomMailLocalParts[] = 'etage' . str_pad($etage, 2, '0', STR_PAD_LEFT);
+        }        
+        $restrictedNames = array_merge($restrictedNames, $roomMailLocalParts);
+
+        $uniqueUsername = false;
+        while (!$uniqueUsername) {
+            $sql = "SELECT 1 FROM users WHERE username = ? OR (FIND_IN_SET(?, aliase) > 0 AND mailisactive = 1)";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "ss", $username, $username);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_store_result($stmt);
+        
+            if (mysqli_stmt_num_rows($stmt) > 0) {
+                mysqli_stmt_close($stmt);
+                $username .= '0';
+                continue;
+            }
+            mysqli_stmt_close($stmt);
+        
+            $sql = "SELECT 1 FROM groups WHERE FIND_IN_SET(?, aliase) > 0";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "s", $username);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_store_result($stmt);
+        
+            if (mysqli_stmt_num_rows($stmt) > 0) {
+                mysqli_stmt_close($stmt);
+                $username .= '0';
+                continue;
+            }
+            mysqli_stmt_close($stmt);
+        
+            if (in_array($username, $restrictedNames)) {
+                $username .= '0';
+                continue;
+            }
+        
+            $uniqueUsername = true;
+        }
+        
+        $sql = "SELECT room, firstname, lastname, starttime, geburtsort, email, geburtstag, telefon, forwardemail, sublet, subletterend, turm FROM registration WHERE id = ? LIMIT 1";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $id);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $room, $firstname, $lastname, $starttime, $geburtsort, $email, $geburtstag, $telefon, $forwardemail, $sublet, $subletterend, $turm);
+        mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+        
+        $name = $firstname . " " . $lastname;
+        $groups = 1;
+        $subtenanttill = $subletterend;
+        $historie = date("d.m.Y") . " Anmeldung bestätigt ({$_SESSION['agent']})";
+
+        $subnet = getRoomSubnet($conn, $room, $turm);
+
+        if ($subnet !== false) {
+        
+          $pwwifi = pwgen();
+          $pwhausunhashed = pwgen();
+          $pwhaus = pwhash($pwhausunhashed);
+
+          if ($sublet == "0") {
+            roomcheck($conn, $room, $turm);
+          } elseif ($sublet == "1") {
+            subletcheck($conn, $room, $turm, $subletterend);
+          }
+
+          $sql = "INSERT INTO users SET username = ?, room = ?, name = ?, firstname = ?, lastname = ?, groups = ?, starttime = ?, subtenanttill = ?, geburtstag = ?, geburtsort = ?, telefon = ?, email = ?, forwardemail = ?, historie = ?, subnet = ?, pwhaus = ?, pwwifi = ?, turm = ?";
+          $stmt = mysqli_prepare($conn, $sql);
+          mysqli_stmt_bind_param($stmt, "ssssssiiisssisssss", $username, $room, $name, $firstname, $lastname, $groups, $starttime, $subtenanttill, $geburtstag, $geburtsort, $telefon, $email, $forwardemail, $historie, $subnet, $pwhaus, $pwwifi, $turm);
+          mysqli_stmt_execute($stmt);
+          $stmt->close();
+          
+          $uid = mysqli_insert_id($conn);
+          addPrivateIPs($conn, $uid, $subnet);
+          
+          $status_anmeldung = 1;
+
+          $sql = "UPDATE registration SET status = 1 WHERE id = ?";
+          $stmt = mysqli_prepare($conn, $sql);
+          mysqli_stmt_bind_param($stmt, "i", $id);
+          mysqli_stmt_execute($stmt);
+          $stmt->close();
+          
+
+          // Dateien mit <id>_* in den neuen Benutzerordner verschieben und umbenennen
+          $uploadDir = "anmeldung/"; // Relativer Pfad für hochgeladene Dateien
+
+          // Zielordner für den Benutzer erstellen
+          $userDir = $uploadDir . $username . "/";
+          if (!is_dir($userDir)) {
+              mkdir($userDir, 0755, true); // Ordner erstellen, falls nicht vorhanden
+          }
+
+          // Alle passenden Dateien finden
+          $files = glob($uploadDir . $id . "_*");
+
+          foreach ($files as $file) {
+              if (is_file($file)) {
+                  // Ursprünglichen Dateinamen analysieren
+                  $newFileName = preg_replace("/^{$id}_/", $username . "_", basename($file)); // Dateiname anpassen
+                  $newFilePath = $userDir . $newFileName; // Neuer Pfad mit angepasstem Namen
+
+                  // Datei verschieben
+                  rename($file, $newFilePath);
+              }
+          }
+
+
+          $message = "Dear " . $firstname . ",\n\nyour registration was successful.\n\n"
+          . "Credentials:\n\n House-Username: " . $username . "\n House-Password: " . $pwhausunhashed . "\n\n";
+          if ($turm != 'tvk') {
+            $message .= " WiFiOnly-Username: " . $username . "@weh.rwth-aachen.de\n WiFiOnly-Password: " . $pwwifi . "\n\n";
+            
+            $message .= "Connecting to the internet:\n"
+            . " 1. Connect your device to tuermeroam.\n"
+            . " 1.1. Wireless: Connect your device to the Wi-Fi network 'tuermeroam' with your Wi-Fi-Only credentials.\n"
+            . " 1.2. Wired: Connect your device to the network socket in your room using a common ethernet cable. If you have two outlets; only one of these actually works. Most often it's the one closer to the window.\n"
+            . " 2. Open a web browser and navigate to the following web page: getnet.weh.ac\n"
+            . " 3. Log in with your House credentials. These credentials are also used for every other login at a WEH service.\n"
+            . " 4. If this is the first device you're registering, you need to change your password. After you have changed it, please return to this web site: getnet.weh.ac. The Wi-Fi-Only password was not changed by this!\n"
+            . " 5. Choose any free IP address. Which one you choose is irrelevant, but you should use one device per IP address. After up to 10 minutes your device will be connected. If needed, you can ask the Netzwerk-AG for more IPs.\n\n"
+            . "We also want to point out:\n"
+            . " • It is not allowed to have your own Wi-Fi network in the tower. These networks interfere with the already existing tuermeroam network. Netzwerk-AG is always working on improving the connection for every room in the tower.\n"
+            . " • There are some Smart-Home devices and gaming consoles that don't support our security protocol WPA2 Enterprise. We set up the parallel network weh-pskonly for these. If you want to connect your device with this network, please use this page backend.weh.rwth-aachen.de/PSK.php\n"
+            . " • Before you ask, take a look at the FAQ on our website first! www2.weh.rwth-aachen.de/en/faq/\n"
+            . " • Sharing your login data with other residents is not allowed and may lead to a penalty of 150€.\n\n"
+            . "Paying your membership fees:\n"
+            . " • Your WEH account is also a prepaid account for all services within WEH. You can use the money to purchase washing coins, use the printer or pay your membership fees.\n"
+            . " • Membership fees are automatically debited from your WEH account on the 1st of each month. If you don't have sufficient funds, a warning email will be sent to you before the billing cycle.\n"
+            . " • So make sure there's always enough money on your account for your membership fees or you risk an internet ban.\n"
+            . " • You can top up your account via bank transfer or PayPal on this page: backend.weh.rwth-aachen.de/UserKonto.php\n\n";
+
+          } else {
+            $message .= " WiFiOnly-Username: " . $username . "\n WiFiOnly-Password: " . $pwwifi . "\n\n"
+            . "=== IMPORTANT: Temporary Information for TvK Residents ===\n\n"
+            . "Your WiFiOnly-Username is only used for the temporary network 'fijiroam' - not for 'tuermeroam'!\n"
+            . "You will receive more information as soon as 'tuermeroam' becomes available in TvK. Until then, please use the 'fijiroam' WiFi network.\n\n"
+            . "=== END OF TEMPORARY MESSAGE FOR TvK RESIDENTS ===\n\n";
+            
+            $message .= "Connecting to the internet:\n"
+            . " 1. Connect your device to fijiroam.\n"
+            . " 1.1. Wireless: Connect your device to the Wi-Fi network 'fijiroam' with your Wi-Fi-Only credentials.\n"
+            . " 1.2. Wired: Connect your device to the network socket in your room using a common ethernet cable. If you have two outlets; only one of these actually works. Most often it's the one closer to the window.\n"
+            . " 2. Open a web browser and navigate to the following web page: backend.weh.rwth-aachen.de/denied.php\n"
+            . " 3. Log in with your House credentials. These credentials are also used for every other login at a WEH service.\n"
+            . " 4. Enter the TAN that was sent to your E-Mail!\n"
+            . " 5. Navigate to 'Netz' -> 'IP Management'\n"
+            . " 6.1. Register the MAC-Address of your devices on your IPs. You can only use one device per IP at a time, so it's safe to register each device on a different IP!\n"
+            . " 6.2. After up to 10 minutes your device will be connected. If needed, you can ask the Netzwerk-AG for more IPs.\n\n"
+            . "We also want to point out:\n"
+            . " • It is not allowed to have your own Wi-Fi network in the tower. These networks interfere with the already existing tuermeroam network. Netzwerk-AG is always working on improving the connection for every room in the tower.\n"
+            . " • There are some Smart-Home devices and gaming consoles that don't support our security protocol WPA2 Enterprise. We set up the parallel network weh-pskonly for these. If you want to connect your device with this network, please use this page backend.weh.rwth-aachen.de/PSK.php\n"
+            . " • Before you ask, take a look at the FAQ on our website first! www2.weh.rwth-aachen.de/en/faq/\n"
+            . " • Sharing your login data with other residents is not allowed and may lead to a penalty of 150€.\n\n"
+            . "Paying your membership fees:\n"
+            . " • Your WEH account is also a prepaid account for all services within WEH. You can use the money to purchase washing coins, use the printer or pay your membership fees.\n"
+            . " • Membership fees are automatically debited from your WEH account on the 1st of each month. If you don't have sufficient funds, a warning email will be sent to you before the billing cycle.\n"
+            . " • So make sure there's always enough money on your account for your membership fees or you risk an internet ban.\n"
+            . " • You can top up your account via bank transfer or PayPal on this page: backend.weh.rwth-aachen.de/UserKonto.php\n\n";
+          }
+          if ($forwardemail != 1) {
+            $message .= "Using your E-Mail account:\n"
+          . " • You can find all the information about how to use your new mail address on this page: https://www2.weh.rwth-aachen.de/ags/netzag/email/\n"
+          . " • Please make sure to check your mails at least once a week!\n\n";
+          } else {
+            $message .= "E-Mail Forwarding:\n"
+          . " • All mails will be forwarded to your mailaccount $email\n"
+          . " • Please make sure to check your mails at least once a week and ensure your mailbox does not overflow!!\n\n";
+          }
+          if ($turm != 'tvk') {
+            $message .= "Activating your washing account:\n"
+            . " • In order to be allowed to use the laundry room, a short instruction to washing must be completed.\n" 
+            . " • To attend this event, please check our website www2.weh.rwth-aachen.de/en/ags/waschag/ for the most up-to-date information.\n\n"
+            . "Bicycle parking in the basement:\n"
+            . " • If you want to park your bike in the basement you have to apply with the Fahrrad-AG for a parking space on our website. You are not allowed to park your bike on a space in the basement that has not been assigned to you.\n\n";
+          }
+          $message .= "If you have any other questions feel free to ask us in our consultation hour.\n"
+          . "We will see you there!\n"
+          . "Netzwerk-AG WEH e.V.";
+
+          $to = $email;
+          $subject = "WEH - Registration";
+          $headers = "From: " . $address . "\r\n";
+          $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
+          if (mail($to, $subject, $message, $headers)) {
+              echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+                      <span style='color: green; font-size: 20px;'>Mail erfolgreich versendet.</span>
+                    </div>";
+          } else {
+              echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+                      <span style='color: red; font-size: 20px;'>Fehler beim Versenden der Mail.</span>
+                    </div>";
+          }
+        } else {
+          echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+          <span style='color: red; font-size: 20px;'>Kein Subnetz gefunden!</span>
+          </div>";
+        }
+
+      } elseif($_POST["decision"] == "decline_new") {
+        $sql = "UPDATE registration SET status = -1 WHERE id = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+        mysqli_stmt_execute($stmt);
+        $stmt->close(); 
+
+        $sql = "SELECT email, firstname FROM registration WHERE id=? LIMIT 1";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+        mysqli_stmt_execute($stmt);
+        
+        mysqli_stmt_store_result($stmt);
+        if (mysqli_stmt_num_rows($stmt) == 1) {
+            mysqli_stmt_bind_result($stmt, $email, $firstname);
+            mysqli_stmt_fetch($stmt);
+        }
+        mysqli_stmt_close($stmt);
+        
+
+
+        // Dateien mit <id>_* aus 'anmeldungen/' löschen
+        $uploadDir = "anmeldung/"; // Relativer Pfad für hochgeladene Dateien
+        $userId = $_POST["id"]; // Die ID aus POST-Daten
+        $files = glob($uploadDir . $userId . "_*"); // Alle passenden Dateien finden
+
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file); // Datei löschen
+            }
+        }
+
+
+        $message = "Dear " . $firstname . ",\n\nyour registration was declined.\n\nThis is the reason:\n" . $_POST["kommentar"] . "\n\nBest Regards,\nNetzwerk-AG WEH e.V.";
+        
+        $to = $email;
+        $subject = "WEH - Declined Registration";
+        $headers = "From: " . $address . "\r\n";
+        $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
+        
+        if (mail($to, $subject, $message, $headers)) {
+            echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+                    <span style='color: green; font-size: 20px;'>Mail erfolgreich versendet.</span>
+                  </div>";
+        } else {
+            echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+                    <span style='color: red; font-size: 20px;'>Fehler beim Versenden der Mail.</span>
+                  </div>";
+        }
 
       } elseif($_POST["decision"] == "decline") {
         $sql = "UPDATE anmeldungen SET status = -1, agent = ?, kommentar = ? WHERE id = ?";
@@ -682,33 +953,32 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo '<button type="submit" name="sayonara" value="1" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">'.htmlspecialchars("User abmelden").'</button>';
   echo('</form>');
   
-
-  //Display new registration requests    
-  echo "<p style='color: white; font-weight: bold'>______________________________________________</p>";
-  echo "<span style='color: white; font-size: 30px;'>Neu - Noch kein Internet:</span><br><br>";
-  $sql = "SELECT id, room, turm FROM anmeldungen WHERE status = 0 ORDER BY room ASC";
-  $stmt = mysqli_prepare($conn, $sql);
-  mysqli_stmt_execute($stmt);
-  $result = get_result($stmt);
-  $stmt->close();
-  echo('<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="0">');
   
+    
 
-  $status0 = false;
-  echo('<div style="text-align: center; max-width: 700px; margin: 0 auto;">');
-  while ($entry = array_shift($result)) {
-    $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-    echo('<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>');
-    $status0 = true;
-  }
-  echo('</div>');
-  if ($status0 === true) {
-    echo "<br>";
-  }
-  echo('</form>');
+  echo "<br><br><p style='color: white; font-weight: bold'>_______________________Alte Methode_______________________</p>";
+#  echo "<span style='color: white; font-size: 30px;'>Neu - Noch kein Internet:</span><br><br>";
+#  $sql = "SELECT id, room, turm FROM anmeldungen WHERE status = 0 ORDER BY room ASC";
+#  $stmt = mysqli_prepare($conn, $sql);
+#  mysqli_stmt_execute($stmt);
+#  $result = get_result($stmt);
+#  $stmt->close();
+#  echo('<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="0">');
+#  
+#
+#  $status0 = false;
+#  echo('<div style="text-align: center; max-width: 700px; margin: 0 auto;">');
+#  while ($entry = array_shift($result)) {
+#    $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+#    echo('<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>');
+#    $status0 = true;
+#  }
+#  echo('</div>');
+#  if ($status0 === true) {
+#    echo "<br>";
+#  }
+#  echo('</form>');
   
-
-  echo "<p style='color: white; font-weight: bold'>______________________________________________</p>";
   echo "<span style='color: white; font-size: 30px;'>Angemeldet - In Sprechstunde erwartet:</span><br><br>";
 
   $sql = "SELECT id, room, turm FROM anmeldungen WHERE status = 2 ORDER BY room";
@@ -760,6 +1030,35 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo('</form>');
 
   
+
+  //Display new registration requests    
+  echo "<p style='color: white; font-weight: bold'>______________________________________________</p>";
+  echo "<span style='color: white; font-size: 30px;'>Neue Anmeldungen:</span><br><br>";
+  $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
+  $stmt = mysqli_prepare($conn, $sql);
+  mysqli_stmt_execute($stmt);
+  $result = get_result($stmt);
+  $stmt->close();
+  echo('<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="666">');
+  
+
+  $status0 = false;
+  echo('<div style="text-align: center; max-width: 700px; margin: 0 auto;">');
+  while ($entry = array_shift($result)) {
+    $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+    echo('<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>');
+    $status0 = true;
+  }
+  echo('</div>');
+  if ($status0 === true) {
+    echo "<br>";
+  }
+  echo('</form>');
+  
+
+
+  echo "<p style='color: white; font-weight: bold'>______________________________________________</p>";
+
   echo "<span style='color: white; font-size: 30px;'>Abgemeldet - Barzahlung ausstehend:</span><br><br>";
 
   $sql = "SELECT users.uid, users.room, users.oldroom, users.turm FROM abmeldungen JOIN users ON abmeldungen.uid = users.uid WHERE abmeldungen.status = 1 ORDER BY users.room ASC, users.oldroom ASC";
@@ -952,6 +1251,181 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       </div>');
 
 
+     } elseif ($wayoflife == 666) {
+
+        $id = $_POST["id"];
+        $sql = "SELECT * FROM registration WHERE id = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $id);
+        mysqli_stmt_execute($stmt);
+        $result = get_result($stmt);
+        $user = array_shift($result);
+        $stmt->close();
+        
+        $sql = "SELECT lastradius, username, name, uid FROM users WHERE room = ? and turm = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "is", $user["room"], $user["turm"]);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $lastradius, $aktuellerbewohner_username, $aktuellerbewohner_name, $aktuellerbewohner_uid);
+        $raumbelegt = false;
+        if (mysqli_stmt_fetch($stmt)) {
+            $raumbelegt = true;
+        }
+        mysqli_stmt_close($stmt);
+  
+        if ($lastradius == 0) {
+            $lastradiusstring = "> 1 Woche";
+            $lastradiuscolor = "green";
+        } else {
+            $abstand_in_sekunden = $zeit - $lastradius + 3600;
+            $abstand_tage = floor($abstand_in_sekunden / (24 * 60 * 60));
+            $abstand_stunden = floor(($abstand_in_sekunden % (24 * 60 * 60)) / 3600);
+            if ($abstand_tage == 0 && $abstand_stunden == 0) {
+                $abstand_text = "Verbunden";
+                $lastradiuscolor = "red";
+            } elseif ($abstand_tage > 0) {
+                $abstand_text = "$abstand_tage Tage, $abstand_stunden Stunden";
+                $lastradiuscolor = "yellow";
+            } elseif ($abstand_stunden == 1) {
+                $abstand_text = "$abstand_stunden Stunde";
+                $lastradiuscolor = "red";
+            } else {
+                $abstand_text = "$abstand_stunden Stunden";
+                $lastradiuscolor = "red";
+            }
+            $lastradiusstring = $abstand_text;
+        }    
+  
+        if ($user["starttime"] > $zeit) {
+            $registrationDateStyle = 'style="color: red; font-weight: bold;"';
+        } else {
+            $registrationDateStyle = '';
+        }
+      
+        echo ('<div class="overlay"></div>
+        <div class="anmeldung-form-container form-container">
+        <form method="post"">
+            <button type="submit" name="close" value="close" class="close-btn">X</button>
+        </form>
+        <br>
+        <form action="Anmeldung.php" method="post" name="formular1">');
+        if ($user["sublet"]) {
+          echo('<p style="color:red; font-weight:bold">SUBLET</p>
+          <label class="form-label">End of sublet:</label>
+          <input type="text" name="subletterend" class="form-input" value="'.htmlspecialchars(utf8_encode($user["subletterend"])).'" readonly>');
+        }
+  
+        if ($raumbelegt) {
+          echo('<p>
+            <span style="color:red; font-size: larger;">Ein alter User verliert seine Verbindung, wenn dieser User angenommen wird!<br><br></span>
+            <span style="color:red">Raum: '.$user["room"].'<br>
+            Name: '.$aktuellerbewohner_name.'<br>
+            Username: '.$aktuellerbewohner_username.'<br>
+            UID: '.$aktuellerbewohner_uid.'</span><br>
+            <span style="color:'.$lastradiuscolor.'">Letzter Radius Auth: '.$lastradiusstring.'</span>
+          </p>');
+        }
+
+        echo('
+          <input type="hidden" name="id" value='.htmlspecialchars($id).'>
+          <label class="form-label">Turm:</label>
+          <input type="text" name="turm" class="form-input" value="'.htmlspecialchars($user["turm"]).'" readonly>
+          <br>
+          <label class="form-label">Name:</label>
+          <input type="text" name="firstname" class="form-input" value="'.htmlspecialchars($user["firstname"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").' '.htmlspecialchars($user["lastname"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").'" readonly>
+          <br>
+          <label class="form-label">Registration Date:</label>
+          <input type="text" name="registration_date" class="form-input" value="'.htmlspecialchars(date("d.m.Y", $user["starttime"])).'" readonly ' . $registrationDateStyle . '>');
+          if (strtotime($user["starttime"]) > $zeit && $raumbelegt) {
+            echo ('<span style="color:red; font-size: larger;">Einzugsdatum noch nicht erreicht!</span>');
+          }
+        echo('
+          <br><br>
+          <label class="form-label">Geburtstag:</label>
+          <input type="text" name="geburtstag" class="form-input" value="'.htmlspecialchars(date("d.m.Y", $user["geburtstag"])).'" readonly>
+          <br>
+          <label class="form-label">Herkunftsland:</label>
+          <input type="text" name="geburtsort" class="form-input" value="'.htmlspecialchars($user["geburtsort"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").'" readonly>
+          <br>
+          <label class="form-label">Telefonnummer:</label>
+          <input type="tel" name="telefon" class="form-input" value="'.htmlspecialchars($user["telefon"]).'" readonly>
+          <br>
+          <label class="form-label">E-Mail:</label>
+          <input type="email" name="email" class="form-input" value="'.htmlspecialchars(utf8_encode($user["email"])).'" readonly>
+          <br>
+          <label class="form-label">Zimmernummer:</label>
+          <input type="text" name="room_number" class="form-input" value="'.htmlspecialchars($user["room"]).'" readonly>
+          <br>
+          <label class="form-label">Username:</label>
+          <input type="text" name="username" class="form-input" value="'.htmlspecialchars($user["username"]).'" readonly>
+          <br>');
+        
+        
+          $uploadDir = "anmeldung/"; // Verzeichnis mit den hochgeladenen Dateien
+          $userId = $user["id"]; // Benutzer-ID
+          // Prüfen, ob das Verzeichnis existiert
+          if (!is_dir($uploadDir)) {
+              echo "<p style='color: red;'>Das Verzeichnis '$uploadDir' existiert nicht.</p>";
+              exit;
+          }
+          // Dateien im Verzeichnis durchsuchen
+          $files = array_diff(scandir($uploadDir), ['.', '..']); // Entfernt "." und ".."
+
+          echo "<div style='display: flex; flex-wrap: wrap; gap: 20px;'>";
+          // Überprüfen, ob Dateien vorhanden sind
+          $foundFiles = false;
+          foreach ($files as $file) {
+            // Überprüfen, ob die Datei zur User-ID gehört
+            if (preg_match("/^{$userId}_(id|mv|af)\.(.+)$/", $file, $matches)) {
+                $type = $matches[1]; // Typ der Datei (id, mv, af)
+                $extension = $matches[2]; // Dateiendung
+                $filePath = $uploadDir . $file;
+        
+                echo "<div style='border: 1px solid #ccc; margin: 10px; padding: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;'>";
+        
+                // Datei direkt anzeigen
+                if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    // Bild direkt einbetten und skalieren
+                    echo "<img src=\"$filePath\" alt=\"$type\" style='max-width: 100%; max-height: 100%; object-fit: contain;'>";
+                } elseif ($extension === 'pdf') {
+                    // PDF einbetten mit Zoom
+                    echo "<embed src=\"$filePath#zoom=page-width\" type=\"application/pdf\" style='width: 100%; height: 1000px;'>";
+                  } else {
+                    // Fallback für unbekannte Typen
+                    echo "<a href=\"$filePath\" target=\"_blank\">Datei öffnen</a>";
+                }
+        
+                echo "</div>";
+        
+                $foundFiles = true;
+            }
+        }
+          echo "</div>";
+          if (!$foundFiles) {
+              echo "<p style='color: orange;'>Keine Dateien für User-ID $userId gefunden.</p>";
+          }
+
+        
+        echo('<label class="form-label">Grund für Ablehnung:</label>
+          <input type="text" name="kommentar" class="form-input">
+          <br>
+          <label>
+          <input type="radio" name="decision" value="accept_new">
+          <span style="color:green; font-weight: bold;">ACCEPT</span>
+          </label>
+          <label>
+          <input type="radio" name="decision" value="decline_new">
+          <span style="color:red; font-weight: bold;">DECLINE</span>
+          </label>
+          <br>
+          <br>
+          <div class="form-group">
+          <input type="hidden" name="reload" value=1>
+            <input type="submit" value="Submit" class="form-submit">
+          </div>
+        </form>
+        </div>');
+  
     } elseif ($wayoflife == 1) {
       $user_id = $_POST["id"];
       $sql = "SELECT * FROM anmeldungen WHERE id = ?";

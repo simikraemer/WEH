@@ -1,0 +1,71 @@
+[33mcommit 73b7ffdf42b1f29a0ca0c27b8f62fe1e1e5dc456[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Tue Dec 10 16:43:01 2024 +0100
+
+    Fiji's Neues Anmeldesystem
+
+[33mcommit 3ce1430bf85095314a7424d91f55c61d0652d4d0[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Mon Dec 2 11:57:08 2024 +0100
+
+    CSS-Klasse: AG-Box
+
+[33mcommit 1de952ca74649d2952d64fa0a045fb6d2a7803f9[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Mon Dec 2 09:17:59 2024 +0100
+
+    Abrechnung: Confirmmail und Debug-Modus
+
+[33mcommit 1b8e1624a2c80ff962b09a52b1ee5094576af421[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Mon Dec 2 08:07:04 2024 +0100
+
+    Troubleshoot.php Mobile Format Fix
+
+[33mcommit 13b24aa9690070afa7ee467e2f3d9496a1148edb[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Mon Dec 2 08:06:22 2024 +0100
+
+    Übersichtsseite aller Aliase von Mailverteileradressen
+
+[33mcommit 842274259cac232e507d2b69aef83c781ece3672[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Mon Dec 2 08:05:36 2024 +0100
+
+    TvK Etagensprecher und Hausmeister individuelle Group ID
+
+[33mcommit 253347a7c759e41a24ca81dee247a5a2a9d69da0[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Mon Dec 2 08:03:57 2024 +0100
+
+    Button auf Userprofil, um Infomail zum Entsperren an Privatmail zu wiederholen
+
+[33mcommit aff4a6f9d2feea4c6719f762f624c3fbc2d43471[m
+Author: simikraemer <simonkraemer@weh.rwth-aachen.de>
+Date:   Sun Dec 1 17:55:13 2024 +0100
+
+    test2
+
+[33mcommit 24dcfb5a4c4378a9a34d5fa13e7bbba12be21106[m
+Author: Fiji <kraemer.simon1@web.de>
+Date:   Sun Dec 1 17:49:06 2024 +0100
+
+    Test
+
+[33mcommit b308333bdd228e92d7242ee56c23b574f00061db[m
+Author: Fiji <kraemer.simon1@web.de>
+Date:   Sun Dec 1 17:19:38 2024 +0100
+
+    TransparentLogo
+
+[33mcommit 008e1489032d29b4deae6f405c0572126dd7cf4b[m
+Author: Fiji <kraemer.simon1@web.de>
+Date:   Sun Dec 1 17:19:11 2024 +0100
+
+    Readme
+
+[33mcommit 46fb74bc42d3eafd63e944294114cc3b41b467b8[m
+Author: Fiji <kraemer.simon1@web.de>
+Date:   Sun Dec 1 17:13:40 2024 +0100
+
+    Initial commit
