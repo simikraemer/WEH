@@ -446,7 +446,7 @@ function load_menu() {
         }
 
         if ($_SESSION["aktiv"]) {            
-            echo '<span class="vertical-line"></span>';                
+            echo '<span class="vertical-line"></span>';                    
             echo '<div class="header-menu">';
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Aktiv</button>';
