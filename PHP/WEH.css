@@ -692,6 +692,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
     padding:10px 20px; 
     transition:background-color 0.2s;
     cursor: pointer;
+    text-decoration: none;
   }            
   .center-btn:hover {
     background-color: #11a50d !important;

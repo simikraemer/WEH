@@ -70,6 +70,16 @@ def connect_wp():
     )
     return wehdb
 
+def connect_anmeldung():
+    mysql_config = readconfig("anmeldung")
+    wehdb = mysql.connector.connect(
+        host=mysql_config['host'],
+        user=mysql_config['user'],
+        password=mysql_config['password'],
+        database=mysql_config['database']
+    )
+    return wehdb
+
 def connect_wasch():
     mysql_config = readconfig("wasch")
     wehdb = mysql.connector.connect(
