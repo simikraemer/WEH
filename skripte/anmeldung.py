@@ -99,21 +99,4 @@ def newanmeldungmail(zeit, room, firstname, lastname, turm):  # Sendet Mail an u
     send_mail(subject, message, to_email)
     print(f"Benachrichtigungsmail gesendet: {subject} an {to_email}")
 
-def duplicateanmeldungmail(zeit, room, firstname, lastname, email):  # Sendet Mail an User, wenn doppelt registriert
-    subject = "Anmeldung z" + str(room) + " - " + str(firstname) + " " + str(lastname)
-    message = (
-        f"Dear {firstname} {lastname},\n\n"
-        f"We regret to inform you that your recent registration for room {room} has been declined, "
-        f"as we have already received a prior registration from you that is currently under review.\n\n"
-        f"If you need further assistance, it might be helpful to visit our network consultation hours. "
-        f"For more information, please see the following link: https://www2.weh.rwth-aachen.de/ags/netzag/\n\n"
-        f"We kindly ask for your patience as we process your registration.\n\n"
-        f"Thank you for your understanding.\n\n"
-        f"Best regards,\n"
-        f"Netzwerk-AG WEH e.V."
-    )
-    to_email = email
-    send_mail(subject, message, to_email)
-    print(f"Benachrichtigungsmail gesendet: {subject} an {to_email}")
-
 anmeldung_übertragen()
