@@ -424,55 +424,87 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   }
 
-  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 80%; padding: 20px; box-sizing: border-box;">'; 
+  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 80%; padding: 20px; box-sizing: border-box;">';
 
     // Linke Box: Neue Anmeldungen
-    echo '<div style="flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: rgba(0, 0, 0, 0.7); margin-bottom: 50px;">';
+    $status0 = false; // Initialstatus für neue Anmeldungen
+    $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $result = get_result($stmt);
+    $stmt->close();
+    
+    // Überprüfe, ob die Abfrage Ergebnisse enthält
+    if (empty($result)) {
+        $left_box_color = "rgba(17, 165, 13, 0.7)"; // Grün mit Transparenz, wenn leer
+        $left_no_requests_text = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anmeldungen</p>";
+    } else {
+        $left_box_color = "rgba(0, 0, 0, 0.7)"; // Schwarz, wenn Ergebnisse vorhanden
+        $left_no_requests_text = "";
+    }
+    
+    echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $left_box_color; margin-bottom: 50px;'>";
       echo "<span style='color: white; font-size: 30px;'>Neue Anmeldungen:</span><br><br>";
-      $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
-      $stmt = mysqli_prepare($conn, $sql);
-      mysqli_stmt_execute($stmt);
-      $result = get_result($stmt);
-      $stmt->close();
-      echo('<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="666">');
-      $status0 = false;
-      echo('<div style="max-width: 300px; margin: 0 auto;">'); // Optional: Breite für die Buttons begrenzen
-        while ($entry = array_shift($result)) {
-          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-          echo('<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>');
-          $status0 = true;
+      echo '<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="666">';
+      echo '<div style="max-width: 300px; margin: 0 auto;">';     
+        if (empty($result)) {
+          // Zeige den Text, wenn keine Ergebnisse vorhanden sind
+          echo $left_no_requests_text;
+        } else { 
+          while ($entry = array_shift($result)) {
+              $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+              echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+              $status0 = true;
+          }
         }
-      echo('</div>');
-      if ($status0 === true) {
+      echo '</div>';
+      if ($status0) {
           echo "<br>";
       }
-      echo('</form>');
+      echo '</form>';
     echo '</div>'; // Ende der linken Box
-
+    
     // Rechte Box: PSK-Only Anfragen
-    echo '<div style="flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: rgba(0, 0, 0, 0.7); margin-bottom: 50px;">';
+    $statuspsk = false; // Initialstatus für PSK-Only Anfragen
+    $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $result = get_result($stmt);
+    $stmt->close();
+    
+    // Überprüfe, ob die Abfrage Ergebnisse enthält
+    if (empty($result)) {
+        $right_box_color = "rgba(17, 165, 13, 0.7)"; // Grün mit Transparenz, wenn leer
+        $right_no_requests_text = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anfragen</p>";
+    } else {
+        $right_box_color = "rgba(0, 0, 0, 0.7)"; // Schwarz, wenn Ergebnisse vorhanden
+        $right_no_requests_text = ""; // Kein Text, wenn es Ergebnisse gibt
+    }
+    
+    echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $right_box_color; margin-bottom: 50px;'>";
       echo "<span style='color: white; font-size: 30px;'>PSK-Only Anfragen:</span><br><br>";
-      $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
-      $stmt = mysqli_prepare($conn, $sql);
-      mysqli_stmt_execute($stmt);
-      $result = get_result($stmt);
-      $stmt->close();
-      echo('<form method="post"><input type="hidden" name="wayoflife" value=3>');
-      $statuspsk = false;
-      echo('<div style="max-width: 300px; margin: 0 auto;">'); // Optional: Breite für die Buttons begrenzen
-        while ($entry = array_shift($result)) {
-          $room_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-          echo('<button type="submit" name="id" value='.htmlspecialchars($entry["id"]).' class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $room_color . ';">'.htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)).'</button>');
-          $statuspsk = true;
+      echo '<form method="post"><input type="hidden" name="wayoflife" value=3>';
+      echo '<div style="max-width: 300px; margin: 0 auto;">';      
+        if (empty($result)) {
+          // Zeige den Text, wenn keine Ergebnisse vorhanden sind
+          echo $right_no_requests_text;
+        } else {
+            // Generiere die Buttons, wenn Ergebnisse vorhanden sind
+            while ($entry = array_shift($result)) {
+                $room_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+                echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $room_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+                $statuspsk = true;
+            }
         }
-      echo('</div>');
-      if ($statuspsk === true) {
+      echo '</div>';
+      if ($statuspsk) {
           echo "<br>";
       }
-      echo('</form>');
+      echo '</form>';
     echo '</div>'; // Ende der rechten Box
-
+  
   echo '</div>'; // Ende des Flexbox-Containers
+  
 
 
   if (isset($_POST["id"]) && !isset($_POST["decision"]) && !isset($_POST["close"])) {
