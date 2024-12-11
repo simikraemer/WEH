@@ -679,8 +679,6 @@ function getAgsIcons($ags, $icon_size) {
         "11" => "wasch",
         "12" => "ba",
         "13" => "werkzeug",
-        "19" => "etagensprecher",
-        "20" => "etagensprecher",
         "23" => "sport",
         "24" => "hausmeister",
         "25" => "fahrrad",
