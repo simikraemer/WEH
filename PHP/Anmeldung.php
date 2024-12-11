@@ -637,11 +637,11 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
           <input type="text" name="kommentar" class="form-input">
           <br>
           <label>
-          <input type="radio" name="decision" value="accept_new">
+          <input type="radio" name="decision" value="accept">
           <span style="color:green; font-weight: bold;">ACCEPT</span>
           </label>
           <label>
-          <input type="radio" name="decision" value="decline_new">
+          <input type="radio" name="decision" value="decline">
           <span style="color:red; font-weight: bold;">DECLINE</span>
           </label>
           <br>
