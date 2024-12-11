@@ -6,7 +6,6 @@
     <head>
     <link rel="stylesheet" href="WEH.css" media="screen">
     </head>
-    <body onload="alumniFunction(); ibanFunction();">
 
 <?php
 require('template.php');
@@ -291,5 +290,4 @@ else {
 // Close the connection to the database
 $conn->close();
 ?>
-</body>
 </html>
