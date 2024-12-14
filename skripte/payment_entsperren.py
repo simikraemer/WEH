@@ -13,27 +13,48 @@ from fcol import connect_weh
 ## Grundprogramm ##
 
 def checkpayment(): 
-    
-    # Konstanten ziehen
-    zeit = int(time.time()) #UNIX Time
+    import time
 
+    # Konstanten ziehen
+    zeit = int(time.time())  # UNIX Time
+
+    # Verbindung zur Datenbank herstellen
     wehdb = connect_weh()
     wehcursor = wehdb.cursor()
 
-    # Bewohner
-    sql = ("SELECT DISTINCT users.uid FROM users JOIN sperre ON users.uid = sperre.uid WHERE sperre.missedpayment = 1 AND sperre.starttime <= %s AND sperre.endtime >= %s")
+    # Bewohner abrufen, die Zahlungen verpasst haben
+    sql = (
+        "SELECT DISTINCT u.uid, u.name "
+        "FROM users u "
+        "JOIN sperre s ON u.uid = s.uid "
+        "WHERE s.missedpayment = 1 "
+        "AND s.starttime <= %s AND s.endtime >= %s"
+    )
     var = (zeit, zeit)
     wehcursor.execute(sql, var)
     bewohner = wehcursor.fetchall()
+    print(f"[INFO] Anzahl der Bewohner mit verpassten Zahlungen: {len(bewohner)}")
+
+    # Bewohner iterieren und Restbetrag überprüfen
     for row in bewohner:
-        uid = row[0]
+        uid = row[0]    
+        name = row[1]
+        print(f"[DEBUG] Überprüfe Bewohner UID: {uid}, Name: {name}")
+
         rest = get_rest(uid)
+
         restcheck = rest + 0.01
         if restcheck > 0:
-            entsperren(uid,zeit)
+            print(f"[INFO] Bewohner UID {uid} wird entsperrt. Restcheck: {restcheck:.2f}\n")
+            entsperren(uid, zeit)
             entsperrmail(uid)
+        else:
+            print(f"[INFO] Bewohner UID {uid} bleibt gesperrt. Restcheck: {restcheck:.2f}\n")
 
+    # Verbindung schließen
     wehdb.close()
+    print("[INFO] Verbindung zur Datenbank geschlossen")
+
 
 ## Funktionen für Mails ##
     
