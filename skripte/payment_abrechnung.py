@@ -183,9 +183,9 @@ def insolvent(uid,zeit):
     
 def infomail(kassenausgleichbetrag, truenormalcount, sperrcount, insolventcount, warncount):
     if DEBUG:
-        subject = "WEH Abrechnung"
-    else:
         subject = "[DEBUG] WEH Abrechnung"
+    else:
+        subject = "WEH Abrechnung"
     message = "Hallo Pappnasen (Netzwerk-AG und Haussprecher),"\
     "\ndie monatliche Abrechnung wurde erfolgreich durchgeführt."\
     "\n\n----------------------------------------"\
