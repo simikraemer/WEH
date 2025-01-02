@@ -384,7 +384,7 @@ if (isset($_POST["logout"])) {
             echo '<input type="text" id="username" name="username" style="width: 100%; font-size: 25px;" required><br>';
             echo '<br>';
             echo $usernameErrorMessage;
-            echo '<label for="password" style="display: inline-block; width: 100%; color: white; font-size: 25px; text-align: center; margin-bottom: 10px;">New House-Password:</label>';
+            echo '<label for="password" style="display: inline-block; width: 100%; color: white; font-size: 25px; text-align: center; margin-bottom: 10px;">House-Password:</label>';
             echo '<input type="password" id="password" name="password" style="width: 100%; font-size: 25px;" required><br>';
             echo '<br>';
             echo $passwordErrorMessage;
