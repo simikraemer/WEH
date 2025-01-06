@@ -33,27 +33,27 @@ def checkpayment():
     var = (zeit, zeit)
     wehcursor.execute(sql, var)
     bewohner = wehcursor.fetchall()
-    print(f"[INFO] Anzahl der Bewohner mit verpassten Zahlungen: {len(bewohner)}")
+    print(f"Anzahl der Bewohner mit verpassten Zahlungen: {len(bewohner)}")
 
     # Bewohner iterieren und Restbetrag überprüfen
     for row in bewohner:
         uid = row[0]    
         name = row[1]
-        print(f"[DEBUG] Überprüfe Bewohner UID: {uid}, Name: {name}")
+        print(f"Überprüfe Bewohner UID: {uid}, Name: {name}")
 
         rest = get_rest(uid)
 
         restcheck = rest + 0.01
         if restcheck > 0:
-            print(f"[INFO] Bewohner UID {uid} wird entsperrt. Restcheck: {restcheck:.2f}\n")
+            print(f"Bewohner UID {uid} wird entsperrt. Restcheck: {restcheck:.2f}\n")
             entsperren(uid, zeit)
             entsperrmail(uid)
         else:
-            print(f"[INFO] Bewohner UID {uid} bleibt gesperrt. Restcheck: {restcheck:.2f}\n")
+            print(f"Bewohner UID {uid} bleibt gesperrt. Restcheck: {restcheck:.2f}\n")
 
     # Verbindung schließen
     wehdb.close()
-    print("[INFO] Verbindung zur Datenbank geschlossen")
+    print("Verbindung zur Datenbank geschlossen")
 
 
 ## Funktionen für Mails ##

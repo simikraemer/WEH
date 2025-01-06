@@ -27,9 +27,7 @@ def send_mail(subject, message, to_email, reply_to=None):
         smtp_server.sendmail(mail_config['address'], to_email, msg.as_string())
 
     # Ausgabe der gesendeten Mail-Details
-    echo_message = f"Betreff: {subject}, From: {msg['From']}, To: {msg['To']}"
-    if reply_to:
-        echo_message += f", Reply-To: {msg['Reply-To']}"
+    echo_message = f"Betreff: {subject}, From: {msg['From']}, To: {msg['To']}\n"
     print(echo_message)
 
 
