@@ -501,6 +501,7 @@ function load_menu() {
                         echo '<button onclick="window.location.href=\'ProtokollUpload.php\';" style="white-space: nowrap;">Protokoll hochladen</button> ';
                     }
                     echo '<button onclick="window.location.href=\'Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                     echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
                     echo '<button onclick="window.location.href=\'EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
@@ -509,6 +510,7 @@ function load_menu() {
                 if ($agName === 'TvK-Sprecher') {                                        
                     echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
                     echo '<button onclick="window.location.href=\'Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                     echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
                 }
@@ -524,6 +526,10 @@ function load_menu() {
                 if ($agName === 'WEH-BA') {                                        
                     echo '<button onclick="window.location.href=\'BA-Administration.php\';" style="white-space: nowrap;">Belegung</button> ';
                     echo '<button onclick="window.location.href=\'BA-Voting.php\';" style="white-space: nowrap;">Neueinzieher Voting</button> ';
+                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                }
+                if ($agName === 'TvK-BA') {                                        
+                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                 }
                 if ($agName === 'WEH-WaschAG') {
                     echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
