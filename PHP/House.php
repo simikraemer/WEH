@@ -550,6 +550,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
     echo "<hr>";
 
+    echo '<h2 style="margin-bottom: 30px; font-size: 30px; text-align: center;">' . $name . '</h2>';
+
     echo "<div style='display: flex; flex-direction: column; align-items: center;'>";
 
     echo "<div style='display: flex; justify-content: center;'>";
@@ -795,7 +797,7 @@ if (empty($sperren)) {
         if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
             echo "<img src=\"$idFile\" alt=\"ID\" style='max-width: 600px; max-height: 400px; height: auto;'>";
         } elseif ($extension === 'pdf') {
-            echo "<embed src=\"$idFile#zoom=page-width\" type=\"application/pdf\" style='width: 100%; height: 600px;'>";
+          echo "<embed src=\"$idFile\" type=\"application/pdf\" style='width: 100%; height: 600px;'>";
         } else {
             echo "<p>Dateiformat für ID wird nicht unterstützt.</p>";
         }
