@@ -1078,6 +1078,7 @@ function displayRundmails($conn) {
         <input type='hidden' name='subject' value='$subject'>
         <input type='hidden' name='nachricht' value='".htmlspecialchars($nachricht)."'>
         <input type='hidden' name='tstamp' value='$date_time'>
+        <input type='hidden' name='address' value='$address'>
         </form>";
 
         // Inline style für jedes td
@@ -1102,26 +1103,28 @@ function displayRundmails($conn) {
         $selected_subject = htmlspecialchars($_POST['subject']);
         $selected_nachricht = nl2br(htmlspecialchars($_POST['nachricht']));
         $selected_tstamp = htmlspecialchars($_POST['tstamp']);
+        $selected_address = htmlspecialchars($_POST['address']);
 
-        echo ('<div class="overlay"></div>
-        <div class="anmeldung-form-container form-container">
-        <form method="post">
-            <button type="submit" name="close" value="close" class="close-btn">X</button>
-        </form>
-        <div class="mail-details" style="color: white; text-align: center; padding: 20px;">
-            <h2 style="margin-bottom: 20px;">' . $selected_subject . '</h2>
-            <div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
-                <span>' . $selected_name . '</span>
-                <span>' . $formatted_turm . '</span>
-                <span>' . $selected_room . '</span>
-                <span>' . $selected_tstamp . '</span>
-            </div>
-            <div style="margin-top: 20px; text-align: left; padding: 10px; background-color: #333; border-radius: 10px;">
-                <p><strong>Message:</strong></p>
-                <p>' . $selected_nachricht . '</p>
-            </div>
+        echo ('
+        <div class="overlay">
         </div>
-      </div>');
+        <div class="anmeldung-form-container form-container">
+            <form method="post">
+                <button type="submit" name="close" value="close" class="close-btn">X</button>
+                </form>
+            <div class="mail-details" style="color: white; text-align: center; padding: 20px;">
+                <h2 style="margin-bottom: 10px; font-size: 40px;">' . $selected_subject . '</h2>
+                <div style="display: flex; flex-direction: column; justify-content: space-around; margin-bottom: 20px;">
+                    <span>' . $selected_name . '</span>
+                    <span>' . $formatted_turm . ' - ' . str_pad($selected_room, 4, '0', STR_PAD_LEFT) . '</span>
+                    <span>' . $selected_tstamp . '</span>
+                    <span>Verteiler: ' . $selected_address . '</span>
+                </div>
+                <div style="margin-top: 20px; text-align: left; padding: 10px; background-color: #333; border-radius: 10px;">
+                    <p>' . $selected_nachricht . '</p>
+                </div>
+            </div>
+        </div>');
     }
 
     mysqli_stmt_close($stmt_users);
