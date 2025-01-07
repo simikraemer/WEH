@@ -113,7 +113,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         
         $name = $firstname . " " . $lastname;
         $groups = 1;
-        $subtenanttill = $subletterend;
+        $subtenanttill = ($subletterend === NULL) ? 0 : $subletterend;
         $historie = date("d.m.Y") . " Anmeldung bestätigt ({$_SESSION['agent']})";
 
         $subnet = getRoomSubnet($conn, $room, $turm);

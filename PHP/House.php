@@ -430,7 +430,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
       if ($starttime !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $starttime)) {
           $eingabefehler = true;
-          $fehlermeldung .= "Ungültiges Datumsformat für Eintrittsdatum!<br>";
+          $fehlermeldung .= "Ungültiges Datumsformat für Einzugsdatum!<br>";
       }
 
       if ($subletterstart !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subletterstart)) {
@@ -873,7 +873,7 @@ if (empty($sperren)) {
     echo "<tr><td>Quota</td><td><input type='number' name='mailquota' class='$ausgegraut' style='width: 400px; height: 30px; font-size: 25px;' value='".$mailquota."' $readonly><span> MB</span></td></tr>";
     
     echo "<tr><th colspan='2'><br>Datum:</th></tr>";
-    echo "<tr><td>Eintrittsdatum</td><td><input type='text' name='starttime' class='$ausgegraut' style='width: 455px; height: 30px; font-size: 25px;' value='".$starttime."' $readonly></td></tr>";
+    echo "<tr><td>Einzugsdatum</td><td><input type='text' name='starttime' class='$ausgegraut' style='width: 455px; height: 30px; font-size: 25px;' value='".$starttime."' $readonly></td></tr>";
     echo "<tr><td>Subletter Start</td><td><input type='text' name='subletterstart' class='$ausgegraut' style='width: 455px; height: 30px; font-size: 25px;' value='".$subletterstart."' $readonly></td></tr>";
     echo "<tr><td>Subletter Ende</td><td><input type='text' name='subletterend' class='$ausgegraut' style='width: 455px; height: 30px; font-size: 25px;' value='".$subletterend."' $readonly></td></tr>";
     echo "<tr><td>Untermieter bis</td><td><input type='text' name='subtenanttill' class='$ausgegraut' style='width: 455px; height: 30px; font-size: 25px;' value='".$subtenanttill."' $readonly></td></tr>";
