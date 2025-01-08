@@ -381,29 +381,29 @@ if (isset($_POST["logout"])) {
             echo '<form method="post" enctype="multipart/form-data">';
             echo '<br>';
             echo '<label for="username" style="display: inline-block; width: 100%; color: white; font-size: 25px; text-align: center; margin-bottom: 10px;">Username:</label>';
-            echo '<input type="text" id="username" name="username" style="width: 100%; font-size: 25px;" required><br>';
+            echo '<input type="text" id="username" name="username" style="width: 100%; font-size: 25px; box-sizing: border-box;" required><br>';
             echo '<br>';
             echo $usernameErrorMessage;
             echo '<label for="password" style="display: inline-block; width: 100%; color: white; font-size: 25px; text-align: center; margin-bottom: 10px;">House-Password:</label>';
-            echo '<input type="password" id="password" name="password" style="width: 100%; font-size: 25px;" required><br>';
+            echo '<input type="password" id="password" name="password" style="width: 100%; font-size: 25px; box-sizing: border-box;" required><br>';
             echo '<br>';
             echo $passwordErrorMessage;
             echo '<button type="submit" name="loginPW" class="center-btn" style="display: block; margin: 0 auto; font-size: 30px;">Login</button>';
             echo '</form>';    
-            echo '</div>';
+            echo '</div>';            
         } elseif ($tanfeld) {
             echo '<div style="border: 2px solid white; border-radius: 5px; padding: 5px; background-color: #2a2a2a; width: 500px; margin: 100px auto 0; text-align: center;">';
             echo '<form method="post" enctype="multipart/form-data">';
             echo '<br>';
             echo '<label for="taneingabe" style="display: inline-block; width: 100%; color: white; font-size: 25px; text-align: center; margin-bottom: 10px;">TAN:</label>';
-            echo '<input type="text" id="taneingabe" name="taneingabe" style="width: 100%; font-size: 25px;" required><br>';
+            echo '<input type="text" id="taneingabe" name="taneingabe" style="width: 100%; font-size: 25px; box-sizing: border-box;" required><br>';
             echo '<input type="hidden" id="tan" name="tan" value="'.$tan.'">';
             echo '<input type="hidden" id="uid" name="uid" value="'.$uid.'">';
             echo '<br>';
             echo $tanErrorMessage;
             echo '<button type="submit" name="loginTAN" class="center-btn" style="display: block; margin: 0 auto; font-size: 30px;">Enter</button>';
             echo '</form>';    
-            echo '</div>';
+            echo '</div>';            
         }
     } else {
         echo '<body>
