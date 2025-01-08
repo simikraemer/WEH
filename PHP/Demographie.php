@@ -52,6 +52,16 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         // Füge den Prozentanteil hinzu
         foreach ($countryCounts as &$country) {
             $country['percent'] = $totalUsers > 0 ? number_format(($country['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
+
+            
+            // Übersetzungen
+            if ($country['name'] === "United States of America") {
+                $country['name'] = "USA";
+            } elseif ($country['name'] === "United Arab Emirates") {
+                $country['name'] = "UAE";
+            } elseif ($country['name'] === "Bosnia and Herzegovina") {
+                $country['name'] = "Bosnia";
+            }
         }
         
     
@@ -83,7 +93,6 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                 justify-content: center;
                 align-items: flex-start;
                 gap: 40px;
-                padding: 20px;
             }
             .table-container {
                 flex: 1;
@@ -93,11 +102,12 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                 width: 100%;
                 margin: 0 auto;
                 border-collapse: collapse;
-                text-align: left;
+                text-align: center;
+                font-size: 20px;
             }
             td, th {
-                border: 1px solid #444;
-                padding: 10px 15px;
+                border: 2px solid #444;
+                padding: 5px 5px;
             }
             th {
                 background-color: #000;
