@@ -17,7 +17,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     $countryFile = 'flag-icons/country.json';
     $countries = json_decode(file_get_contents($countryFile), true);
     
-    function getCountryCounts($conn, $countries, $turm) {
+
+    function getCountryAndContinentCounts($conn, $countries, $turm) {
         $sql = "SELECT geburtsort FROM users WHERE pid IN (11) AND turm = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $turm);
@@ -25,6 +26,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         $result = $stmt->get_result();
     
         $countryCounts = [];
+        $continentCounts = [];
         $totalUsers = 0;
     
         // Zähle alle Geburtsorte und summiere die Gesamtzahl der Bewohner
@@ -36,6 +38,9 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                 $countryName = strtolower($country['name']);
                 if (strpos($geburtsort, $countryName) !== false) {
                     $countryCode = $country['code'];
+                    $continent = $country['continent'];
+    
+                    // Länder zählen
                     if (!isset($countryCounts[$countryCode])) {
                         $countryCounts[$countryCode] = [
                             'name' => $country['name'],
@@ -44,6 +49,16 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                         ];
                     }
                     $countryCounts[$countryCode]['count']++;
+    
+                    // Kontinente zählen
+                    if (!isset($continentCounts[$continent])) {
+                        $continentCounts[$continent] = [
+                            'name' => ucfirst($continent),
+                            'count' => 0
+                        ];
+                    }
+                    $continentCounts[$continent]['count']++;
+    
                     break;
                 }
             }
@@ -53,7 +68,6 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         foreach ($countryCounts as &$country) {
             $country['percent'] = $totalUsers > 0 ? number_format(($country['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
 
-            
             // Übersetzungen
             if ($country['name'] === "United States of America") {
                 $country['name'] = "USA";
@@ -64,18 +78,35 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
             }
         }
         
+        foreach ($continentCounts as &$continent) {
+            $continent['percent'] = $totalUsers > 0 ? number_format(($continent['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
+        }
     
+        // Sortiere die Länder nach Anzahl
         usort($countryCounts, function ($a, $b) {
             return $b['count'] - $a['count'];
         });
-    
-        return $countryCounts;
+
+        // Sortiere die Kontinente nach Anzahl
+        usort($continentCounts, function ($a, $b) {
+            return $b['count'] - $a['count'];
+        });    
+
+        return [
+            'countryCounts' => $countryCounts,
+            'continentCounts' => $continentCounts
+        ];
     }
     
     
+    $dataWeh = getCountryAndContinentCounts($conn, $countries, "weh");
+    $countryCountsweh = $dataWeh['countryCounts'];
+    $continentCountsweh = $dataWeh['continentCounts'];
     
-    $countryCountsweh = getCountryCounts($conn, $countries, "weh");
-    $countryCountstvk = getCountryCounts($conn, $countries, "tvk");
+    $dataTvk = getCountryAndContinentCounts($conn, $countries, "tvk");
+    $countryCountstvk = $dataTvk['countryCounts'];
+    $continentCountstvk = $dataTvk['continentCounts'];
+    
     ?>
     
 
@@ -92,7 +123,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                 flex-wrap: wrap;
                 justify-content: center;
                 align-items: flex-start;
-                gap: 40px;
+                gap: 60px;
             }
             .table-container {
                 flex: 1;
@@ -125,10 +156,32 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
             }
         </style>
     </head>
+
     <body>
         <div class="flex-container">
             <div class="table-container">
                 <h1 style="text-align: center;">WEH</h1>
+                <!-- Kontinent-Tabelle für WEH -->
+                <table>
+                    <thead>
+                        <tr>
+                            <th colspan="2">Kontinent</th>
+                            <th>Bewohner</th>
+                            <th>Anteil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($continentCountsweh as $continent): ?>
+                            <tr>
+                                <td colspan="2"><?php echo htmlspecialchars($continent['name']); ?></td>
+                                <td><?php echo htmlspecialchars($continent['count']); ?></td>
+                                <td><?php echo htmlspecialchars($continent['percent']) . "%"; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <br>
+                <!-- Länder-Tabelle für WEH -->
                 <table>
                     <thead>
                         <tr>
@@ -153,6 +206,27 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
             <div class="table-container">
                 <h1 style="text-align: center;">TvK</h1>
+                <!-- Kontinent-Tabelle für TvK -->
+                <table>
+                    <thead>
+                        <tr>
+                            <th colspan="2">Kontinent</th>
+                            <th>Bewohner</th>
+                            <th>Anteil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($continentCountstvk as $continent): ?>
+                            <tr>
+                                <td colspan="2"><?php echo htmlspecialchars($continent['name']); ?></td>
+                                <td><?php echo htmlspecialchars($continent['count']); ?></td>
+                                <td><?php echo htmlspecialchars($continent['percent']) . "%"; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <br>
+                <!-- Länder-Tabelle für TvK -->
                 <table>
                     <thead>
                         <tr>
@@ -176,6 +250,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
             </div>
         </div>
     </body>
+
+
     </html>
 
 
