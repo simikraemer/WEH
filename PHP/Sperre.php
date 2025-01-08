@@ -185,7 +185,15 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
       $werkzeugbuchen = isset($_POST['werkzeugbuchen']) ? $_POST['werkzeugbuchen'] : 0;
       $drucken = isset($_POST['drucken']) ? $_POST['drucken'] : 0;
       $beschreibung = isset($_POST['beschreibung']) ? $_POST['beschreibung'] : "";
-      
+
+      $date = date("d.m.Y");
+      $stringie = utf8_decode("\n" . $date . " Sperre " . $beschreibung . " (" . $_SESSION['username'] . ")");
+      $sql = "UPDATE users SET historie = CONCAT(historie, ?) WHERE uid = ?";
+      $stmt = mysqli_prepare($conn, $sql);
+      mysqli_stmt_bind_param($stmt, "si", $stringie, $user_id);
+      mysqli_stmt_execute($stmt);
+      mysqli_stmt_close($stmt);
+  
       $insert_sql = "INSERT INTO sperre (uid, tstamp, starttime, endtime, agent, beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
       $insert_var = array($user_id, $zeit, $starttime, $endtime, $agent, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen);
       $stmt = mysqli_prepare($conn, $insert_sql);
