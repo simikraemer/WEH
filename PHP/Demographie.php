@@ -14,103 +14,20 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
   load_menu();
 
 
-    $countryFile = 'flag-icons/country.json';
-    $countries = json_decode(file_get_contents($countryFile), true);
-    
-
-    function getCountryAndContinentCounts($conn, $countries, $turm) {
-        $sql = "SELECT geburtsort FROM users WHERE pid IN (11) AND turm = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("s", $turm);
-        $stmt->execute();
-        $result = $stmt->get_result();
-    
-        $countryCounts = [];
-        $continentCounts = [];
-        $totalUsers = 0;
-    
-        // Zähle alle Geburtsorte und summiere die Gesamtzahl der Bewohner
-        while ($row = $result->fetch_assoc()) {
-            $totalUsers++;
-            $geburtsort = strtolower($row['geburtsort']);
-    
-            foreach ($countries as $country) {
-                $countryName = strtolower($country['name']);
-                if (strpos($geburtsort, $countryName) !== false) {
-                    $countryCode = $country['code'];
-                    $continent = $country['continent'];
-    
-                    // Länder zählen
-                    if (!isset($countryCounts[$countryCode])) {
-                        $countryCounts[$countryCode] = [
-                            'name' => $country['name'],
-                            'flag' => "flag-icons/" . $country['flag_4x3'],
-                            'count' => 0
-                        ];
-                    }
-                    $countryCounts[$countryCode]['count']++;
-    
-                    // Kontinente zählen
-                    if (!isset($continentCounts[$continent])) {
-                        $continentCounts[$continent] = [
-                            'name' => ucfirst($continent),
-                            'count' => 0
-                        ];
-                    }
-                    $continentCounts[$continent]['count']++;
-    
-                    break;
-                }
-            }
-        }
-    
-        // Füge den Prozentanteil hinzu
-        foreach ($countryCounts as &$country) {
-            $country['percent'] = $totalUsers > 0 ? number_format(($country['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
-
-            // Übersetzungen
-            if ($country['name'] === "United States of America") {
-                $country['name'] = "USA";
-            } elseif ($country['name'] === "United Arab Emirates") {
-                $country['name'] = "UAE";
-            } elseif ($country['name'] === "Bosnia and Herzegovina") {
-                $country['name'] = "Bosnia";
-            }
-        }
-        
-        foreach ($continentCounts as &$continent) {
-            $continent['percent'] = $totalUsers > 0 ? number_format(($continent['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
-        }
-    
-        // Sortiere die Länder nach Anzahl
-        usort($countryCounts, function ($a, $b) {
-            return $b['count'] - $a['count'];
-        });
-
-        // Sortiere die Kontinente nach Anzahl
-        usort($continentCounts, function ($a, $b) {
-            return $b['count'] - $a['count'];
-        });    
-
-        return [
-            'countryCounts' => $countryCounts,
-            'continentCounts' => $continentCounts
-        ];
-    }
     
     
-    $dataWeh = getCountryAndContinentCounts($conn, $countries, "weh");
+    $dataWeh = getCountryAndContinentCounts($conn, "weh");
     $countryCountsweh = $dataWeh['countryCounts'];
     $continentCountsweh = $dataWeh['continentCounts'];
     
-    $dataTvk = getCountryAndContinentCounts($conn, $countries, "tvk");
+    $dataTvk = getCountryAndContinentCounts($conn, "tvk");
     $countryCountstvk = $dataTvk['countryCounts'];
     $continentCountstvk = $dataTvk['continentCounts'];
     
     ?>
     
 
-        <!DOCTYPE html>
+    <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">

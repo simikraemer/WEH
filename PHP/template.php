@@ -978,8 +978,8 @@ function unixtime2startofsemester($tstamp) {
 }
 
 function displayRundmails($conn) {
-    echo '<br><br><br><br><hr><br><br><br><br><br><br>';
-    echo '<h1 style="font-size: 40px; color: white; text-align: center;">Übersicht aktuelle Rundmails</h1><br><br>';
+    echo '<br><br><br><hr><br><br><br>';
+    #echo '<h1 style="font-size: 40px; color: white; text-align: center;">Übersicht aktuelle Rundmails</h1><br><br>';
 
     // Berechne den Unix-Timestamp für vor einem Monat
     $one_month_ago = time() - (30 * 24 * 60 * 60); // 30 Tage in Sekunden
@@ -1227,5 +1227,210 @@ function executePreparedQuery($conn, $sql, $types, ...$params) {
 
     return $result;
 }
+
+function getCountryAndContinentCounts($conn, $turm) {    
+    $countryFile = 'flag-icons/country.json';
+    $countries = json_decode(file_get_contents($countryFile), true);
+
+
+    $sql = "SELECT geburtsort FROM users WHERE pid IN (11) AND turm = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $turm);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $countryCounts = [];
+    $continentCounts = [];
+    $totalUsers = 0;
+
+    // Zähle alle Geburtsorte und summiere die Gesamtzahl der Bewohner
+    while ($row = $result->fetch_assoc()) {
+        $totalUsers++;
+        $geburtsort = strtolower($row['geburtsort']);
+
+        foreach ($countries as $country) {
+            $countryName = strtolower($country['name']);
+            if (strpos($geburtsort, $countryName) !== false) {
+                $countryCode = $country['code'];
+                $continent = $country['continent'];
+
+                // Länder zählen
+                if (!isset($countryCounts[$countryCode])) {
+                    $countryCounts[$countryCode] = [
+                        'name' => $country['name'],
+                        'flag' => "flag-icons/" . $country['flag_4x3'],
+                        'count' => 0
+                    ];
+                }
+                $countryCounts[$countryCode]['count']++;
+
+                // Kontinente zählen
+                if (!isset($continentCounts[$continent])) {
+                    $continentCounts[$continent] = [
+                        'name' => ucfirst($continent),
+                        'count' => 0
+                    ];
+                }
+                $continentCounts[$continent]['count']++;
+
+                break;
+            }
+        }
+    }
+
+    // Füge den Prozentanteil hinzu
+    foreach ($countryCounts as &$country) {
+        $country['percent'] = $totalUsers > 0 ? number_format(($country['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
+
+        // Übersetzungen
+        if ($country['name'] === "United States of America") $country['name'] = "USA";
+        if ($country['name'] === "United Arab Emirates") $country['name'] = "UAE";
+        if ($country['name'] === "Bosnia and Herzegovina") $country['name'] = "Bosnia";
+        
+    }
+    
+    foreach ($continentCounts as &$continent) {
+        $continent['percent'] = $totalUsers > 0 ? number_format(($continent['count'] / $totalUsers) * 100, 1, ',', '') : '0,00';
+        
+        // Übersetzungen
+        if ($continent['name'] === "Asia") $continent['name'] = "Asien";
+        if ($continent['name'] === "Europe") $continent['name'] = "Europa";
+        if ($continent['name'] === "Africa") $continent['name'] = "Afrika";
+        if ($continent['name'] === "South America") $continent['name'] = "Südamerika";
+        if ($continent['name'] === "North America") $continent['name'] = "Nordamerika";
+    }
+
+    // Sortiere die Länder nach Anzahl
+    usort($countryCounts, function ($a, $b) {
+        return $b['count'] - $a['count'];
+    });
+
+    // Sortiere die Kontinente nach Anzahl
+    usort($continentCounts, function ($a, $b) {
+        return $b['count'] - $a['count'];
+    });    
+
+    return [
+        'countryCounts' => $countryCounts,
+        'continentCounts' => $continentCounts
+    ];
+}
+
+function displayRandomCountryWEH($conn) {
+    $dataWeh = getCountryAndContinentCounts($conn, "weh");
+    $countryCountsweh = $dataWeh['countryCounts'];
+
+    $randomCountryKey = array_rand($countryCountsweh);
+    $randomCountry = $countryCountsweh[$randomCountryKey];
+
+    $name = $randomCountry['name'] ?? "unbekannt";
+    $count = $randomCountry['count'] ?? 0;
+
+    if ($count === 1) {
+        $stringie = "Im WEH lebt $count Bewohner aus $name!";
+    } else {
+        $stringie = "Im WEH leben $count Bewohner aus $name!";
+    }
+
+    return $stringie;
+}
+
+function displayRandomCountryTVK($conn) {
+    $dataTvk = getCountryAndContinentCounts($conn, "tvk");
+    $countryCountstvk = $dataTvk['countryCounts'];
+
+    $randomCountryKey = array_rand($countryCountstvk);
+    $randomCountry = $countryCountstvk[$randomCountryKey];
+
+    $name = $randomCountry['name'] ?? "unbekannt";
+    $count = $randomCountry['count'] ?? 0;
+
+    if ($count === 1) {
+        $stringie = "Im TvK lebt $count Bewohner aus $name!";
+    } else {
+        $stringie = "Im TvK leben $count Bewohner aus $name!";
+    }
+
+    return $stringie;
+}
+
+function displayRandomContinentWEH($conn) {
+    $dataWeh = getCountryAndContinentCounts($conn, "weh");
+    $continentCountsweh = $dataWeh['continentCounts'];
+
+    $randomContinentKey = array_rand($continentCountsweh);
+    $randomContinent = $continentCountsweh[$randomContinentKey];
+
+    $name = $randomContinent['name'] ?? "unbekannt";
+    $count = $randomContinent['count'] ?? 0;
+    $percent = $randomContinent['percent'] ?? 0;
+
+    if ($count === 1) {
+        $stringie = "Im WEH lebt $count Bewohner aus $name!";
+    } else {
+        $stringie = "Im WEH leben $count Bewohner aus $name!";
+    }
+
+    return $stringie;
+}
+
+function displayRandomContinentTvK($conn) {
+    $dataTvK = getCountryAndContinentCounts($conn, "tvk");
+    $continentCountstvk = $dataTvK['continentCounts'];
+
+    $randomContinentKey = array_rand($continentCountstvk);
+    $randomContinent = $continentCountstvk[$randomContinentKey];
+
+    $name = $randomContinent['name'] ?? "unbekannt";
+    $count = $randomContinent['count'] ?? 0;
+    $percent = $randomContinent['percent'] ?? 0;
+
+    if ($count === 1) {
+        $stringie = "Im TvK lebt $count Bewohner aus $name!";
+    } else {
+        $stringie = "Im TvK leben $count Bewohner aus $name!";
+    }
+
+    return $stringie;
+}
+
+function displayAmountPrintedPages($conn){
+    $sql = "SELECT SUM(print_pages) AS gedruckt FROM transfers WHERE tstamp >= UNIX_TIMESTAMP() - 86400";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $gedruckt = $row['gedruckt'];
+    $stringie = 'Innerhalb der letzten 24 Stunden wurden ' . $gedruckt . ' Seiten gedruckt!';
+    mysqli_stmt_close($stmt);
+
+    return $stringie;
+}
+
+function displayAmountUsers($conn) {
+    $sql = "SELECT COUNT(uid) as mitgliederanzahl FROM users WHERE pid IN (11, 12, 13)";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $mitgliederanzahl = $row['mitgliederanzahl'];
+    $stringie = 'Wir haben aktuell ' . $mitgliederanzahl . ' Vereinsmitglieder!';
+    mysqli_stmt_close($stmt);
+
+    return $stringie;
+}
+
+function displayWashingSlots($waschconn) {
+    $sql = "SELECT COUNT(uid) as waschmarken FROM belegung WHERE time >= UNIX_TIMESTAMP() - 86400";
+    $stmt = mysqli_prepare($waschconn, $sql);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $waschmarken = $row['waschmarken'];
+    $stringie = 'Innerhalb der letzten 24 Stunden wurde ' . $waschmarken . ' mal gewaschen!';
+    mysqli_stmt_close($stmt);
+    return $stringie;
+}
+
   
 ?>
