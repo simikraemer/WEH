@@ -195,7 +195,17 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     echo "</html>";
   }
 
-  $sqltx = "SELECT room FROM aps WHERE turm = 'weh'";
+  
+  $sqltx = "SELECT uid FROM sperre WHERE starttime < UNIX_TIMESTAMP() AND UNIX_TIMESTAMP() < endtime AND internet = 1";
+  $stmttx = mysqli_prepare($conn, $sqltx);
+  mysqli_stmt_execute($stmttx);
+  mysqli_stmt_bind_result($stmttx, $banned_uid);
+  $banned_uids = array();
+  while (mysqli_stmt_fetch($stmttx)){
+      $banned_uids[] = $banned_uid;
+  }
+
+  $sqltx = "SELECT room FROM aps WHERE turm = 'weh' AND nagios > 0";
   $stmttx = mysqli_prepare($conn, $sqltx);
   mysqli_stmt_execute($stmttx);
   mysqli_stmt_bind_result($stmttx, $wlan_room);
@@ -204,7 +214,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
       $weh_wlan_rooms[] = $wlan_room;
   }
 
-  $sqltx = "SELECT room FROM aps WHERE turm = 'tvk'";
+  $sqltx = "SELECT room FROM aps WHERE turm = 'tvk' AND nagios > 0";
   $stmttx = mysqli_prepare($conn, $sqltx);
   mysqli_stmt_execute($stmttx);
   mysqli_stmt_bind_result($stmttx, $wlan_room);
@@ -1231,7 +1241,7 @@ if (empty($sperren)) {
     echo "</table>";    
     echo "</div>";
 
-  } elseif (isset($_POST["ehre"])){
+  } elseif (isset($_POST["ehre"])) {
     $sqlmoved = "SELECT uid, name, username FROM users WHERE honory = 1 ORDER by uid";
     $stmt = mysqli_prepare($conn, $sqlmoved);
     mysqli_stmt_execute($stmt);
@@ -1300,12 +1310,10 @@ if (empty($sperren)) {
             echo "<br><br>";
             foreach (${'rooms' . $suffix} as $room) {
                 echo "<tr>";
-                // WLAN-Symbol ausgeben PATH
-                $wlan_icon = (in_array($room, $tvk_wlan_rooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
-                $sublet_icon = (in_array($room, $tvk_roomssublet)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
-
                 $roomformatiert = str_pad($room, 4, "0", STR_PAD_LEFT);
+                $wlan_icon = (in_array($room, $tvk_wlan_rooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
                 echo "<td style='color: #888888;'>$roomformatiert $wlan_icon</td>";
+
 
                 if (array_key_exists($room, $users_by_room_tvk)) {
                     $users = $users_by_room_tvk[$room];
@@ -1318,6 +1326,11 @@ if (empty($sperren)) {
                         $name_html = htmlspecialchars($firstname . ' ' . $lastname, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
                         $ags = $user["groups"];
                         $ags_icons = getAgsIcons($ags, 20);
+
+
+
+                      $sublet_icon = (in_array($room, $tvk_roomssublet)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
+                      $ban_icon = (in_array($user["uid"], $banned_uids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
 
                       echo "<td>$user_id</td>";
                       echo "<td>$user_name</td>";
@@ -1332,7 +1345,7 @@ if (empty($sperren)) {
                               form.appendChild(hiddenField);
                               document.body.appendChild(form);
                               form.submit();
-                              '  class='white-text' style='user-select: text;'>$sublet_icon $name_html $ags_icons</a></td>";
+                              '  class='white-text' style='user-select: text;'>$name_html $ban_icon $sublet_icon $ags_icons</a></td>";
                   }
                 } else {
                   echo "<td></td><td></td><td></td><td></td>";
@@ -1372,16 +1385,12 @@ if (empty($sperren)) {
             echo "<br><br>";
             foreach (${'rooms' . $suffix} as $room) {
                 echo "<tr>";
-                // WLAN-Symbol ausgeben PATH
-                $wlan_icon = (in_array($room, $weh_wlan_rooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
-                $sublet_icon = (in_array($room, $weh_roomssublet)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
-
                 $roomformatiert = str_pad($room, 4, "0", STR_PAD_LEFT);
+                $wlan_icon = (in_array($room, $weh_wlan_rooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
                 echo "<td style='color: #888888;'>$roomformatiert $wlan_icon</td>";
 
                 if (array_key_exists($room, $users_by_room_weh)) {
                     $users = $users_by_room_weh[$room];
-
                     foreach ($users as $user) {
                         $user_id = $user["uid"];
                         $user_name = $user["username"];
@@ -1390,6 +1399,9 @@ if (empty($sperren)) {
                         $name_html = htmlspecialchars($firstname . ' ' . $lastname, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
                         $ags = $user["groups"];
                         $ags_icons = getAgsIcons($ags, 20);
+
+                      $sublet_icon = (in_array($room, $weh_roomssublet)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
+                      $ban_icon = (in_array($user["uid"], $banned_uids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
 
                       echo "<td>$user_id</td>";
                       echo "<td>$user_name</td>";
@@ -1404,7 +1416,7 @@ if (empty($sperren)) {
                               form.appendChild(hiddenField);
                               document.body.appendChild(form);
                               form.submit();
-                              '  class='white-text' style='user-select: text;'>$sublet_icon $name_html $ags_icons</a></td>";
+                              '  class='white-text' style='user-select: text;'>$name_html $ban_icon $sublet_icon $ags_icons</a></td>";
                   }
                 } else {
                   echo "<td></td><td></td><td></td><td></td>";
