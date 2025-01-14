@@ -149,16 +149,17 @@ mysqli_stmt_bind_result($stmt_users, $hostname, $produkt, $beschreibung, $ip, $n
 
     // Definiere die Netzbereiche
     $networks = [
-        'IT Center Hausnetz' => ['start' => ip2long('134.130.0.0'), 'end' => ip2long('134.130.1.255')],
-        'WEH Servernetz #1 | VLAN 165' => ['start' => ip2long('137.226.140.0'), 'end' => ip2long('137.226.140.128')],
-        'WEH Bewohnernetz #1 | VLAN 919' => ['start' => ip2long('137.226.140.129'), 'end' => ip2long('137.226.140.255')],
-        'WEH Servernetz #2 | VLAN 919' => ['start' => ip2long('137.226.141.0'), 'end' => ip2long('137.226.141.15')],
-        'WEH Bewohnernetz #2 | VLAN 919' => ['start' => ip2long('137.226.141.16'), 'end' => ip2long('137.226.141.255')],
-        'TvK Bewohnernetz #1 | VLAN 261' => ['start' => ip2long('137.226.142.0'), 'end' => ip2long('137.226.142.255')],
-        'TvK Servernetz | VLAN 2' => ['start' => ip2long('137.226.143.0'), 'end' => ip2long('137.226.143.30')],
-        'TvK AP-Netz | VLAN 2' => ['start' => ip2long('137.226.143.31'), 'end' => ip2long('137.226.143.128')],
-        'TvK Bewohnernetz #2 | VLAN 261' => ['start' => ip2long('137.226.143.128'), 'end' => ip2long('137.226.143.255')],
-        'WEH AP-Netz | VLAN 12' => ['start' => ip2long('192.168.12.0'), 'end' => ip2long('192.168.12.255')],
+        'RZ Hausnetz' => ['start' => ip2long('134.130.0.0'), 'end' => ip2long('134.130.1.255')],
+        'WEH Server #1 | VLAN 165' => ['start' => ip2long('137.226.140.0'), 'end' => ip2long('137.226.140.128')],
+        'WEH NAT #1 | VLAN 919' => ['start' => ip2long('137.226.140.129'), 'end' => ip2long('137.226.140.255')],
+        'WEH Server #2 | VLAN 919' => ['start' => ip2long('137.226.141.0'), 'end' => ip2long('137.226.141.15')],
+        'WEH NAT #2 | VLAN 919' => ['start' => ip2long('137.226.141.16'), 'end' => ip2long('137.226.141.179')],
+        'WEH Static | VLAN 919' => ['start' => ip2long('137.226.141.180'), 'end' => ip2long('137.226.141.255')],
+        'TvK NAT | VLAN 261' => ['start' => ip2long('137.226.142.0'), 'end' => ip2long('137.226.142.255')],
+        'TvK Server | VLAN 2' => ['start' => ip2long('137.226.143.0'), 'end' => ip2long('137.226.143.30')],
+        'TvK AP | VLAN 2' => ['start' => ip2long('137.226.143.31'), 'end' => ip2long('137.226.143.128')],
+        'TvK Static | VLAN 261' => ['start' => ip2long('137.226.143.128'), 'end' => ip2long('137.226.143.255')],
+        'WEH AP | VLAN 12' => ['start' => ip2long('192.168.12.0'), 'end' => ip2long('192.168.12.255')],
     ];
 
     echo '<div style="margin: 20px 0; text-align: center;">';
