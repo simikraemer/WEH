@@ -298,13 +298,19 @@ foreach ($groups as $index => $group) {
     
         // Überprüfung, ob der Benutzer Sprecher der Gruppe ist
         $isSpeaker = ($row['sprecher'] == $group['id']);
-        
-        // Wenn der Benutzer Sprecher der Gruppe ist, wird der Name mit der Klasse 'gold-text' dargestellt, sonst 'white-text'
+
         if ($isSpeaker) {
-            $name_output = '<span class="gold-text">' . explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0] . '</span>';
+            $name_output = '<img src="images/ags/vorstand.png" width="22" height="22" alt="Sprecher Icon" style="vertical-align: center; margin-right: 5px;">'  
+                           . '<span class="white-text">' 
+                           . explode(' ', $row['firstname'])[0] . ' ' 
+                           . explode(' ', $row['lastname'])[0] 
+                           . '</span>';
         } else {
-            $name_output = '<span class="white-text">' . explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0] . '</span>';
-        }
+            $name_output = '<span class="white-text">' 
+                           . explode(' ', $row['firstname'])[0] . ' ' 
+                           . explode(' ', $row['lastname'])[0] 
+                           . '</span>';
+        }              
 
         // Formatierung der Raum- und Turm-Anzeige
         if ($group['id'] == 24) {

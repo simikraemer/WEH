@@ -23,6 +23,7 @@ if (auth($conn) && $_SESSION['valid']) {
     if ($result) {
         while ($row = mysqli_fetch_assoc($result)) {
             $ag_complete[$row['id']] = array(
+                "id" => $row['id'],
                 "name" => $row['name'],
                 "mail" => $row['mail'],
                 "link" => $row['link'],
@@ -47,7 +48,8 @@ if (auth($conn) && $_SESSION['valid']) {
                         "name" => explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0],
                         "turm" => $row['turm'],
                         "pid" => $row['pid'],
-                        "username" => $row['username']
+                        "username" => $row['username'],
+                        "sprecher" => $row['sprecher']
                     );
                 }
             }
@@ -85,6 +87,9 @@ if (auth($conn) && $_SESSION['valid']) {
                     $turm_form = strtoupper($user['turm']); // Fallback für andere Werte, falls vorhanden
                 }
 
+                // Überprüfung, ob der Benutzer Sprecher der Gruppe ist
+                $isSpeaker = ($user['sprecher'] == $group['id']);
+
                 // Bestimme Raumfarbe basierend auf Turm
                 $room_color = ($user['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
                             
@@ -105,7 +110,16 @@ if (auth($conn) && $_SESSION['valid']) {
                 // Ausgabe der Zeile
                 echo '<tr>';
                 echo '<td style="padding:4px 8px; color:' . $room_color . ';">' . $output . '</td>';
-                echo '<td style="padding:4px 8px;" class="white-text"><a href="mailto:' . $mailto . '" class="white-text">' . htmlspecialchars($user['name']) . '</a></td>';
+                if ($isSpeaker) {
+                    echo '<td style="padding:4px 8px;" class="white-text">
+                            <img src="images/ags/vorstand.png" width="18" height="18" alt="Sprecher Icon" style="vertical-align:">
+                            <a href="mailto:' . $mailto . '" class="white-text">' . htmlspecialchars($user['name']) . '</a>
+                          </td>';
+                } else {
+                    echo '<td style="padding:4px 8px;" class="white-text">
+                            <a href="mailto:' . $mailto . '" class="white-text">' . htmlspecialchars($user['name']) . '</a>
+                          </td>';
+                }                
                 echo '</tr>';
 
             }
