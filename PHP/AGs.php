@@ -16,24 +16,10 @@ mysqli_set_charset($conn, "utf8");
 if (auth($conn) && $_SESSION['valid']) {
     load_menu();
 
-    $ag_complete = array();
-    $sql = "SELECT id, name, mail, link, session, turm FROM groups WHERE active = 1 ORDER BY prio";
-    $result = mysqli_query($conn, $sql);
-
-    if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
-            $ag_complete[$row['id']] = array(
-                "id" => $row['id'],
-                "name" => $row['name'],
-                "mail" => $row['mail'],
-                "link" => $row['link'],
-                "session" => $row['session'],
-                "turm" => $row['turm'],
-                "users" => array() // Platz für die zugehörigen Benutzer
-            );
-        }
+    foreach ($ag_complete as $id => &$data_user_erweiterung) {
+        $data_user_erweiterung['users'] = array();
     }
-
+    
     // Abfrage der Benutzer und Zuordnung zu den AGs
     $sql = "SELECT room, firstname, lastname, groups, sprecher, uid, turm, pid, username FROM users WHERE pid IN (11,12,64) ORDER BY room ASC";
     $result = mysqli_query($conn, $sql);
@@ -88,7 +74,7 @@ if (auth($conn) && $_SESSION['valid']) {
                 }
 
                 // Überprüfung, ob der Benutzer Sprecher der Gruppe ist
-                $isSpeaker = ($user['sprecher'] == $group['id']);
+                $isSpeaker = ($user['sprecher'] == $group_id);
 
                 // Bestimme Raumfarbe basierend auf Turm
                 $room_color = ($user['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
