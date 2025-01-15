@@ -21,7 +21,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
         $dummy_uid = 492;
         $uid = $_POST["uid"];
         $zeit = time();
-        $insert_beschreibung = "AG-Essen ". $ag_key2name[$ag];
+        $insert_beschreibung = "AG-Essen ". $ag_complete[$ag]['name'];
         $agent = $_SESSION["uid"];
 
         // AG Essen eintragen
@@ -93,7 +93,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     while (mysqli_stmt_fetch($stmt)) {
         $tstamp_show = date('d.m.Y', $tstamp);
         $pfad_show = '<a href="'.$pfad.'" target="_blank" class="white-text">[Link]</a>';
-        $agname = $ag_key2name[$ag];
+        $agname = $ag_complete[$ag]['name'];
         $betrag_show = number_format($betrag, 2, ',', '.') . ' €';
         echo "<tr><td>$tstamp_show</td><td>$agname</td><td>$betrag_show</td><td>$iban</td><td>$kontoinhaber</td><td>$pfad_show</td><td>$teilnehmerstring</td>";
         echo "<td><form method='post'>";
@@ -200,7 +200,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     while (mysqli_stmt_fetch($stmt)) {
         $tstamp_show = date('d.m.Y', $tstamp);
         $pfad_show = '<a href="'.$pfad.'" target="_blank" class="white-text">[Link]</a>';
-        $agname = $ag_key2name[$ag];
+        $agname = $ag_complete[$ag]['name'];
         $betrag_show = number_format($betrag, 2, ',', '.') . ' €';
         echo "<tr><td>$tstamp_show</td><td>$agname</td><td>$betrag_show</td><td>$iban</td><td>$pfad_show</td><td>$teilnehmerstring</td></tr>";
     }

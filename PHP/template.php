@@ -77,12 +77,6 @@ while (mysqli_stmt_fetch($stmt)) {
 }
 $stmt->close();
 
-# Diese Übersetzungen werden auf diversen Seiten verwendet!
-foreach ($ag_complete as $key => $value) {
-    $ags[$key] = $value["name"];
-    $ag_key2mail[$key] = $value["mail"];
-    $ag_key2name[$key] = $value["name"];
-}
 foreach ($ag_session as $key => $value) {
     $ag_key2session[$key] = $value["session"];
 }

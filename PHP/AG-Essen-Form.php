@@ -74,7 +74,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
     # AG wurde ausgewählt
 
         $ag = strval($_POST["ag"]);
-        $agname = $ag_key2name[$ag];
+        $agname = $ag_complete[$ag]["name"];
         $trinkgeldfaktor = 1.1;
         $zeit = time();
         $startOfSemester = unixtime2startofsemester($zeit);

@@ -100,7 +100,7 @@ if (auth($conn) && $_SESSION['valid']) {
         $selectedReplyTo = $_SESSION['name'] . " <" . $user_address . ">"; // Standard "Reply-To"
     
         if (isset($_POST['replyto']) && $_POST['replyto'] !== 'user') {
-            $selectedReplyTo = $ags[$_POST['replyto']] . " <" . $ag_key2mail[$_POST['replyto']] . ">";
+          $selectedReplyTo = $ag_complete[$_POST['replyto']]['name'] . " <" . $ag_complete[$_POST['replyto']]['mail'] . ">";
         }
     
         $encodedReplyTo = mb_encode_mimeheader($selectedReplyTo);

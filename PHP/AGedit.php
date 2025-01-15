@@ -62,7 +62,7 @@ if (auth($conn) && $_SESSION['valid']) {
 if (isset($_POST['leave_group']) || isset($_POST['remove_user'])) {
     $selected_user_id = $_POST['selected_user'];
     $group_id = $_POST['group_id'];
-    $changelog = "\n" . date("d.m.Y") . " Ende {$ags[$group_id]} ({$_SESSION['agent']})";
+    $changelog = "\n" . date("d.m.Y") . " Ende {$ag_complete[$group_id]['name']} ({$_SESSION['agent']})";
 
     $sql = "UPDATE users 
             SET groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', ?, ','), ',')),
@@ -80,7 +80,7 @@ if (isset($_POST['leave_group']) || isset($_POST['remove_user'])) {
 if (isset($_POST['set_group'])) {
     $selected_user_id = $_POST['selected_user'];
     $group_id = $_POST['group_id'];
-    $changelog = "\n" . date("d.m.Y") . " Start {$ags[$group_id]} ({$_SESSION['agent']})";
+    $changelog = "\n" . date("d.m.Y") . " Start {$ag_complete[$group_id]['name']} ({$_SESSION['agent']})";
 
     $sql = "UPDATE users 
             SET groups = TRIM(BOTH ',' FROM CONCAT_WS(',', groups, ?)), 
@@ -99,8 +99,8 @@ if (isset($_POST['set_group'])) {
 if (isset($_POST['set_speaker'])) {
     $selected_user_id = $_POST['selected_user'];
     $group_id = $_POST['group_id'];
-    $remove_changelog = "\n" . date("d.m.Y") . " Ende Sprecher {$ags[$group_id]} ({$_SESSION['agent']})";
-    $add_changelog = "\n" . date("d.m.Y") . " Start Sprecher {$ags[$group_id]} ({$_SESSION['agent']})";
+    $remove_changelog = "\n" . date("d.m.Y") . " Ende Sprecher {$ag_complete[$group_id]['name']} ({$_SESSION['agent']})";
+    $add_changelog = "\n" . date("d.m.Y") . " Start Sprecher {$ag_complete[$group_id]['name']} ({$_SESSION['agent']})";
 
     // 1. SQL-Anweisung zum Entfernen des alten AG-Sprechers der Gruppe und Historie aktualisieren
     $sql_remove_old_speaker = "UPDATE users 
