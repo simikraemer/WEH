@@ -223,45 +223,45 @@ if (auth($conn) && $_SESSION['valid']) {
 
     echo '<br><br><br><br>';
 
-    echo "<div class='center' style='color: white; font-size:40px;'>Legende</div><br><br>";
-    $ag_icons_mapping = array(
-        "Etagensprecher" => "etagensprecher",
-        "Ehrenmitglied" => "ehrenmitglied",
-        "Hausmeister" => "hausmeister",
-        "Vorstand" => "vorstand",
-        "Netzwerk-AG" => "netzwerk",
-        "Belegungsausschuss" => "ba",
-        "Wohnzimmer-AG" => "wohnzimmer",
-        "Wasch-AG" => "wasch",
-        "Werkzeug-AG" => "werkzeug",
-        "Sport-AG" => "sport",
-        "Fahrrad-AG" => "fahrrad",
-        "Musik-AG" => "musik",
-        "Party-AG" => "party",
-        "Datenschutzbeauftragter" => "datenschutz",
-        "Diverse AGs" => "herz"
-    );
-
-    $icon_size = 20;
-    $columns_per_row = 3;
-    $current_column = 0;
-    
-    echo '<table class="legend-table" style="margin: 0 auto; text-align: center; width: 50%;">';
-    echo '<tr>';
-    foreach ($ag_icons_mapping as $ag => $icon) {
-        if ($current_column % $columns_per_row === 0 && $current_column !== 0) {
-            echo '</tr><tr>';
-        }
-    
-        echo '<td style="width: 25%;">';
-        echo "<img src='images/ags/$icon.png' width='$icon_size' height='$icon_size'>";
-        echo "<br><span style='color: white;'>$ag</span><br><br>";
-        echo '</td>';
-    
-        $current_column++;
-    }
-    echo '</tr>';
-    echo '</table>';
+#    echo "<div class='center' style='color: white; font-size:40px;'>Legende</div><br><br>";
+#    $ag_icons_mapping = array(
+#        "Etagensprecher" => "etagensprecher",
+#        "Ehrenmitglied" => "ehrenmitglied",
+#        "Hausmeister" => "hausmeister",
+#        "Vorstand" => "vorstand",
+#        "Netzwerk-AG" => "netzwerk",
+#        "Belegungsausschuss" => "ba",
+#        "Wohnzimmer-AG" => "wohnzimmer",
+#        "Wasch-AG" => "wasch",
+#        "Werkzeug-AG" => "werkzeug",
+#        "Sport-AG" => "sport",
+#        "Fahrrad-AG" => "fahrrad",
+#        "Musik-AG" => "musik",
+#        "Party-AG" => "party",
+#        "Datenschutzbeauftragter" => "datenschutz",
+#        "Diverse AGs" => "herz"
+#    );
+#
+#    $icon_size = 20;
+#    $columns_per_row = 3;
+#    $current_column = 0;
+#    
+#    echo '<table class="legend-table" style="margin: 0 auto; text-align: center; width: 50%;">';
+#    echo '<tr>';
+#    foreach ($ag_icons_mapping as $ag => $icon) {
+#        if ($current_column % $columns_per_row === 0 && $current_column !== 0) {
+#            echo '</tr><tr>';
+#        }
+#    
+#        echo '<td style="width: 25%;">';
+#        echo "<img src='images/ags/$icon.png' width='$icon_size' height='$icon_size'>";
+#        echo "<br><span style='color: white;'>$ag</span><br><br>";
+#        echo '</td>';
+#    
+#        $current_column++;
+#    }
+#    echo '</tr>';
+#    echo '</table>';
 
   
     if (isset($_POST["menu_empty"])) {
