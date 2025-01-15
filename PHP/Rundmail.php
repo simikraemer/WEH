@@ -52,8 +52,8 @@ if (auth($conn) && $_SESSION['valid']) {
   $user_address = mb_encode_mimeheader($_SESSION['username']) . "@" . $turm . ".rwth-aachen.de";
 
   $hasAgMembership = false;
-  foreach ($ag_key2session as $key => $value) {
-    if (isset($_SESSION[$value]) && $_SESSION[$value] == true) {            
+  foreach ($ag_complete as $num => $data) {
+    if (isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] == true) {            
           $hasAgMembership = true;
           break;
       }
@@ -210,9 +210,9 @@ if (auth($conn) && $_SESSION['valid']) {
         echo '<select id="replyto" name="replyto" style="margin-top: 20px; font-size: 20px;" required>';
         echo '<option disabled selected value> -- Select AG -- </option>';
         echo '<option value="user">Your address</option>';
-        foreach ($ag_key2session as $key => $value) {
-            if (isset($_SESSION[$value]) && $_SESSION[$value] == true) {
-                echo '<option value="' . $key . '">' . $value . '</option>';
+        foreach ($ag_complete as $num => $data) {
+            if (isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] == true) {
+                echo '<option value="' . $num . '">' . $data["name"] . '</option>';
             }
         }
         echo '</select><br>';

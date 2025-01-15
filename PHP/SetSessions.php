@@ -25,7 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST["set_all_sessions"])) {
         // Setzt alle AG-Sessions auf true
-        foreach ($ag_key2session as $agName) {
+        foreach ($ag_complete as $num => $data) {
+            $agName = $data['session'];
             $_SESSION[$agName] = true;
         }
 
@@ -106,8 +107,8 @@ if (auth($conn) && $_SESSION["Webmaster"]) {
         <div style="text-align: center;display: flex; justify-content: center;">
             <form method="POST" action="">
                 <select name="ag" style="font-size:20px; text-align: center;" id="ag">
-                    <?php foreach ($ag_key2session as $agId => $agName) : ?>
-                        <option value="<?php echo $agName; ?>"><?php echo $agName; ?></option>
+                    <?php foreach ($ag_complete as $num => $data) : ?>
+                        <option value="<?php echo $data["session"]; ?>"><?php echo $data["name"]; ?></option>
                     <?php endforeach; ?>
                 </select>
                 <input type="hidden" name="reload" value="1">
@@ -132,14 +133,14 @@ if (auth($conn) && $_SESSION["Webmaster"]) {
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($ag_key2session as $agName): ?>
-                    <?php if (isset($_SESSION[$agName]) && $_SESSION[$agName] == true): ?>
+                <?php foreach ($ag_complete as $num => $data): ?>
+                    <?php if (isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] == true): ?>
                         <tr>
-                            <td style="padding: 10px; border: 1px solid white;"><?php echo $agName; ?></td>
+                            <td style="padding: 10px; border: 1px solid white;"><?php echo $data["name"]; ?></td>
                             <td style="padding: 10px; border: 1px solid white;">Aktiv</td>            
                             <td style="padding: 10px; border: 1px solid white; vertical-align: middle;">
                                 <form method="POST" action="">
-                                    <input type="hidden" name="ag_name" value="<?php echo $agName; ?>">
+                                    <input type="hidden" name="ag_name" value="<?php echo $data["session"]; ?>">
                                     <br><button type="submit" name="unset_session" class="red-center-btn" style="font-size: 16px;">Session deaktivieren</button>
                                 </form>
                             </td>

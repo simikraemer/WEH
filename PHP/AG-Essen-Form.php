@@ -14,25 +14,11 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
     
     $hasAgMembership = false;
-    $agMembershipCount = 0;
-    foreach ($ag_key2session as $key => $value) {
-      if (isset($_SESSION[$value]) && $_SESSION[$value] == true) {            
+    foreach ($ag_complete as $num => $data) {
+      if (isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] == true) {            
             $hasAgMembership = true;
-            $agMembershipCount++;
         }
     }
-
-#    if ($agMembershipCount == 1 && !isset($_POST["ag"])) {
-#        echo '<form id="agForm" method="post" style="display:flex; justify-content:center; align-items:center;">';
-#        foreach ($ag_key2session as $key => $value) { #61 kassenwart, 62 schriftführer, 63 vorsitz, 66 dsb, 26 kassenprüfer, 24 hausmeister, 19 etagensprecher (just2besafe)
-#            if (isset($_SESSION[$value]) && $_SESSION[$value] == true && $key != 61 && $key != 62 && $key != 63 && $key != 66 && $key != 26 && $key != 24 && $key != 19) {            
-#                echo '<input type="hidden" name="ag" value="' . $key . '">';
-#                break; // Stoppe die Schleife, sobald ein passender Wert gefunden wurde
-#            }
-#        }
-#        echo '</form>';
-#        echo '<script>document.getElementById("agForm").submit();</script>'; // Automatisch Formular senden
-#    }
 
     if (!isset($_POST["ag"])) {
 

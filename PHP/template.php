@@ -46,13 +46,12 @@ echo "</form>";
 ### AGs definieren ###
 ######################
 
-$sql = "SELECT id, name, mail, session, agessen, link, turm FROM groups WHERE active = TRUE ORDER BY prio;";
+$sql = "SELECT id, name, mail, session, agessen, link, turm, menu FROM groups WHERE active = TRUE ORDER BY prio;";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen, $link, $turm);
+mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen, $link, $turm, $menu);
 
 $ag_complete = array();
-$ag_session = array();
 while (mysqli_stmt_fetch($stmt)) {
 
     if (!empty($mail)) {
@@ -62,7 +61,8 @@ while (mysqli_stmt_fetch($stmt)) {
             "session" => $session,
             "agessen" => $agessen,
             "link" => $link,
-            "turm" => $turm
+            "turm" => $turm,
+            "menu" => $menu
         );
     }
 
@@ -73,13 +73,8 @@ while (mysqli_stmt_fetch($stmt)) {
     );
 
     $ag_complete[intval($id)] = $rowData_ag_complete;
-    $ag_session[intval($id)] = $rowData_ag_session;
 }
 $stmt->close();
-
-foreach ($ag_session as $key => $value) {
-    $ag_key2session[$key] = $value["session"];
-}
 
 $buchungroomsarray = array(
 	1 => 'Wohnzimmer [0.Etage]',
@@ -99,7 +94,7 @@ $buchungsroomgrouparray = array(
 );
 
 function setupUserSession($user, $isRoaming = true) {
-    global $ag_key2session;
+    global $ag_complete;
 
     $_SESSION['valid'] = true;
     $_SESSION['turm'] = $user['turm'];
@@ -116,7 +111,8 @@ function setupUserSession($user, $isRoaming = true) {
     $_SESSION['tuermeroam'] = $isRoaming;
     
     // AG Session settings
-    foreach ($ag_key2session as $num => $agName) {
+    foreach ($ag_complete as $num => $data) {
+        $agName = $data['session'];
         $_SESSION[$agName] = strpos(',,'.$user['groups'].',', ','.$num.',') !== false;
     }
 
@@ -142,7 +138,7 @@ function setupUserSession($user, $isRoaming = true) {
 // In der auth-Funktion:
 function auth($conn) {
     session_regenerate_id();
-    global $ag_key2session;
+    global $ag_complete;
     global $buchungsroomgrouparray;
     global $buchungsroomarray;
 
@@ -182,7 +178,7 @@ function auth($conn) {
 // In der auth_from_outside-Funktion:
 function auth_from_outside($conn, $uid) {
     session_regenerate_id();
-    global $ag_key2session;
+    global $ag_complete;
     echo "<title>WEH Backend</title>";
 
     $sql = "SELECT users.uid, users.username, users.groups, users.sprecher, users.firstname, users.room, users.name, users.turm
@@ -208,7 +204,7 @@ function auth_from_outside($conn, $uid) {
 
 
 function load_menu() {
-    global $ag_key2session;
+    global $ag_complete;
     global $conn;
 
     $userIP = $_SESSION['ip'];
@@ -409,16 +405,10 @@ function load_menu() {
 
         
         $_SESSION["aktiv"] = false;
-
-        # 61 kassenwart, 62 schriftführer, 63 vorsitz, 66 dsb, 26 kassenprüfer, 24 hausmeister, 19 etagensprecher
-        $excludedAGs = [61, 62, 63, 66, 26, 24, 19];
-        
-        foreach ($ag_key2session as $num => $agName) {
+        foreach ($ag_complete as $num => $data) {
+            $agName = $data['session'];
             if ($_SESSION[$agName]) {
-                // Wenn die AG-Nummer nicht in der Liste der ausgeschlossenen Nummern ist, setze $_SESSION["aktiv"] auf true
-                if (!in_array($num, $excludedAGs)) {
-                    $_SESSION["aktiv"] = true;
-                }
+                $_SESSION["aktiv"] = true;
             }
         }
 
@@ -462,11 +452,9 @@ function load_menu() {
 
         $firstag = true;
 
-        foreach ($ag_key2session as $num => $agName) {
-            if ($_SESSION[$agName]) {
-                if ($num != 7 && $num != 9 && $num != 12 && $num != 61 && $num != 11 && $num != 25 && $num != 69 && $num != 13 && $num != 53) {
-                    continue;
-                }                
+        foreach ($ag_complete as $num => $data) {
+            $agName = $data['session'];
+            if ($_SESSION[$agName] && $data["menu"] == 1) {    
                 if ($firstag === true) {
                     echo '<span class="vertical-line"></span>'; 
                     $firstag = false;
