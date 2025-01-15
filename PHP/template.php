@@ -46,10 +46,10 @@ echo "</form>";
 ### AGs definieren ###
 ######################
 
-$sql = "SELECT id, name, mail, session, agessen FROM groups WHERE active = TRUE ORDER BY prio;";
+$sql = "SELECT id, name, mail, session, agessen, link, turm FROM groups WHERE active = TRUE ORDER BY prio;";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen);
+mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen, $link, $turm);
 
 $ag_complete = array();
 $ag_session = array();
@@ -60,7 +60,9 @@ while (mysqli_stmt_fetch($stmt)) {
             "name" => $name,
             "mail" => $mail,
             "session" => $session,
-            "agessen" => $agessen
+            "agessen" => $agessen,
+            "link" => $link,
+            "turm" => $turm
         );
     }
 
@@ -78,7 +80,6 @@ $stmt->close();
 # Diese Übersetzungen werden auf diversen Seiten verwendet!
 foreach ($ag_complete as $key => $value) {
     $ags[$key] = $value["name"];
-    $ag_name2mail[$value["name"]] = $value["mail"];
     $ag_key2mail[$key] = $value["mail"];
     $ag_key2name[$key] = $value["name"];
 }

@@ -318,10 +318,10 @@ if (auth($conn) && $_SESSION['valid']) {
         if ($room != 18992) {
             echo '<a href="mailto:z' . $roomformatiert . '@'.$turm.'.rwth-aachen.de" class="center-btn" style="font-size: 25px; color: black; text-decoration: none;">Person kontaktieren</a>';
             echo '</div>';
-            foreach ($ags as $key => $agname) {
-                if (in_array($key, explode(',', $groups))) {                
+            foreach ($ag_complete as $id => $data) {
+                if (in_array($id, explode(',', $groups))) {
                     echo '<div style="text-align: center; margin-top: 10px;">';
-                    echo '<a href="mailto:' .  $ag_name2mail[$agname] . '" class="center-btn" style="font-size: 25px; color: black; text-decoration: none;">' . $agname . ' kontaktieren</a>';
+                    echo '<a href="mailto:' .  $data["mail"] . '" class="center-btn" style="font-size: 25px; color: black; text-decoration: none;">' . $data["name"] . ' kontaktieren</a>';
                     echo '</div>';
                 }
             }
