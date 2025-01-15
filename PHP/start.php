@@ -19,54 +19,54 @@ if (auth($conn) && ($_SESSION['valid'])) {
     die nur aus dem RWTH-Netz erreichbar ist.</p>';
 
 
-    $functions = [
-        'displayRandomCountryWEH' => '$conn',
-        'displayRandomCountryTvK' => '$conn',
-        'displayRandomContinentWEH' => '$conn',
-        'displayRandomContinentTvK' => '$conn',
-        'displayAmountPrintedPages' => '$conn',
-        'displayAmountUsers' => '$conn',
-        'displayWashingSlots' => '$waschconn'
-    ];
-    $randomFunction = array_rand($functions);
-    $connType = $functions[$randomFunction];
-    if ($connType == '$conn') {
-        $stringie = $randomFunction($conn);
-    } else {
-        $stringie = $randomFunction($waschconn);
-    }    
+#    $functions = [
+#        'displayRandomCountryWEH' => '$conn',
+#        'displayRandomCountryTvK' => '$conn',
+#        'displayRandomContinentWEH' => '$conn',
+#        'displayRandomContinentTvK' => '$conn',
+#        'displayAmountPrintedPages' => '$conn',
+#        'displayAmountUsers' => '$conn',
+#        'displayWashingSlots' => '$waschconn'
+#    ];
+#    $randomFunction = array_rand($functions);
+#    $connType = $functions[$randomFunction];
+#    if ($connType == '$conn') {
+#        $stringie = $randomFunction($conn);
+#    } else {
+#        $stringie = $randomFunction($waschconn);
+#    }    
+#
+#    echo '
+#    <div style="
+#        display: flex; 
+#        justify-content: center; 
+#        align-items: center; 
+#        overflow: hidden; 
+#        width: 100%; 
+#        height: auto;
+#    ">
+#        <p style="
+#            font-size: 30px; 
+#            color: white; 
+#            text-align: center; 
+#            animation: zoom-in-out 3s infinite;
+#            display: inline-block;
+#        ">Fun-Fact:<br>' . $stringie . '</p>
+#    </div>
+#    <style>
+#    @keyframes zoom-in-out {
+#        0% {
+#            transform: scale(1.2);
+#        }
+#        50% {
+#            transform: scale(1.5);
+#        }
+#        100% {
+#            transform: scale(1.2);
+#        }
+#    }
+#    </style>';
 
-
-    echo '
-    <div style="
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        overflow: hidden; 
-        width: 100%; 
-        height: auto;
-    ">
-        <p style="
-            font-size: 30px; 
-            color: white; 
-            text-align: center; 
-            animation: zoom-in-out 3s infinite;
-            display: inline-block;
-        ">Fun-Fact:<br>' . $stringie . '</p>
-    </div>
-    <style>
-    @keyframes zoom-in-out {
-        0% {
-            transform: scale(1.2);
-        }
-        50% {
-            transform: scale(1.5);
-        }
-        100% {
-            transform: scale(1.2);
-        }
-    }
-    </style>';
 
     displayRundmails($conn);
 
