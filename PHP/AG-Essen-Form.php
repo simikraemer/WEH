@@ -39,14 +39,14 @@ if (auth($conn) && ($_SESSION['valid'])) {
         if (!$hasAgMembership) {
             echo '<h1 style="font-size: 60px; color: white; text-align: center;">You are currently not a member of any AG!</h1>';
         } else {
-            
-            // Filtere die verfügbaren AGs
             $availableAgs = [];
-            foreach ($ag_key2session as $key => $value) {
-                if (isset($_SESSION[$value]) && $_SESSION[$value] == true && $key != 61 && $key != 62 && $key != 63 && $key != 66 && $key != 26 && $key != 24 && $key != 19 && $key != 8) {
-                    $availableAgs[$key] = $value;
+
+            foreach ($ag_complete as $id => $data) {
+                if ((isset($_SESSION[$data['session']]) && $_SESSION[$data['session']] == true) && ($data['agessen'] == 1)) {
+                    $availableAgs[$id] = $data['name'];
                 }
             }
+
         
             // Prüfe, ob nur eine AG verfügbar ist
             if (count($availableAgs) === 1) {

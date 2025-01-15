@@ -46,10 +46,10 @@ echo "</form>";
 ### AGs definieren ###
 ######################
 
-$sql = "SELECT id, name, mail, session FROM groups WHERE active = TRUE ORDER BY prio;";
+$sql = "SELECT id, name, mail, session, agessen FROM groups WHERE active = TRUE ORDER BY prio;";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session);
+mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen);
 
 $ag_complete = array();
 $ag_session = array();
@@ -59,7 +59,8 @@ while (mysqli_stmt_fetch($stmt)) {
         $rowData_ag_complete = array(
             "name" => $name,
             "mail" => $mail,
-            "session" => $session
+            "session" => $session,
+            "agessen" => $agessen
         );
     }
 
@@ -452,11 +453,10 @@ function load_menu() {
             echo '<button class="center-btn">Aktiv</button>';
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
+            echo '<button onclick="window.location.href=\'AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
             if ($_SESSION["turm"] != "weh") {
-                echo '<button style="white-space: nowrap; color: gray; cursor: not-allowed;" disabled>AG-Essen</button> ';
                 echo '<button style="white-space: nowrap; color: gray; cursor: not-allowed;" disabled>Infoterminal</button> ';
             } else {
-                echo '<button onclick="window.location.href=\'AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
                 echo '<button onclick="window.location.href=\'LokiManagement.php\';" style="white-space: nowrap;">Infoterminal</button> ';
             }
             echo '</div>';
