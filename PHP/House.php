@@ -1333,7 +1333,7 @@ if (empty($sperren)) {
                       $ban_icon = (in_array($user["uid"], $banned_uids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
 
                       echo "<td>$user_id</td>";
-                      echo "<td>$user_name</td>";
+                      echo "<td><a href='mailto:$user_name@tvk.rwth-aachen.de' style='color: white; text-decoration: none;' onmouseover=\"this.style.color='#11a50d';\" onmouseout=\"this.style.color='white';\">$user_name</a></td>";
                       echo    "<td><a href='javascript:void(0);' onclick='
                               var form = document.createElement(\"form\");
                               form.setAttribute(\"method\", \"post\");
@@ -1404,7 +1404,7 @@ if (empty($sperren)) {
                       $ban_icon = (in_array($user["uid"], $banned_uids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
 
                       echo "<td>$user_id</td>";
-                      echo "<td>$user_name</td>";
+                      echo "<td><a href='mailto:$user_name@weh.rwth-aachen.de' style='color: white; text-decoration: none;' onmouseover=\"this.style.color='#11a50d';\" onmouseout=\"this.style.color='white';\">$user_name</a></td>";
                       echo    "<td><a href='javascript:void(0);' onclick='
                               var form = document.createElement(\"form\");
                               form.setAttribute(\"method\", \"post\");
