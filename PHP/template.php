@@ -997,7 +997,7 @@ function displayRundmails($conn) {
 
 
     if ($_SESSION['aktiv'] == true) {
-        $sql_users .= " OR r.address LIKE '%ags%'";
+        $sql_users .= " OR r.address LIKE '%" . $_SESSION["turm"] . "-ags%'";
     }
     $sql_users .= ") ORDER BY r.id DESC";
 
@@ -1040,21 +1040,22 @@ function displayRundmails($conn) {
             $display_turm = 'WEH';
         } elseif (strpos($address, 'tvk') !== false) {
             $display_turm = 'TvK';
-        } elseif (strpos($address, 'ags') !== false) {
-            $display_turm = 'AGs';
         }
 
         $display_subject = (strlen($subject) > 80) ? substr($subject, 0, 80) . ' [...]' : $subject;
 
-        // Farbe der Zeile basierend auf address
-        $row_color = '#0b7309';
-        $text_size = '28px'; // Standard Textgröße
-        if (strpos($address, 'community') !== false) {
-            $row_color = '#333';
-            $text_size = '16px'; // Community
-        } elseif (strpos($address, 'important') !== false) {
-            $row_color = '#1f531e';
-            $text_size = '22px'; // Important
+        if (strpos($address, 'community') !== false) { # Community
+            $row_color = ' #333333';
+            $text_size = '16px';
+        } elseif (strpos($address, 'important') !== false) { # Important
+            $row_color = ' #1f531e';
+            $text_size = '22px';
+        } elseif (strpos($address, 'ags') !== false) {
+            $row_color = ' #000099';
+            $text_size = '28px';
+        } else { # Essential
+            $row_color = ' #0b7309';
+            $text_size = '28px';
         }
 
         // Hidden form for each mail

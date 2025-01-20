@@ -124,7 +124,8 @@ if (auth($conn) && $_SESSION['valid']) {
             'weh-important' => 'important@weh.rwth-aachen.de',
             'tvk-community' => 'community@tvk.rwth-aachen.de',
             'weh-community' => 'community@weh.rwth-aachen.de',
-            'ags' => 'ags@weh.rwth-aachen.de',
+            'tvk-ags' => 'ags@tvk.rwth-aachen.de',
+            'weh-ags' => 'ags@weh.rwth-aachen.de',
             'fiji' => 'fijitest@weh.rwth-aachen.de'
         ];
     
@@ -172,10 +173,11 @@ if (auth($conn) && $_SESSION['valid']) {
         'weh-essential' => 'Essential [WEH]',
         'weh-important' => 'Important [WEH]',
         'weh-community' => 'Community [WEH]',
+        'weh-ags' => 'AG Mitglieder [WEH]',
         'tvk-essential' => 'Essential [TvK]',
         'tvk-important' => 'Important [TvK]',
         'tvk-community' => 'Community [TvK]',
-        'ags' => 'AG Mitglieder',
+        'tvk-ags' => 'AG Mitglieder [TvK]',
       );
       echo '<form method="post" action="Rundmail.php" id="mail_form" name="mail-form" style="text-align: center;">';
 
