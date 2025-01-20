@@ -139,7 +139,15 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     echo "                cell1.textContent = user.uid;";
     
                     // Username
-    echo "                cell2.textContent = user.username;";
+    echo "                const mailtoLink = document.createElement('a');";
+    echo "                mailtoLink.href = 'mailto:' + user.username + '@' + user.turm + '.rwth-aachen.de';";
+    echo "                mailtoLink.textContent = user.username;";
+    echo "                mailtoLink.style.color = 'white';";
+    echo "                mailtoLink.style.textDecoration = 'none';";
+    echo "                mailtoLink.onmouseover = function() { this.style.color = '#11a50d'; };";
+    echo "                mailtoLink.onmouseout = function() { this.style.color = 'white'; };";
+    echo "                cell2.appendChild(mailtoLink);";
+                    
     
                     // Name with link
     echo "                const link = document.createElement('a');";
