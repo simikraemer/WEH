@@ -1052,7 +1052,7 @@ function displayRundmails($conn) {
             $text_size = '22px';
         } elseif (strpos($address, 'ags') !== false) {
             $row_color = ' #000099';
-            $text_size = '28px';
+            $text_size = '22px';
         } else { # Essential
             $row_color = ' #0b7309';
             $text_size = '28px';
