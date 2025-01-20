@@ -64,7 +64,7 @@ if (auth($conn) && $_SESSION['valid']) {
   
     echo '<form method="post">';
 
-    echo '<h2 style="font-size: 35px; color: white;">Mail List Receive Settings:</h2>';
+    echo '<h2 style="font-size: 35px; color: white;">Rundmail Subscription Settings:</h2>';
     echo '
     <table class="grey-table" style="font-size: 24px; color: white; margin: 0 auto;">
       <tr>
