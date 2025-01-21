@@ -56,13 +56,18 @@ if (auth($conn) && $_SESSION['valid']) {
         
         echo '<div class="ag-box" style="border: 20px outset ' . $randfarbe . ';">';
         
+        // Wrapper für Name und Mail mit festem Abstand
+        echo '<div style="margin-bottom:20px;">';
+        
         // Gruppenname mit Gruppenlink
         echo '<h2 class="white-text" style="font-size:28px; font-weight:bold; text-align:center; margin-bottom:10px;">';
         echo '<a href="' . htmlspecialchars($group['link']) . '" class="white-text">' . htmlspecialchars($group['name']) . '</a>';
         echo '</h2>';
             
         // Mailto-Link als kursiver Text
-        echo '<p style="text-align:center; margin-bottom:15px;"><a href="mailto:' . htmlspecialchars($group['mail']) . '" class="white-text" style="font-style:italic;">' . htmlspecialchars($group['mail']) . '</a></p>';
+        echo '<p style="text-align:center; margin:0;"><a href="mailto:' . htmlspecialchars($group['mail']) . '" class="white-text" style="font-style:italic;">' . htmlspecialchars($group['mail']) . '</a></p>';
+        
+        echo '</div>'; // Ende des Wrappers
 
         if (!empty($group['users'])) {
             echo '<table style="width:75%; border-collapse:collapse; margin: 0 auto; text-align:center;">';
