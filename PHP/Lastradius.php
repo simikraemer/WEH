@@ -192,11 +192,8 @@ function getBenutzerDaten($conn, $turm) {
         mysqli_free_result($result_constants);
     }
 
-    $_SESSION["user_by_id"] = $user_by_id;
-    $_SESSION["hausbeitrag"] = $hausbeitrag;
-    $_SESSION["netzbeitrag"] = $netzbeitrag;
-
     mysqli_stmt_close($stmt);
+    return array($user_by_id, $hausbeitrag, $netzbeitrag);
 }
 
 
@@ -238,7 +235,7 @@ if (auth($conn) && $_SESSION['NetzAG']) {
         $zimmerauf0 = 4; // Fallback, falls $turm einen unerwarteten Wert hat
     }
   
-    getBenutzerDaten($conn,$turm);
+    list($user_by_id, $hausbeitrag, $netzbeitrag) = getBenutzerDaten($conn, $turm);
     
     echo '<div style="text-align: center; display: flex; justify-content: center; align-items: center;">';
     echo '<table>';
@@ -269,14 +266,14 @@ if (auth($conn) && $_SESSION['NetzAG']) {
             for ($room = 1; $room <= $zimmerauf0; $room++) {
                 $roomnumber = $floor * 100 + $room;
                 $roomtype = 1;
-                printRoomCell($roomnumber, $_SESSION["user_by_id"], $roomtype, $_SESSION["hausbeitrag"], $_SESSION["netzbeitrag"]);
+                printRoomCell($roomnumber, $user_by_id, $roomtype, $hausbeitrag, $netzbeitrag);
             }
         } else {
             // Schleife für die Zimmer auf anderen Etagen
             for ($room = 1; $room <= 16; $room++) {
                 $roomnumber = $floor * 100 + $room;
                 $roomtype = 1;
-                printRoomCell($roomnumber, $_SESSION["user_by_id"], $roomtype, $_SESSION["hausbeitrag"], $_SESSION["netzbeitrag"]);
+                printRoomCell($roomnumber, $user_by_id, $roomtype, $hausbeitrag, $netzbeitrag);
                 
                 // Leerzelle nach Zimmer 8
                 if ($room == 8) {
