@@ -124,9 +124,10 @@ if (auth($conn) && $_SESSION['valid']) {
             'weh-important' => 'important@weh.rwth-aachen.de',
             'tvk-community' => 'community@tvk.rwth-aachen.de',
             'weh-community' => 'community@weh.rwth-aachen.de',
+            'ags' => 'ags@tuerme.rwth-aachen.de',
             'tvk-ags' => 'ags@tvk.rwth-aachen.de',
             'weh-ags' => 'ags@weh.rwth-aachen.de',
-            'fiji' => 'fijitest@weh.rwth-aachen.de'
+            'webmaster' => 'webmaster@weh.rwth-aachen.de'
         ];
     
         if (array_key_exists($_POST['address'], $recipients)) {
@@ -167,9 +168,10 @@ if (auth($conn) && $_SESSION['valid']) {
       echo '<div style="margin: 0 auto; text-align: center;">';
       echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
       $addressOptions = array(
-        'fiji' => 'Fiji', // Testing
+        'webmaster' => 'Webmaster Test', // Testing
         'essential' => 'Essential [Türme]',
         'important' => 'Important [Türme]',
+        'ags' => 'AG Mitglieder [Türme]',
         'weh-essential' => 'Essential [WEH]',
         'weh-important' => 'Important [WEH]',
         'weh-community' => 'Community [WEH]',
@@ -186,14 +188,16 @@ if (auth($conn) && $_SESSION['valid']) {
 
 
       foreach ($addressOptions as $addressID => $addressName) {
-        if ($addressID === 'fiji' && $_SESSION["uid"] != "2136") {
+        if ($addressID === 'webmaster' && !$_SESSION["Webmaster"]) {
           continue;
         }
         if (($addressID === 'essential' || $addressID === "tvk-essential" || $addressID === "weh-essential") 
         && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["NetzAG"])) {
           continue;
         }        
-        if (($addressID === 'important' || $addressID === "tvk-important" || $addressID === "weh-important")  && !$hasAgMembership) {
+        if (($addressID === 'important' || $addressID === "tvk-important" || $addressID === "weh-important" 
+        || $addressID === "ags" || $addressID === "tvk-ags" || $addressID === "weh-ags") 
+        && !$hasAgMembership) {
           continue;
         }
         if ($addressID === 'weh-community' && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["NetzAG"] && $_SESSION["turm"] != 'weh'))  {

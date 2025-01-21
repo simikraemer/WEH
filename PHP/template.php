@@ -997,7 +997,7 @@ function displayRundmails($conn) {
 
 
     if ($_SESSION['aktiv'] == true) {
-        $sql_users .= " OR r.address LIKE '%" . $_SESSION["turm"] . "-ags%'";
+        $sql_users .= " OR r.address LIKE '%" . $_SESSION["turm"] . "-ags%' OR r.address = 'ags'";
     }
     $sql_users .= ") ORDER BY r.id DESC";
 
