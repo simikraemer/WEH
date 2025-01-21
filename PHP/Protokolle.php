@@ -68,7 +68,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
     <tr>
       <th>Veranstaltung</th>
       <th>Datum</th>';
-      echo '<th></th>';
     if ($_SESSION["Schrift"]) {
         echo '<th></th>';
     }
@@ -76,23 +75,22 @@ if (auth($conn) && ($_SESSION['valid'])) {
     
 
     while (mysqli_stmt_fetch($stmt)) {
-      echo "<tr>";    
-      echo '<td><a href="'.$path.'" target="_blank" class="white-text">'.$typeStrings[$type].'</a></td>';
-      echo "<td>" . date('d.m.Y', $vzeit) . "</td>";
-  
-      echo '<td>';
-      echo '<a href="' . $path . '" target="_blank" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px; text-decoration: none;">Öffnen</a>';
-      echo '</td>';
+      echo '<tr onclick="window.open(\'' . $path . '\', \'_blank\')" style="cursor: pointer;">';
+      echo '<td>' . $typeStrings[$type] . '</td>';
+      echo '<td>' . date('d.m.Y', $vzeit) . '</td>';
+      
       if ($_SESSION["Schrift"]) {
           echo '<td>';
-          echo '<form method="post" action="">';
+          echo '<form method="post" action="" onClick="event.stopPropagation();">';
           echo '<button type="submit" name="delete_protokoll" value="' . $id . '" class="red-center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Entfernen</button>';
           echo '</form>';
           echo '</td>';
       }
-  
-      echo "</tr>";
+      
+      echo '</tr>';
   }
+  
+  
 
     echo '</table>';
 
