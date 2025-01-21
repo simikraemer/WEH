@@ -176,7 +176,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     }
     $table_end = strtotime($table_end_date);
 
-    echo "<table class='agessentable'>";
+    echo "<table class='agessentable' style='margin-bottom: 60px;'>";
     echo "<tr><th>Datum</th><th>AG</th><th>Betrag</th><th>IBAN</th><th>Rechnung</th><th>Teilnehmer</th></tr>";
 
     $sql = "SELECT a.id, a.tstamp, a.pfad, a.betrag, a.iban, a.ag, 
