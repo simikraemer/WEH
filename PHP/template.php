@@ -1012,7 +1012,7 @@ function displayRundmails($conn) {
 
 
     // Generiere die Tabelle
-    echo '<table class="grey-table" style="margin: 0 auto; text-align: center;">';
+    echo '<table class="grey-table" style="margin: 0 auto; margin-bottom:60px; text-align: center;">';
     echo "<tr>
             <th>Turm</th> <!-- Neue Spalte für Turm -->
             <th>Name</th>
