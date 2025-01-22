@@ -606,7 +606,7 @@ if (auth($conn) && $_SESSION['valid']) {
   mysqli_stmt_bind_result($stmt, $ip, $mac, $mac2, $mac3, $hostname, $id, $sublet);
   
   echo '<form action="IPverwaltung.php" method="post" name="formularipverwaltung">';
-  echo "<table class='grey-table'>";
+  echo "<table class='clear-table'>";
   echo "<tr><th>IP</th><th>MAC 1</th><th>MAC 2</th><th>MAC 3</th><th>Description</th>";
 
   if ($_SESSION["NetzAG"]) {

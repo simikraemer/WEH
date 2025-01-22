@@ -70,7 +70,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
   // Tabelle zentrieren
   echo '<div style="text-align: center; margin-bottom: 40px;">';
-  echo '<table border="1" cellspacing="0" cellpadding="5" style="margin: auto; color: white; background-color: black; box-shadow: 0px 0px 30px rgba(255, 255, 255, 0.5);">';
+  #echo '<table border="1" cellspacing="0" cellpadding="5" style="margin: auto; color: white; background-color: black; box-shadow: 0px 0px 30px rgba(255, 255, 255, 0.5);">';
+  echo "<table class='clear-table'>";
   echo '<tr><th>E-Mail-Adressen</th><th>Name</th><th>Benutzer</th></tr>';
 
   // Verarbeitung der Gruppen und Benutzer

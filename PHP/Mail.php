@@ -61,12 +61,12 @@ if (auth($conn) && $_SESSION['valid']) {
     $mailSettings = $row['mailsettings'];
     $forwardMail = $row['forwardemail'];
     $email = $row['email'];
-  
+    
     echo '<form method="post">';
 
     echo '<h2 style="font-size: 35px; color: white;">Rundmail Subscription Settings:</h2>';
     echo '
-    <table class="grey-table" style="font-size: 24px; color: white; margin: 0 auto;">
+    <table class="clear-table">
       <tr>
         <th>Option</th>
         <th>Mailing lists</th>
@@ -101,33 +101,34 @@ if (auth($conn) && $_SESSION['valid']) {
     </table>
     <br><br>';
     
-    
     echo '<h2 style="font-size: 35px; color: white;">Forwarding Settings:</h2>';
     echo '
-    <table class="grey-table" style="font-size: 24px; color: white; margin: 0 auto;">      
+    <table class="clear-table">      
     <tr>
       <th>Option</th>
       <th>E-Mail Address</th>
     </tr>
     <tr>
       <td>
-        <label style="color: white; display: block; font-size: 24px;">
-          <input type="radio" name="mail_forward" value="0" ' . ($forwardMail === "0" ? "checked" : "") . '> Send all E-Mails to </td><td>' . $_SESSION['username'] . '@weh.rwth-aachen.de
+        <label>
+          <input type="radio" name="mail_forward" value="0" ' . ($forwardMail === "0" ? "checked" : "") . '> Send all E-Mails to
         </label>
       </td>
-      </tr>
-    <br>
+      <td>' . $_SESSION['username'] . '@weh.rwth-aachen.de</td>
+    </tr>
     <tr>
       <td>
-    <label style="color: white; display: block; font-size: 24px;">
-    <input type="radio" name="mail_forward" value="1" ' . ($forwardMail === "1" ? "checked" : "") . '> Forward all E-Mails to</td><td>
-    <input type="text" name="mail_address" value="' . htmlentities($email) . '" style="width: 400px; font-size: 20px; text-align: center;">
-    </label>
-    </td>
+        <label>
+          <input type="radio" name="mail_forward" value="1" ' . ($forwardMail === "1" ? "checked" : "") . '> Forward all E-Mails to
+        </label>
+      </td>
+      <td>
+        <input type="text" name="mail_address" value="' . htmlentities($email) . '" style="width: 400px; font-size: 20px; text-align: center;">
+      </td>
     </tr>
     </table>
-  <br><br><br>';
-  
+    <br><br><br>';
+    
     
     echo "<div style='display: flex; justify-content: center; margin-top: 1%'>";
     echo "<button type='submit' name='save' class='center-btn' >SAVE CHANGES</button>";  

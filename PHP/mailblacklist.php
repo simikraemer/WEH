@@ -151,39 +151,50 @@ if (auth($conn) && ($_SESSION['NetzAG'])) {
     mysqli_stmt_close($stmt);
 
     // Funktion zur Erstellung einer Tabelle aus dem Array
-    function createTableFromArray($data, $title){
-    echo '<div>';
-    echo '<h2 style="text-align: center;">'.$title.'</h2>';
+    function createTableFromArray($data, $title) {
+      echo '<div>';
+      echo '<h2 style="text-align: center;">' . $title . '</h2>';
       echo '<table class="grey-table">
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Agent</th>
-        <th></th>
-        <th></th>
-      </tr>';
-
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Agent</th>
+            <th>Delete</th>
+          </tr>';
+  
       foreach ($data as $row) {
-          echo "<tr>";
-          echo "<td>" . $row['id'] . "</td>";
-          echo "<td>" . $row['name'] . "</td>";
-          echo "<td>" . $row['agent'] . "</td>";
-          echo '<td>';
-          echo '<form method="post" action="">';
-          echo '<button type="submit" name="edit_blacklist" value="' . $row['id'] . '" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Edit</button>';
-          echo '</form>';
-          echo '</td>';
-          echo '<td>';
-          echo '<form method="post" action="">';
-          echo '<button type="submit" name="delete_blacklist" value="' . $row['id'] . '" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Delete</button>';
-          echo '</form>';
-          echo '</td>';
+          // Verstecktes Formular für Edit
+          echo "<form method='POST' style='display: none;' id='form_{$row['id']}'>
+                  <input type='hidden' name='edit_blacklist' value='{$row['id']}'>
+                </form>";
+  
+          // Zeilenstart (klickbare Zeile für Edit)
+          echo "<tr onclick='document.getElementById(\"form_{$row['id']}\").submit();' style='cursor: pointer;'>";
+  
+          // Zeileninhalt
+          echo "<td>{$row['id']}</td>";
+          echo "<td>{$row['name']}</td>";
+          echo "<td>{$row['agent']}</td>";
+  
+          // Löschen
+          echo "<td>";
+          echo "<form method='post' style='margin: 0;'>";
+          echo "<button type='submit' name='delete_blacklist' value='" . $row['id'] . "' style='background: none; border: none; cursor: pointer; padding: 0;'>";
+          echo '<img src="images/trash_white.png" 
+                class="animated-trash-icon" 
+                style="width: 24px; height: 24px;">';
+          echo "</button>";
+          echo "</form>";
+          echo "</td>";
+  
+          // Zeilenende
           echo "</tr>";
       }
-
+  
       echo '</table>';
       echo '</div>';
     }
+  
 
     echo '<div style="display: flex; justify-content: center;">';
     createTableFromArray($domains, 'Domains');

@@ -106,46 +106,43 @@ if (auth($conn) && ($_SESSION['valid'])) {
     
     // Prüfe, ob es Einträge gibt
     if (mysqli_num_rows($result) > 0) {
-        echo '<div style="width: 50%; margin: 0 auto; text-align: center;">';
         echo '<h2 style="text-align: center; font-size: 25px;">Übersicht deiner pskonly Registrierungen:</h2>';
     
-        echo '<table style="margin: 0 auto; border-collapse: collapse; width: 100%; text-align: center; color: white;">';
-        echo '<tr style="border: 1px solid white;">
-                <th style="border: 1px solid white; padding: 10px;">Beschreibung</th>
-                <th style="border: 1px solid white; padding: 10px;">MAC</th>
-                <th style="border: 1px solid white; padding: 10px;">Status</th>
+        echo '<table class="clear-table">';
+        echo '<tr>
+                <th>Beschreibung</th>
+                <th>MAC</th>
+                <th>Status</th>
               </tr>';
-    
+        
         // Iteriere durch die Ergebnisse und füge sie zur Tabelle hinzu
         while ($row = mysqli_fetch_assoc($result)) {
-            $statusText = '';
-            $statusColor = '';
-    
-            // Statusübersetzung und Farbzuweisung
+            $statusClass = '';
+        
+            // Statusübersetzung und CSS-Klassen-Zuweisung
             switch ($row['status']) {
                 case -1:
                     $statusText = 'Abgelehnt';
-                    $statusColor = 'red';
+                    $statusClass = 'status-red';
                     break;
                 case 0:
                     $statusText = 'Ausstehend';
-                    $statusColor = 'white';
+                    $statusClass = 'status-white';
                     break;
                 case 1:
                     $statusText = 'Angenommen';
-                    $statusColor = 'green';
+                    $statusClass = 'status-green';
                     break;
             }
-    
-            echo '<tr style="border: 1px solid white;">';
-            echo '<td style="border: 1px solid white; padding: 10px;">' . htmlspecialchars($row['beschreibung']) . '</td>';
-            echo '<td style="border: 1px solid white; padding: 10px;">' . htmlspecialchars($row['mac']) . '</td>';
-            echo '<td style="border: 1px solid white; padding: 10px; color: ' . $statusColor . ';">' . $statusText . '</td>';
+        
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($row['beschreibung']) . '</td>';
+            echo '<td>' . htmlspecialchars($row['mac']) . '</td>';
+            echo '<td class="' . $statusClass . '">' . $statusText . '</td>';
             echo '</tr>';
         }
-    
+        
         echo '</table>';
-        echo '</div>';
 
         echo "<br><br><hr><br><br>";
     }

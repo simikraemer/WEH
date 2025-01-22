@@ -1205,3 +1205,28 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   }
 }
 
+.clear-table {
+  margin: 0 auto;
+  border-collapse: collapse;
+  width: 50%;
+  text-align: center;
+  color: white;
+}
+
+.clear-table th, 
+.clear-table td {
+  border: 1px solid white;
+  padding: 10px;
+}
+
+.clear-table td.status-red {
+  color: red;
+}
+
+.clear-table td.status-white {
+  color: white;
+}
+
+.clear-table td.status-green {
+  color: green;
+}
