@@ -996,29 +996,6 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
       display: inline-block;
   }
 
-/*  .grey-table {
-    margin: 0 auto;
-    text-align: center;
-    padding: 0 20px;
-  }
-  
-  .grey-table th,
-  .grey-table td {
-    color: white;
-    padding: 10px;
-  }
-  
-  .grey-table th {
-    font-size: 30px;
-    background-color: #222;
-  }
-  
-  .grey-table td {
-    font-size: 25px;
-    background-color: #444;
-  }
-*/
-
   .grey-table {
     margin: 0 auto;
     text-align: center;
@@ -1027,19 +1004,26 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
   .grey-table th,
   .grey-table td {
+      padding: 5px;
       color: white;
-      padding: 10px;
   }
 
   .grey-table th {
       font-size: 30px;
-      background-color: #222;
+  }
+
+  .grey-table tr:nth-child(odd) td {
+    background-color: #444;
+  }
+
+  .grey-table tr:nth-child(even) td {
+      background-color: #333;
   }
 
   .grey-table td {
       font-size: 25px;
-      background-color: #444;
   }
+
 
   /* Hover-Effekt auf td innerhalb von tr */
   .grey-table tr:hover td {

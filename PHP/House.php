@@ -203,6 +203,334 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     echo "</html>";
   }
 
+  function generateRooms($floor, $zeroFloorRoomCount = 4) {
+    if ($floor == 0) {
+      $rooms = range(1, $zeroFloorRoomCount); // Räume von 1 bis zur angegebenen Anzahl
+      $half = ceil(count($rooms) / 2); // Räume aufteilen in "left" und "right"
+      return [
+          'left' => array_slice($rooms, 0, $half),
+          'right' => array_slice($rooms, $half)
+      ];
+    } else {
+        $roomsleft = array();
+        for ($j = 1; $j <= 8; $j++) {
+            $roomsleft[] = $floor . str_pad($j, 2, "0", STR_PAD_LEFT);
+        }
+        $roomsright = array();
+        for ($j = 9; $j <= 16; $j++) {
+            $roomsright[] = $floor . str_pad($j, 2, "0", STR_PAD_LEFT);
+        }
+        return [
+            'left' => $roomsleft,
+            'right' => $roomsright
+        ];
+    }
+  }
+
+  function renderHouseTable($rooms, $wlanRooms, $usersByRoom, $subletRooms, $bannedUids) {
+    $suffixes = array("left", "right");
+
+    foreach ($suffixes as $suffix) {
+        echo "<div class='" . $suffix . "-table-container'>";
+        echo "<table class='house-table " . $suffix . "-table'>";
+        echo "<br><br>";
+        foreach ($rooms[$suffix] as $room) {
+            echo "<tr>";
+            $roomformatiert = str_pad($room, 4, "0", STR_PAD_LEFT);
+            $wlan_icon = (in_array($room, $wlanRooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
+            echo "<td style='color: #888888;'>$roomformatiert $wlan_icon</td>";
+
+            if (array_key_exists($room, $usersByRoom)) {
+                $users = $usersByRoom[$room];
+                foreach ($users as $user) {
+                    $user_id = $user["uid"];
+                    $user_name = $user["username"];
+                    $firstname = $user["firstname"];
+                    $lastname = $user["lastname"];
+                    $name_html = htmlspecialchars($firstname . ' ' . $lastname, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
+                    $ags = $user["groups"];
+                    $ags_icons = getAgsIcons($ags, 20);
+
+                    $sublet_icon = (in_array($room, $subletRooms)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
+                    $ban_icon = (in_array($user["uid"], $bannedUids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
+
+                    echo "<td>$user_id</td>";
+                    echo "<td>
+                          <a href='mailto:$user_name@weh.rwth-aachen.de'>
+                              <img src='images/mail_white.png'                    
+                                  style='width: 20px; height: 20px;'
+                                  onmouseover=\"this.src='images/mail_green.png';\" 
+                                  onmouseout=\"this.src='images/mail_white.png';\">
+                          </a>
+                      </td>";
+                    echo "<td>$user_name</td>";
+                    echo "<td><a href='javascript:void(0);' onclick='
+                          var form = document.createElement(\"form\");
+                          form.setAttribute(\"method\", \"post\");
+                          form.setAttribute(\"action\", \"\");
+                          var hiddenField = document.createElement(\"input\");
+                          hiddenField.setAttribute(\"type\", \"hidden\");
+                          hiddenField.setAttribute(\"name\", \"id\");
+                          hiddenField.setAttribute(\"value\", \"$user_id\");
+                          form.appendChild(hiddenField);
+                          document.body.appendChild(form);
+                          form.submit();
+                          '  class='white-text' style='user-select: text;'>$name_html $ban_icon $sublet_icon $ags_icons</a></td>";
+                }
+            } else {
+                echo "<td></td><td></td><td></td><td></td>";
+            }
+        }
+        echo "</tr>";
+        echo "</table>";
+        echo "</div>";
+    }
+  }
+
+  function renderCustomUserTable($conn, $query, $dateColumn, $isHonory = false) {
+    if ($dateColumn == "") {
+        $tstampANDroomRow = false;
+    } else {
+        $tstampANDroomRow = true;
+    }
+    $stmt = mysqli_prepare($conn, $query);
+    mysqli_stmt_execute($stmt);
+
+    // Ergebnisse binden (inkl. Raum)
+    mysqli_stmt_bind_result($stmt, $uid, $room, $turm, $firstname, $lastname, $username, $timestamp);
+
+    $users = [];
+    while (mysqli_stmt_fetch($stmt)) {
+        // Namen kürzen
+        $shortFirstname = explode(' ', $firstname)[0];
+        $shortLastname = explode(' ', $lastname)[0];
+        $shortName = htmlspecialchars("$shortFirstname $shortLastname", ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
+
+        // Datum oder Status für Honory
+        if ($isHonory && $timestamp == 0) {
+            $dateValue = "Aktiv";
+        } elseif ($tstampANDroomRow) {
+            $dateValue = date("d.m.Y", $timestamp);
+        } else {
+            $dateValue = null; // Kein Wert, wenn tstampRow false ist
+        }
+
+        // Room checken
+        if ($room == 0) {
+          $room = "-";
+        }
+        
+        // Turm formatieren
+        if (strtolower($turm) === "tvk") {
+            $formattedTurm = "TvK";
+        } else {
+            $formattedTurm = strtoupper($turm);
+        }
+
+        $users[] = [
+            'date' => $dateValue,
+            'uid' => $uid,
+            'room' => $room,
+            'turm' => $formattedTurm,
+            'name' => $shortName,
+            'username' => $username
+        ];
+    }
+
+    mysqli_stmt_close($stmt);
+
+    // Tabelle erstellen
+    echo "<div class='table-container' style='text-align: center;'>";
+    echo "<table class='grey-table' style='margin: 0 auto; margin-bottom:60px;'>";
+    echo "<tr>";
+    if ($tstampANDroomRow) {
+        echo "<th>$dateColumn</th>";
+    }
+    echo "<th>UID</th>";
+    echo "<th>Name</th>";
+    if ($tstampANDroomRow) {
+        echo "<th>Raum</th>";
+        echo "<th>Turm</th>";
+    }
+    #echo "<th>Username</th>";
+    echo "</tr>";
+
+    if (!empty($users)) {
+        foreach ($users as $user) {
+            // Verstecktes Formular für die UID
+            echo "<form method='POST' style='display: none;' id='form_{$user['uid']}'>
+                    <input type='hidden' name='id' value='{$user['uid']}'>
+                  </form>";
+
+            // Klickbare Zeile
+            echo "<tr onclick='document.getElementById(\"form_{$user['uid']}\").submit();' style='cursor: pointer;'>";
+            if ($tstampANDroomRow && isset($user['date'])) {
+                echo "<td>{$user['date']}</td>";
+            }
+            echo "<td>{$user['uid']}</td>";
+            echo "<td>{$user['name']}</td>";
+            if ($tstampANDroomRow) {
+                echo "<td>{$user['room']}</td>";
+                echo "<td>{$user['turm']}</td>";
+            }
+            #echo "<td>{$user['username']}</td>";
+            echo "</tr>";
+        }
+    } else {
+        $colspan = $tstampANDroomRow ? 5 : 4; // Dynamische Spaltenanzahl
+        echo "<tr><td colspan='$colspan'>No data available</td></tr>";
+    }
+
+    echo "</table>";
+    echo "</div>";
+  }
+
+
+  function createNewDummyUser($conn, $currentUserName) {
+    $starttime = time();
+    $historie = date('d.m.Y') . " Neuer Dummy angelegt von " . $currentUserName;
+    $username = "neuerdummy";
+    $number = 1;
+    $uniqueUsername = false;
+
+    // Eindeutigen Benutzernamen generieren
+    while (!$uniqueUsername) {
+        $currentUsername = $username . $number;
+        $sql = "SELECT * FROM users WHERE username = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        if (!$stmt) {
+            die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+        }
+        mysqli_stmt_bind_param($stmt, "s", $currentUsername);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_store_result($stmt);
+        $row_count = mysqli_stmt_num_rows($stmt);
+        if ($row_count == 0) {
+            // Der Benutzername ist eindeutig
+            $username = $currentUsername;
+            $uniqueUsername = true;
+        } else {
+            // Der Benutzername existiert bereits, erhöhe die Zahl
+            $number++;
+        }
+        mysqli_stmt_close($stmt);
+    }
+
+    // Neuen Dummy-Benutzer einfügen
+    $sql = "INSERT INTO users SET room=0, name='New Dummy', firstname='New', lastname='Dummy', starttime=?, historie=?, username=?, pid=64";
+    $paramTypes = "iss";
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($stmt, $paramTypes, $starttime, $historie, $username);
+    mysqli_stmt_execute($stmt);
+    if (mysqli_stmt_affected_rows($stmt) <= 0) {
+        die("Einfügen fehlgeschlagen: " . mysqli_error($conn));
+    }
+    $newDummyId = mysqli_insert_id($conn); // ID des neu eingefügten Datensatzes abrufen
+    mysqli_stmt_close($stmt);
+    
+    return $newDummyId; // Neue Dummy-ID zurückgeben
+  }
+
+
+  function processSubletReturn($conn, $subletterUid, $emptyRoom, $currentUsername) {
+    $zeit = time();
+
+    // Subnet, oldroom und turm des Subletters abrufen
+    $sql = "SELECT subnet, oldroom, turm FROM users WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($stmt, "i", $subletterUid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $subnet, $room, $turm);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    if ($subnet == "") {
+        // Subnet von anderen Nutzern im gleichen Raum und Turm abrufen
+        $sql = "SELECT subnet FROM users WHERE room = ? AND turm = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        if (!$stmt) {
+            die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+        }
+        mysqli_stmt_bind_param($stmt, "is", $room, $turm);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $subnet);
+        mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+    }
+
+    $date = date("d.m.Y");
+    $stringie1 = utf8_decode("\n" . $date . " Back von Untervermietung (" . $currentUsername . ")");
+    $stringie2 = utf8_decode("\n" . $date . " Ablauf Untermiete (" . $currentUsername . ")");
+
+    // Abmeldung des Sublets, falls der Raum nicht leer ist
+    if ($emptyRoom == 0) {
+        $sql = "SELECT uid FROM users WHERE room = ? AND turm = ? AND pid = 11 LIMIT 1";
+        $stmt = mysqli_prepare($conn, $sql);
+        if (!$stmt) {
+            die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+        }
+        mysqli_stmt_bind_param($stmt, "is", $room, $turm);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $subletUid);
+        mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+
+        $sql = "UPDATE users SET room = 0, oldroom = ?, pid = 13, subtenanttill = ?, ausgezogen = ?, historie = CONCAT(historie, ?), subnet = '' WHERE uid = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        if (!$stmt) {
+            die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+        }
+        mysqli_stmt_bind_param($stmt, "iissi", $room, $zeit, $zeit, $stringie2, $subletUid);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    }
+
+    // Sublet-Daten aktualisieren
+    $sql = "UPDATE users SET room = ?, oldroom = 0, pid = 11, subletterend = ?, historie = CONCAT(historie, ?), subnet = ? WHERE oldroom = ? AND pid = 12";
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($stmt, "iissi", $room, $zeit, $stringie1, $subnet, $room);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    // Prüfen, ob MAC-Adresse vorhanden ist
+    $sql = "SELECT * FROM macauth WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($stmt, "i", $subletterUid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_store_result($stmt);
+    $rowCount = mysqli_stmt_num_rows($stmt);
+    mysqli_stmt_close($stmt);
+
+    if ($rowCount == 0) {
+        addPrivateIPs($conn, $subletterUid, $subnet);
+    }
+
+    // MAC-Adresse aktualisieren
+    $sql = "UPDATE macauth SET sublet = 0 WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($stmt, "i", $subletterUid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    return true;
+  }
+
+
   
   $sqltx = "SELECT uid FROM sperre WHERE starttime < UNIX_TIMESTAMP() AND UNIX_TIMESTAMP() < endtime AND internet = 1";
   $stmttx = mysqli_prepare($conn, $sqltx);
@@ -291,10 +619,6 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
       $sublets_by_room[$oldroom][] = array("uid" => $uid, "name" => $name, "groups" => $groups, "subletterstart" => $subletterstart, "subletterend" => $subletterend, "username" => $username);
       $weh_roomssublet[] = $oldroom;
   }
-  
-  $floorstvk = range(0, 15);
-  $floors = range(0, 17);
-  $suffixes = array("left", "right");
 
 
 
@@ -335,12 +659,9 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     echo "</form>";
     echo "</div>";
 
+  } elseif (isset($_POST["id"])) {    
 
-
-  } elseif (isset($_POST["id"])) {
-    
     if (isset($_POST["id_update"])) {
-
       // Eingegebene Postvariablen definieren
       $id = $_POST['id'];
       $room = isset($_POST['room']) ? $_POST['room'] : 0;
@@ -612,125 +933,121 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
     $zeit = time();
 
-// Zuerst: Holen Sie alle Sperren und speichern Sie sie in einem Array
-$sql = "SELECT beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen, missedpayment
-        FROM sperre 
-        WHERE uid = ? AND sperre.starttime <= ? AND sperre.endtime >= ?";
-$stmt = mysqli_prepare($conn, $sql);
-mysqli_stmt_bind_param($stmt, "iii", $_POST["id"], $zeit, $zeit);
-mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $missedpayment);
+    // Zuerst: Holen Sie alle Sperren und speichern Sie sie in einem Array
+    $sql = "SELECT beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen, missedpayment
+            FROM sperre 
+            WHERE uid = ? AND sperre.starttime <= ? AND sperre.endtime >= ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "iii", $_POST["id"], $zeit, $zeit);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $missedpayment);
 
-$sperren = []; // Array für Sperrendaten
-while (mysqli_stmt_fetch($stmt)) {
-    $sperren[] = [
-        'beschreibung' => $beschreibung,
-        'mail' => $mail,
-        'internet' => $internet,
-        'waschen' => $waschen,
-        'buchen' => $buchen,
-        'drucken' => $drucken,
-        'werkzeugbuchen' => $werkzeugbuchen,
-        'missedpayment' => $missedpayment
-    ];
-}
-mysqli_stmt_close($stmt);
+    $sperren = []; // Array für Sperrendaten
+    while (mysqli_stmt_fetch($stmt)) {
+        $sperren[] = [
+            'beschreibung' => $beschreibung,
+            'mail' => $mail,
+            'internet' => $internet,
+            'waschen' => $waschen,
+            'buchen' => $buchen,
+            'drucken' => $drucken,
+            'werkzeugbuchen' => $werkzeugbuchen,
+            'missedpayment' => $missedpayment
+        ];
+    }
+    mysqli_stmt_close($stmt);
 
-// Zweitens: Holen Sie die Summe der Beträge für die UID
-$sql = "SELECT SUM(betrag) FROM transfers WHERE uid = ?";
-$stmt = mysqli_prepare($conn, $sql);
-mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
-mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $summe);
-mysqli_stmt_fetch($stmt);
-mysqli_stmt_close($stmt);
+    // Zweitens: Holen Sie die Summe der Beträge für die UID
+    $sql = "SELECT SUM(betrag) FROM transfers WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $summe);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
 
-if (is_null($summe)) {
-    $summe = 0.00;
-}
-$neg_summe = (-1) * $summe;
+    if (is_null($summe)) {
+        $summe = 0.00;
+    }
+    $neg_summe = (-1) * $summe;
 
-// Ausgabe der Sperren
-if (empty($sperren)) {
-    echo "<div style='border: 2px solid rgb(0,200,0); border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
-            <span style='font-weight: bold; font-size: 25px; color: rgb(0,200,0);'>Keine Sperre vorhanden</span>
-          </div>";
-} else {
-    foreach ($sperren as $sperre) {
-        // Array der betroffenen Dienste
-        $services = [];
-        if ($sperre['mail']) $services[] = "Mail";
-        if ($sperre['internet']) $services[] = "Internet";
-        if ($sperre['waschen']) $services[] = "Waschen";
-        if ($sperre['buchen']) $services[] = "Buchen";
-        if ($sperre['drucken']) $services[] = "Drucken";
-        if ($sperre['werkzeugbuchen']) $services[] = "Werkzeugbuchen";
+    // Ausgabe der Sperren
+    if (empty($sperren)) {
+        echo "<div style='border: 2px solid rgb(0,200,0); border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
+                <span style='font-weight: bold; font-size: 25px; color: rgb(0,200,0);'>Keine Sperre vorhanden</span>
+              </div>";
+    } else {
+        foreach ($sperren as $sperre) {
+            // Array der betroffenen Dienste
+            $services = [];
+            if ($sperre['mail']) $services[] = "Mail";
+            if ($sperre['internet']) $services[] = "Internet";
+            if ($sperre['waschen']) $services[] = "Waschen";
+            if ($sperre['buchen']) $services[] = "Buchen";
+            if ($sperre['drucken']) $services[] = "Drucken";
+            if ($sperre['werkzeugbuchen']) $services[] = "Werkzeugbuchen";
 
-        // Dienste-Ausgabe
-        $servicesOutput = implode(", ", $services);
+            // Dienste-Ausgabe
+            $servicesOutput = implode(", ", $services);
 
-        echo "<div style='border: 2px solid red; border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
-                <span style='font-weight: bold; font-size: 25px; color: red;'>Sperre:</span><br>
-                <span style='font-size: 20px; color: red;'>" . htmlspecialchars($sperre['beschreibung']) . "</span><br><br>
-                <span style='font-weight: bold; font-size: 18px; color: red;'>Betroffene Dienste:</span><br>
-                <span style='font-size: 18px; color: red;'>" . htmlspecialchars($servicesOutput) . "</span>";
+            echo "<div style='border: 2px solid red; border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
+                    <span style='font-weight: bold; font-size: 25px; color: red;'>Sperre:</span><br>
+                    <span style='font-size: 20px; color: red;'>" . htmlspecialchars($sperre['beschreibung']) . "</span><br><br>
+                    <span style='font-weight: bold; font-size: 18px; color: red;'>Betroffene Dienste:</span><br>
+                    <span style='font-size: 18px; color: red;'>" . htmlspecialchars($servicesOutput) . "</span>";
 
-        // Wenn "missedpayment" aktiv ist, zeige den Mail-Button
-        if ($sperre['missedpayment'] == 1) {
-            echo '<form method="POST" style="margin-top: 20px;">';
-            echo '<input type="hidden" name="id" value="' . $_POST["id"] . '">';
-            echo '<button type="submit" name="send_mail_banned" class="red-center-btn" id="sendBtn" 
-                    style="transition: all 0.3s ease; font-size: 15px; padding: 10px 20px; border-radius: 5px; background-color: red; color: white; cursor: pointer;">';
+            // Wenn "missedpayment" aktiv ist, zeige den Mail-Button
+            if ($sperre['missedpayment'] == 1) {
+                echo '<form method="POST" style="margin-top: 20px;">';
+                echo '<input type="hidden" name="id" value="' . $_POST["id"] . '">';
+                echo '<button type="submit" name="send_mail_banned" class="red-center-btn" id="sendBtn" 
+                        style="transition: all 0.3s ease; font-size: 15px; padding: 10px 20px; border-radius: 5px; background-color: red; color: white; cursor: pointer;">';
 
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_mail_banned'])) {
-                $address = $mailconfig['address'];
-                $message = "Dear " . $firstname . ",\n\n" .
-                           "This is a reminder mail.\nThis information has already been sent to your email address of choice.\n\n" .
-                           "Your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n" .
-                           "To reactivate your internet connection, there are still " . $neg_summe . "€ missing.\n\n" .
-                           "Name: WEH e.V.\n" .
-                           "IBAN: DE90 3905 0000 1070 3346 00\n" .
-                           "Transfer Reference: W" . $_POST["id"] . "H\n" .
-                           "If you do not set this exact Transfer Reference, we will not be able to assign your payment to your account!\n\n" .
-                           "When your member account has a positive balance, your internet connection will be reactivated automatically.\n\n" .
-                           "It will take some time until the transfer will be entered for your account.\n\n" .
-                           "Best Regards,\nNetzwerk-AG WEH e.V.";
+                if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_mail_banned'])) {
+                    $address = $mailconfig['address'];
+                    $message = "Dear " . $firstname . ",\n\n" .
+                              "This is a reminder mail.\nThis information has already been sent to your email address of choice.\n\n" .
+                              "Your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n" .
+                              "To reactivate your internet connection, there are still " . $neg_summe . "€ missing.\n\n" .
+                              "Name: WEH e.V.\n" .
+                              "IBAN: DE90 3905 0000 1070 3346 00\n" .
+                              "Transfer Reference: W" . $_POST["id"] . "H\n" .
+                              "If you do not set this exact Transfer Reference, we will not be able to assign your payment to your account!\n\n" .
+                              "When your member account has a positive balance, your internet connection will be reactivated automatically.\n\n" .
+                              "It will take some time until the transfer will be entered for your account.\n\n" .
+                              "Best Regards,\nNetzwerk-AG WEH e.V.";
 
-                $to = $email;
-                $subject = "WEH - Currently Banned";
-                $headers = "From: " . $address . "\r\n";
-                $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
+                    $to = $email;
+                    $subject = "WEH - Currently Banned";
+                    $headers = "From: " . $address . "\r\n";
+                    $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
 
-                if (mail($to, $subject, $message, $headers)) {
-                    echo '<script>
-                            const btn = document.getElementById("sendBtn");
-                            btn.style.backgroundColor = "green";
-                            btn.textContent = "Mail erfolgreich versendet.";
-                            btn.disabled = true;
-                          </script>';
+                    if (mail($to, $subject, $message, $headers)) {
+                        echo '<script>
+                                const btn = document.getElementById("sendBtn");
+                                btn.style.backgroundColor = "green";
+                                btn.textContent = "Mail erfolgreich versendet.";
+                                btn.disabled = true;
+                              </script>';
+                    } else {
+                        echo '<script>
+                                const btn = document.getElementById("sendBtn");
+                                btn.style.backgroundColor = "red";
+                                btn.textContent = "Fehler beim Versenden der Mail.";
+                                btn.disabled = true;
+                              </script>';
+                    }
                 } else {
-                    echo '<script>
-                            const btn = document.getElementById("sendBtn");
-                            btn.style.backgroundColor = "red";
-                            btn.textContent = "Fehler beim Versenden der Mail.";
-                            btn.disabled = true;
-                          </script>';
+                    echo 'Reminder mit Transferinfos an hinterlegte Mail senden.';
                 }
-            } else {
-                echo 'Reminder mit Transferinfos an hinterlegte Mail senden.';
+
+                echo '</button>';
+                echo '</form>';
             }
 
-            echo '</button>';
-            echo '</form>';
+            echo "</div>";
         }
-
-        echo "</div>";
     }
-}
-
-
-
-
 
     function calculateColor($diff_seconds) {
       $one_week = 60 * 60 * 24 * 7; // Eine Woche in Sekunden
@@ -751,16 +1068,16 @@ if (empty($sperren)) {
       $background_color = "transparent";
   
       return array('borderColor' => $border_color, 'backgroundColor' => $background_color);
-  }
-  
-  $zeit = time();
-  $diff_seconds = $zeit - $lastradius;  // Zeitdifferenz in Sekunden
+    }
     
-  $colors = calculateColor($diff_seconds);
-    
-  echo "<div style='border: 2px solid " . $colors['borderColor'] . "; border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: " . $colors['backgroundColor'] . "; text-align: center;'>
-            <span style='font-weight: bold; font-size: 25px; color: " . $colors['borderColor'] . ";'>Letzter Radius: ". date("d.m.Y H:i", $lastradius) ."</span>
-          </div>";
+    $zeit = time();
+    $diff_seconds = $zeit - $lastradius;  // Zeitdifferenz in Sekunden
+      
+    $colors = calculateColor($diff_seconds);
+      
+    echo "<div style='border: 2px solid " . $colors['borderColor'] . "; border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: " . $colors['backgroundColor'] . "; text-align: center;'>
+              <span style='font-weight: bold; font-size: 25px; color: " . $colors['borderColor'] . ";'>Letzter Radius: ". date("d.m.Y H:i", $lastradius) ."</span>
+            </div>";
   
 
     if ($pid == 12) {
@@ -796,7 +1113,6 @@ if (empty($sperren)) {
     echo "<div style='display: flex; flex-direction: column; align-items: center;'>";
 
     echo "<div style='display: flex; justify-content: center;'>";
-
 
 
     $uploadDir = "anmeldung/" . $username . "/"; // Neuer Pfad für die Dateien des Benutzers
@@ -835,10 +1151,6 @@ if (empty($sperren)) {
     echo "</div>"; // Ende Button-Container
     echo "</div>"; // Ende Flexbox-Container
     
-    
-    
-    
-
     
     
     $readonly = !$_SESSION["NetzAG"] ? "readonly" : "";
@@ -906,560 +1218,102 @@ if (empty($sperren)) {
 
     echo "</table>";
 
+  } elseif (isset($_POST["sublet"])){ 
 
-  } elseif (isset($_POST["sublet"])){
-
-    if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
-      if ($_POST["sublet"] == "Bestätigen") { 
-
-        $subletter_uid = $_POST["user_id"];
-        $emptyroom = $_POST["emptyroom"];
-        $zeit = time();
-
-        $sql = "SELECT subnet, oldroom, turm FROM users WHERE uid = ?";
-        $result = executePreparedQuery($conn, $sql, "i", $subletter_uid);
-        $subnet = $result['subnet'];
-        $room = $result['oldroom'];
-        $turm = $result['turm'];
-        if ($subnet == "") {
-            $sql = "SELECT subnet FROM users WHERE room = ? AND turm = ?";
-            $result = executePreparedQuery($conn, $sql, "is", $room, $turm);
-            $subnet = $result['subnet'];
-        }
-        
-        echo "subnet1: " . $subnet;
-
-        $date = date("d.m.Y");
-        $stringie1 = utf8_decode("\n" . $date . " Back von Untervermietung (" . $_SESSION['username'] . ")");
-        $stringie2 = utf8_decode("\n" . $date . " Ablauf Untermiete (" . $_SESSION['username'] . ")");
-
-        if ($emptyroom == 0) { # Nur durchzuführen, wenn der Raum aktuell nicht leer ist -> also die "Abmeldung" des Sublets
-          $sql = "SELECT uid FROM users WHERE room = ? AND turm = ? AND pid = 11 LIMIT 1";
-          $stmt = mysqli_prepare($conn, $sql);
-          mysqli_stmt_bind_param($stmt, "is", $room, $turm);
-          mysqli_stmt_execute($stmt);
-          mysqli_stmt_bind_result($stmt, $sublet_uid);
-          mysqli_stmt_fetch($stmt);
-          mysqli_stmt_close($stmt);
-
-          $sql = "UPDATE users SET room = 0, oldroom = ?, pid = 13, subtenanttill = ?, ausgezogen = ?, historie = CONCAT(historie, ?), subnet = '' WHERE uid = ?";
-          $stmt = mysqli_prepare($conn, $sql);
-          if ($stmt) {
-              mysqli_stmt_bind_param($stmt, "iissi", $room, $zeit, $zeit, $stringie2, $sublet_uid);
-              mysqli_stmt_execute($stmt);
-              mysqli_stmt_close($stmt);
-          } else {
-              die('Fehler beim Vorbereiten des SQL-Statements: ' . mysqli_error($conn));
-          }
-          
-        }
-
-        $sql = "UPDATE users SET room = ?, oldroom = 0, pid = 11, subletterend = ?, historie = CONCAT(historie, ?), subnet = ? WHERE oldroom = ? AND pid = 12";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "iissi", $room, $zeit, $stringie1, $subnet, $room);
-        mysqli_stmt_execute($stmt);
-        $stmt->close();
-
-        $sql = "SELECT * FROM macauth WHERE uid = ?";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "i", $subletter_uid);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_store_result($stmt);
-        $row_count = mysqli_stmt_num_rows($stmt);
-        if ($row_count == 0) {
-          addPrivateIPs($conn, $subletter_uid, $subnet);
-        }
-
-        mysqli_stmt_close($stmt);
-        $sql = "UPDATE macauth SET sublet = 0 WHERE uid = ?";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "i", $subletter_uid);
-        mysqli_stmt_execute($stmt);
-        $stmt->close(); 
-      }
-      echo "<span style='color: green; font-size: 20px;'>Erfolgreich durchgeführt.</span><br><br>";
-      echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-      echo "<script>
-        setTimeout(function() {
-          document.forms['reload'].submit();
-        }, 4000);
-      </script>";
-    }
-
+      if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
+        if ($_POST["sublet"] == "Bestätigen") {
+            $subletterUid = $_POST["user_id"];
+            $emptyRoom = $_POST["emptyroom"];
+            $currentUsername = $_SESSION['username'];
     
-    echo "<div class='sublet-table-container'>";
-    echo "<table class='sublet-table'>";
-
-    echo "<tr>
-    <th>Raum</th>
-    <th>UID</th>
-    <th>Username</th>
-    <th>Subletter</th>
-    <th>Zeitraum</th>
-    </tr>";
-      foreach ($roomssublet as $room) {
-        $users = $sublets_by_room[$room];
-        foreach ($users as $user) {
-          $user_id = $user["uid"];
-          $subletterstart = $user["subletterstart"];
-          $subletterend = $user["subletterend"];
-          $user_name = $user["username"];
-          $name_html = htmlspecialchars($user["name"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-          $ags = $user["groups"];
-          $ags_icons = getAgsIcons($ags, 20);
-
-          $roomformatiert = str_pad($room, 4, "0", STR_PAD_LEFT);
-          echo "<tr>";
-          echo "<td style='color: #888888;'>$roomformatiert</td>";
-          echo "<td>$user_id</td>";
-          echo "<td>$user_name</td>";
-          echo    "<td><a href='javascript:void(0);' onclick='
-                  var form = document.createElement(\"form\");
-                  form.setAttribute(\"method\", \"post\");
-                  form.setAttribute(\"action\", \"\");
-                  var hiddenField = document.createElement(\"input\");
-                  hiddenField.setAttribute(\"type\", \"hidden\");
-                  hiddenField.setAttribute(\"name\", \"id\");
-                  hiddenField.setAttribute(\"value\", \"$user_id\");
-                  form.appendChild(hiddenField);
-                  document.body.appendChild(form);
-                  form.submit();
-                  ' class='white-text' style='user-select: text;'>$name_html $ags_icons</a></td>";
-        
-          if ($_SESSION["NetzAG"]) {               
-            echo "<td><a href='javascript:void(0);' onclick='
-            var form = document.createElement(\"form\");
-            form.setAttribute(\"method\", \"post\");
-            form.setAttribute(\"action\", \"\");
-            var hiddenField = document.createElement(\"input\");
-            hiddenField.setAttribute(\"type\", \"hidden\");
-            hiddenField.setAttribute(\"name\", \"sublet_return\");
-            hiddenField.setAttribute(\"value\", \"$user_id\");
-            form.appendChild(hiddenField);
-            document.body.appendChild(form);
-            form.submit();
-            ' class='white-text' style='user-select: text;'>".Date("d.m.Y", $subletterstart)." - ".Date("d.m.Y", $subletterend)."</a></td>";
-          }
-          else {
-          echo "<td>".Date("d.m.Y", $subletterstart)." - ".Date("d.m.Y", $subletterend)."</td>";
-          }
-          
-          echo "</tr>";
-        }
-    }
-    echo "</table>";    
-    echo "</div>";
-
-  } elseif (isset($_POST["moved"])){
-
-    $sqlmoved = "SELECT uid, name, groups, ausgezogen, username FROM users WHERE pid = 13 ORDER by ausgezogen";
-    $stmt = mysqli_prepare($conn, $sqlmoved);
-    mysqli_stmt_execute($stmt);
-    #mysqli_set_charset($conn, "utf8");
-    mysqli_stmt_bind_result($stmt, $uid, $name, $groups, $ausgezogen, $username);    
-    $moved_by_uid = array();
-    while (mysqli_stmt_fetch($stmt)){
-        $moved_by_uid[$uid][] = array("uid" => $uid, "name" => $name, "groups" => $groups, "ausgezogen" => $ausgezogen, "username" => $username);
-    }
+            $success = processSubletReturn($conn, $subletterUid, $emptyRoom, $currentUsername);
     
-    echo "<div class='sublet-table-container'>";
-    echo "<table class='center-table'>";
-    echo "<tr>
-    <th>Auszug</th>
-    <th>UID</th>
-    <th>Username</th>
-    <th>Name</th>
-    </tr>";
-    echo "<tr>";
-    if (!empty($moved_by_uid)) {
-        foreach ($moved_by_uid as $uid => $users) {
-            foreach ($users as $user) {
-                $user_id = $user["uid"];
-                $user_name = $user["username"];
-                $user_ausgezogen = $user["ausgezogen"];
-                $name_html = htmlspecialchars($user["name"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-                $ags = $user["groups"];
-                $ags_icons = getAgsIcons($ags, 20);
-    
-                echo "<td>".Date("d.m.Y", $user_ausgezogen)."</td>";
-                echo "<td>$user_id</td>";
-                echo "<td>$user_name</td>";
-                echo "<td><a href='javascript:void(0);' onclick='
-                       var form = document.createElement(\"form\");
-                       form.setAttribute(\"method\", \"post\");
-                       form.setAttribute(\"action\", \"\");
-                       var hiddenField = document.createElement(\"input\");
-                       hiddenField.setAttribute(\"type\", \"hidden\");
-                       hiddenField.setAttribute(\"name\", \"id\");
-                       hiddenField.setAttribute(\"value\", \"$user_id\");
-                       form.appendChild(hiddenField);
-                       document.body.appendChild(form);
-                       form.submit();
-                       '  class='white-text' style='user-select: text;'>$name_html $ags_icons</a></td>";
-                       
+            if ($success) {
+              echo "<div style='text-align: center;'>
+                      <span style='color: green; font-size: 20px;'>Erfolgreich durchgeführt.</span>
+                    </div><br><br>";
+                echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
+                echo "<script>
+                    setTimeout(function() {
+                        document.forms['reload'].submit();
+                    }, 4000);
+                  </script>";
             }
-            echo "</tr><tr>";
         }
-    } else {
-        echo "<td></td><td></td>";
-    }
-    echo "</tr>";
-    echo "</table>";    
-    echo "</div>";
-    
+      }  
+
+      $query = "SELECT uid, oldroom, turm, firstname, lastname, username, subletterend FROM users WHERE pid = 12 ORDER BY subletterend";
+      renderCustomUserTable($conn, $query, "Sublet Ende");   
+
+  } elseif (isset($_POST["moved"])) {
+
+      $query = "SELECT uid, oldroom, turm, firstname, lastname, username, ausgezogen FROM users WHERE pid = 13 ORDER BY ausgezogen DESC";
+      renderCustomUserTable($conn, $query, "Auszug");   
 
   } elseif (isset($_POST["out"])){
 
-    $sqlout = "SELECT uid, name, groups, username FROM users WHERE pid = 14 ORDER by uid";
-    $stmt = mysqli_prepare($conn, $sqlout);
-    mysqli_stmt_execute($stmt);
-    #mysqli_set_charset($conn, "utf8");
-    mysqli_stmt_bind_result($stmt, $uid, $name, $groups, $username);  
-    $out_by_uid = array();
-    while (mysqli_stmt_fetch($stmt)){
-      $out_by_uid[$uid][] = array("uid" => $uid, "name" => $name, "groups" => $groups, "username" => $username);
-    }
-
-    
-    echo "<div class='sublet-table-container'>";
-    echo "<table class='center-table'>";
-    echo "<tr>";
-    if (!empty($out_by_uid)) {
-        foreach ($out_by_uid as $uid => $users) {
-            foreach ($users as $user) {
-                $user_id = $user["uid"];
-                $user_name = $user["username"];
-                $name_html = htmlspecialchars($user["name"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-                $ags = $user["groups"];
-                $ags_icons = getAgsIcons($ags, 20);
-    
-                echo "<td>$user_id</td>";
-                echo "<td>$user_name</td>";
-                echo "<td><a href='javascript:void(0);' onclick='
-                       var form = document.createElement(\"form\");
-                       form.setAttribute(\"method\", \"post\");
-                       form.setAttribute(\"action\", \"\");
-                       var hiddenField = document.createElement(\"input\");
-                       hiddenField.setAttribute(\"type\", \"hidden\");
-                       hiddenField.setAttribute(\"name\", \"id\");
-                       hiddenField.setAttribute(\"value\", \"$user_id\");
-                       form.appendChild(hiddenField);
-                       document.body.appendChild(form);
-                       form.submit();
-                       '  class='white-text' style='user-select: text;'>$name_html $ags_icons</a></td>";
-                       
-            }
-            echo "</tr><tr>";
-        }
-    } else {
-        echo "<td></td><td></td>";
-    }
-    echo "</tr>";
-    echo "</table>";    
-    echo "</div>";
-  
-  
-    } elseif (isset($_POST["dummy"]) || isset($_POST["createNewDummy"])){
-    
-        if (isset($_POST["createNewDummy"])) {
-            $starttime = time();
-            $historie = date('d.m.Y')." Neuer Dummy angelegt von ".$_SESSION['name'];
-            $username = "neuerdummy";
-            $number = 1;
-            $uniqueUsername = false;
-            while (!$uniqueUsername) {
-                $currentUsername = $username . $number;
-                $sql = "SELECT * FROM users WHERE username = ?";
-                $stmt = mysqli_prepare($conn, $sql);
-                if (!$stmt) {
-                    die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
-                }
-                mysqli_stmt_bind_param($stmt, "s", $currentUsername);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_store_result($stmt);
-                $row_count = mysqli_stmt_num_rows($stmt);
-                if ($row_count == 0) {
-                    // Der Benutzername ist eindeutig
-                    $username = $currentUsername;
-                    $uniqueUsername = true;
-                } else {
-                    // Der Benutzername existiert bereits, erhöhe die Zahl
-                    $number++;
-                }
-                mysqli_stmt_close($stmt);
-            }
-            $sql = "INSERT INTO users SET room=0, name='New Dummy', firstname='New', lastname='Dummy', starttime=?, historie=?, username=?, pid=64";
-            $paramTypes = "iss";
-            $stmt = mysqli_prepare($conn, $sql);
-            if (!$stmt) {
-                die("Vorbereitung fehlgeschlagen: " . mysqli_error($conn));
-            }
-            mysqli_stmt_bind_param($stmt, $paramTypes, $starttime, $historie, $username);
-            mysqli_stmt_execute($stmt);
-            if (mysqli_stmt_affected_rows($stmt) <= 0) {
-                die("Einfügen fehlgeschlagen: " . mysqli_error($conn));
-            }
-            mysqli_stmt_close($stmt);
-        }
-
-        echo '<form id="createUserForm" style="display:flex; justify-content:center;" method="post">';
-        echo '<button type="submit" name="createNewDummy" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Neuen Dummy erstellen</button>';
-        echo '</form><br><br>';
-
-      $sqlmoved = "SELECT uid, name, username FROM users WHERE pid = 64 ORDER by uid";
-      $stmt = mysqli_prepare($conn, $sqlmoved);
-      mysqli_stmt_execute($stmt);
-      #mysqli_set_charset($conn, "utf8");
-      mysqli_stmt_bind_result($stmt, $uid, $name, $username);    
-      $moved_by_uid = array();
-      while (mysqli_stmt_fetch($stmt)){
-          $moved_by_uid[$uid][] = array("uid" => $uid, "name" => $name, "username" => $username);
-      }
-      
-      echo "<div class='sublet-table-container'>";
-      echo "<table class='center-table'>";
-      echo "<tr>";
-      if (!empty($moved_by_uid)) {
-          foreach ($moved_by_uid as $uid => $users) {
-              foreach ($users as $user) {
-                  $user_id = $user["uid"];
-                  $user_name = $user["username"];
-                  $name_html = htmlspecialchars($user["name"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-      
-                  echo "<td>$user_id</td>";
-                  echo "<td>$user_name</td>";
-                  echo "<td><a href='javascript:void(0);' onclick='
-                         var form = document.createElement(\"form\");
-                         form.setAttribute(\"method\", \"post\");
-                         form.setAttribute(\"action\", \"\");
-                         var hiddenField = document.createElement(\"input\");
-                         hiddenField.setAttribute(\"type\", \"hidden\");
-                         hiddenField.setAttribute(\"name\", \"id\");
-                         hiddenField.setAttribute(\"value\", \"$user_id\");
-                         form.appendChild(hiddenField);
-                         document.body.appendChild(form);
-                         form.submit();
-                         '  class='white-text' style='user-select: text;'>$name_html</a></td>";
-                         
-              }
-              echo "</tr><tr>";
-          }
-        }
-    echo "</tr>";
-    echo "</table>";    
-    echo "</div>";
+    $query = "SELECT uid, oldroom, turm, firstname, lastname, username, endtime FROM users WHERE pid = 14 ORDER BY endtime DESC";
+    renderCustomUserTable($conn, $query, "Ende");
 
   } elseif (isset($_POST["ehre"])) {
-    $sqlmoved = "SELECT uid, name, username FROM users WHERE honory = 1 ORDER by uid";
-    $stmt = mysqli_prepare($conn, $sqlmoved);
-    mysqli_stmt_execute($stmt);
-    #mysqli_set_charset($conn, "utf8");
-    mysqli_stmt_bind_result($stmt, $uid, $name, $username);    
-    $moved_by_uid = array();
-    while (mysqli_stmt_fetch($stmt)){
-        $moved_by_uid[$uid][] = array("uid" => $uid, "name" => $name, "username" => $username);
-    }
-    
-    echo "<div class='sublet-table-container'>";
-    echo "<table class='center-table'>";
-    echo "<tr>";
-    if (!empty($moved_by_uid)) {
-        foreach ($moved_by_uid as $uid => $users) {
-            foreach ($users as $user) {
-                $user_id = $user["uid"];
-                $user_name = $user["username"];
-                $name_html = htmlspecialchars($user["name"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-    
-                echo "<td>$user_id</td>";
-                echo "<td>$user_name</td>";
-                echo "<td><a href='javascript:void(0);' onclick='
-                       var form = document.createElement(\"form\");
-                       form.setAttribute(\"method\", \"post\");
 
-                       form.setAttribute(\"action\", \"\");
-                       var hiddenField = document.createElement(\"input\");
-                       hiddenField.setAttribute(\"type\", \"hidden\");
-                       hiddenField.setAttribute(\"name\", \"id\");
-                       hiddenField.setAttribute(\"value\", \"$user_id\");
-                       form.appendChild(hiddenField);
-                       document.body.appendChild(form);
-                       form.submit();
-                       '  class='white-text' style='user-select: text;'>$name_html</a></td>";
-                       
-            }
-            echo "</tr><tr>";
-        }
+    $query = "SELECT uid, CASE WHEN pid = 11 THEN room ELSE oldroom END AS room, turm, firstname, lastname, username, ausgezogen FROM users WHERE honory = 1 ORDER BY ausgezogen";
+    renderCustomUserTable($conn, $query, "Ausgezogen", true);  
+
+  } elseif (isset($_POST["dummy"]) || isset($_POST["createNewDummy"])){
+
+      if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
+        if (isset($_POST["createNewDummy"])) {
+          $newdummyid = createNewDummyUser($conn, $_SESSION['name']);
+        } 
+      
+        if ($newdummyid) {
+          echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
+          echo "<form id='dummyForm' method='post' style='display: none;'>
+                  <input type='hidden' name='id' value='{$newdummyid}'>
+                </form>";
+          echo "<script>
+                  setTimeout(function() {
+                      document.getElementById('dummyForm').submit();
+                  }, 0000); // Senden nach 1 Sekunde
+                </script>";
+        }      
       }
 
-    } elseif (isset($_POST["tvk"])){
+      echo '<form id="createUserForm" style="display:flex; justify-content:center;" method="post">';
+      echo '<input type="hidden" name="reload" value="1">';
+      echo '<button type="submit" name="createNewDummy" class="house-button" style="font-size:40px; margin-bottom:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s; cursor: pointer;">Neuen Dummy erstellen</button>';
+      echo '</form><br><br>';
+      
 
-      foreach ($floorstvk as $floor) {
+      $query = "SELECT uid, room, turm, firstname, lastname, username, starttime FROM users WHERE pid = 64 ORDER BY uid";
+      renderCustomUserTable($conn, $query, "");  
 
-        if ($floor == 0) {
-            $roomsleft = array('1');
-            $roomsright = array('2');
-        } else {
-            $roomsleft = array();
-            for ($j = 1; $j <= 8; $j++) {
-                $roomsleft[] = $floor . str_pad($j, 2, "0", STR_PAD_LEFT);
-            }
-            $roomsright = array();
-            for ($j = 9; $j <= 16; $j++) {
-                $roomsright[] = $floor . str_pad($j, 2, "0", STR_PAD_LEFT);
-            }
-        }
+  } elseif (isset($_POST["tvk"])){  
 
-        foreach ($suffixes as $suffix) {
-
-            echo "<div class='" . $suffix . "-table-container'>";
-            echo "<table class='house-table " . $suffix . "-table'>";
-            $last_floor = '';
-
-            echo "<br><br>";
-            foreach (${'rooms' . $suffix} as $room) {
-                echo "<tr>";
-                $roomformatiert = str_pad($room, 4, "0", STR_PAD_LEFT);
-                $wlan_icon = (in_array($room, $tvk_wlan_rooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
-                echo "<td style='color: #888888;'>$roomformatiert $wlan_icon</td>";
-
-
-                if (array_key_exists($room, $users_by_room_tvk)) {
-                    $users = $users_by_room_tvk[$room];
-
-                    foreach ($users as $user) {
-                        $user_id = $user["uid"];
-                        $user_name = $user["username"];
-                        $firstname = $user["firstname"];
-                        $lastname = $user["lastname"];
-                        $name_html = htmlspecialchars($firstname . ' ' . $lastname, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-                        $ags = $user["groups"];
-                        $ags_icons = getAgsIcons($ags, 20);
-
-
-
-                      $sublet_icon = (in_array($room, $tvk_roomssublet)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
-                      $ban_icon = (in_array($user["uid"], $banned_uids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
-
-                      echo "<td>$user_id</td>";
-
-
-                      echo "<td>
-                          <a href='mailto:$user_name@weh.rwth-aachen.de'>
-                              <img src='images/mail_white.png'                    
-                                  style='width: 20px; height: 20px;'
-                                  onmouseover=\"this.src='images/mail_green.png';\" 
-                                  onmouseout=\"this.src='images/mail_white.png';\">
-                          </a>
-                      </td>";
-            
-                      echo "<td>$user_name</td>";
-                      
-                      echo    "<td><a href='javascript:void(0);' onclick='
-                              var form = document.createElement(\"form\");
-                              form.setAttribute(\"method\", \"post\");
-                              form.setAttribute(\"action\", \"\");
-                              var hiddenField = document.createElement(\"input\");
-                              hiddenField.setAttribute(\"type\", \"hidden\");
-                              hiddenField.setAttribute(\"name\", \"id\");
-                              hiddenField.setAttribute(\"value\", \"$user_id\");
-                              form.appendChild(hiddenField);
-                              document.body.appendChild(form);
-                              form.submit();
-                              '  class='white-text' style='user-select: text;'>$name_html $ban_icon $sublet_icon $ags_icons</a></td>";
-                  }
-                } else {
-                  echo "<td></td><td></td><td></td><td></td>";
-                }
-            }
-            echo "</tr>";
-
-            echo "</table>";    
-            echo "</div>";
-          }
-        
-      }
-    } else { // House für alles andere
-
+      $floors = range(0, 15);
+      $zeroFloorRoomCount = 2;
+      
+      echo "<div style='margin-bottom: 60px; overflow: auto;'>";
       foreach ($floors as $floor) {
-
-        if ($floor == 0) {
-            $roomsleft = array('1', '2');
-            $roomsright = array('3', '4');
-        } else {
-            $roomsleft = array();
-            for ($j = 1; $j <= 8; $j++) {
-                $roomsleft[] = $floor . str_pad($j, 2, "0", STR_PAD_LEFT);
-            }
-            $roomsright = array();
-            for ($j = 9; $j <= 16; $j++) {
-                $roomsright[] = $floor . str_pad($j, 2, "0", STR_PAD_LEFT);
-            }
-        }
-
-        foreach ($suffixes as $suffix) {
-
-            echo "<div class='" . $suffix . "-table-container'>";
-            echo "<table class='house-table " . $suffix . "-table'>";
-            $last_floor = '';
-
-            echo "<br><br>";
-            foreach (${'rooms' . $suffix} as $room) {
-                echo "<tr>";
-                $roomformatiert = str_pad($room, 4, "0", STR_PAD_LEFT);
-                $wlan_icon = (in_array($room, $weh_wlan_rooms)) ? "<img src='images/ap.png' width='20' height='20'>" : "";
-                echo "<td style='color: #888888;'>$roomformatiert $wlan_icon</td>";
-
-                if (array_key_exists($room, $users_by_room_weh)) {
-                    $users = $users_by_room_weh[$room];
-                    foreach ($users as $user) {
-                        $user_id = $user["uid"];
-                        $user_name = $user["username"];
-                        $firstname = $user["firstname"];
-                        $lastname = $user["lastname"];
-                        $name_html = htmlspecialchars($firstname . ' ' . $lastname, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
-                        $ags = $user["groups"];
-                        $ags_icons = getAgsIcons($ags, 20);
-
-                      $sublet_icon = (in_array($room, $weh_roomssublet)) ? "<img src='images/sublet.png' width='20' height='20'>" : "";
-                      $ban_icon = (in_array($user["uid"], $banned_uids)) ? "<img src='images/ban.png' width='20' height='20'>" : "";
-
-                      echo "<td>$user_id</td>";
-
-                      echo "<td>
-                          <a href='mailto:$user_name@weh.rwth-aachen.de'>
-                              <img src='images/mail_white.png'                    
-                                  style='width: 20px; height: 20px;'
-                                  onmouseover=\"this.src='images/mail_green.png';\" 
-                                  onmouseout=\"this.src='images/mail_white.png';\">
-                          </a>
-                      </td>";
-            
-                      echo "<td>$user_name</td>";
-
-                      echo    "<td><a href='javascript:void(0);' onclick='
-                              var form = document.createElement(\"form\");
-                              form.setAttribute(\"method\", \"post\");
-                              form.setAttribute(\"action\", \"\");
-                              var hiddenField = document.createElement(\"input\");
-                              hiddenField.setAttribute(\"type\", \"hidden\");
-                              hiddenField.setAttribute(\"name\", \"id\");
-                              hiddenField.setAttribute(\"value\", \"$user_id\");
-                              form.appendChild(hiddenField);
-                              document.body.appendChild(form);
-                              form.submit();
-                              '  class='white-text' style='user-select: text;'>$name_html $ban_icon $sublet_icon $ags_icons</a></td>";
-                  }
-                } else {
-                  echo "<td></td><td></td><td></td><td></td>";
-                }
-            }
-            echo "</tr>";
-
-            echo "</table>";    
-            echo "</div>";
-          }
+          $rooms = generateRooms($floor, $zeroFloorRoomCount);
+          renderHouseTable($rooms, $tvk_wlan_rooms, $users_by_room_tvk, $tvk_roomssublet, $banned_uids);
       }
-    }
+      echo "</div>";
+
+  } else { // House für alles andere
+
+      $floors = range(0, 17);
+      $zeroFloorRoomCount = 4;
+      
+      echo "<div style='margin-bottom: 60px; overflow: auto;'>";
+      foreach ($floors as $floor) {
+          $rooms = generateRooms($floor, $zeroFloorRoomCount);
+          renderHouseTable($rooms, $weh_wlan_rooms, $users_by_room_weh, $weh_roomssublet, $banned_uids);
+      }
+      echo "</div>";
+
+  }
   
 
 }
