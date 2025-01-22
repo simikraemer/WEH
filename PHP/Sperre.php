@@ -378,8 +378,14 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
   
       // "End"-Button mit stopPropagation
       echo '<td>';
-      echo '<form method="post" action="">';
-      echo '<button type="submit" name="sperre_end" value="' . $id . '" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;" onclick="event.stopPropagation();">End</button>';
+      echo '<form method="post" action="" style="margin: 0;" onClick="event.stopPropagation();">';
+      echo '<button type="submit" name="sperre_end" value="' . $id . '" style="background: none; border: none; cursor: pointer; padding: 0;">';
+      echo '<img src="images/trash_white.png" 
+                 alt="End Icon" 
+                 style="width: 24px; height: 24px;" 
+                 onmouseover="this.src=\'images/trash_red_shadow.png\';" 
+                 onmouseout="this.src=\'images/trash_white.png\';">';
+      echo '</button>';
       echo '</form>';
       echo '</td>';
     
@@ -416,7 +422,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
     echo '</div>';
     echo '<br>';
 
-    $sql = "SELECT sperre.id, sperre.beschreibung, sperre.starttime, sperre.endtime, users.room, users.turm, users.name,
+    $sql = "SELECT sperre.id, sperre.beschreibung, sperre.starttime, sperre.endtime, users.room, users.turm, users.name, users.uid,
     sperre.mail, sperre.internet, sperre.waschen, sperre.buchen, sperre.drucken, sperre.werkzeugbuchen, sperre.missedconsultation, sperre.missedpayment
     FROM users JOIN sperre 
     ON users.uid = sperre.uid
@@ -425,7 +431,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "i", $zeit);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $id, $beschreibung, $starttime, $endtime, $room, $turm, $name, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $mc, $mp);
+    mysqli_stmt_bind_result($stmt, $id, $beschreibung, $starttime, $endtime, $room, $turm, $name, $uid, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $mc, $mp);
 
     echo '<table class="grey-table">
     <tr>
@@ -437,8 +443,15 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
     </tr>';
   
     while (mysqli_stmt_fetch($stmt)) {
-      $turm4ausgabe = ($turm == 'tvk') ? 'TvK' : strtoupper($turm);
-      echo "<tr>";    
+      $turm4ausgabe = ($turm == 'tvk') ? 'TvK' : strtoupper($turm);    
+      
+      // Form für jede Zeile erstellen
+      echo "<form method='POST' action='House.php' target='_blank' style='display: none;' id='form_{$uid}'>
+              <input type='hidden' name='id' value='{$uid}'>
+            </form>";
+  
+      // Zeile mit klickbarem Verhalten
+      echo "<tr onclick='document.getElementById(\"form_{$uid}\").submit();' style='cursor: pointer;'>";
       echo "<td>" . $name . "</td>";
       echo "<td>" . $turm4ausgabe . "</td>";
       echo "<td>" . $room . "</td>";

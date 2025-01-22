@@ -619,7 +619,7 @@ if (auth($conn) && $_SESSION['valid']) {
     $cellStyle = ($sublet == 1) ? "style='background-color: #8d150c;'" : "";
     echo "<tr>";
 
-    if ((isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === true)) {
+    if ((isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"])) {
       echo "<td $cellStyle><input type='text' name='ip[]' value='".$ip."'></td>";
       echo "<input type='hidden' name='id[]' value='".$id."' readonly>";
   } else {
@@ -633,11 +633,20 @@ if (auth($conn) && $_SESSION['valid']) {
   echo "<td $cellStyle><input type='text' name='hostname[]' value='".$hostname."'></td>";   
   
     
-    if ($_SESSION["NetzAG"]) {
-      echo "<td $cellStyle>";
-      echo "<button type='submit' name='remove' value='".$id."' class='red-center-btn' style='font-size: 16px;'>X</button>";
-      echo "</td>";
-    }
+  if ($_SESSION["NetzAG"]) {
+    echo "<td $cellStyle>";
+    echo "<form method='post' style='margin: 0;'>";
+    echo "<button type='submit' name='remove' value='" . $id . "' style='background: none; border: none; cursor: pointer; padding: 0;'>";
+    echo "<img src='images/trash_white.png' 
+               alt='Remove Icon' 
+               style='width: 24px; height: 24px;' 
+               onmouseover=\"this.src='images/trash_red_shadow.png';\" 
+               onmouseout=\"this.src='images/trash_white.png';\">";
+    echo "</button>";
+    echo "</form>";
+    echo "</td>";
+}
+
     
     
   }

@@ -86,7 +86,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo '<img src="images/trash_white.png" 
                    alt="Remove Icon" 
                    style="width: 24px; height: 24px;" 
-                   onmouseover="this.src=\'images/trash_red.png\';" 
+                   onmouseover="this.src=\'images/trash_red_shadow.png\';" 
                    onmouseout="this.src=\'images/trash_white.png\';">';
         echo '</button>';
         echo '</form>';
