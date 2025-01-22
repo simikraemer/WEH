@@ -376,18 +376,17 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
       echo "<td>" . $formattedStartTime . "</td>";
       echo "<td>" . ($endtime == 2147483647 ? "Unbegrenzt" : $formattedEndTime) . "</td>";
   
-      // "End"-Button mit stopPropagation
+      // "End"-Button mit animiertem Hover-Effekt
       echo '<td>';
       echo '<form method="post" action="" style="margin: 0;" onClick="event.stopPropagation();">';
       echo '<button type="submit" name="sperre_end" value="' . $id . '" style="background: none; border: none; cursor: pointer; padding: 0;">';
       echo '<img src="images/trash_white.png" 
-                 alt="End Icon" 
-                 style="width: 24px; height: 24px;" 
-                 onmouseover="this.src=\'images/trash_red_shadow.png\';" 
-                 onmouseout="this.src=\'images/trash_white.png\';">';
+                class="animated-trash-icon" 
+                style="width: 24px; height: 24px;">';
       echo '</button>';
       echo '</form>';
       echo '</td>';
+
     
       echo "</tr>";
   }

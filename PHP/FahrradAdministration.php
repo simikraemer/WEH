@@ -290,11 +290,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
                           <input type="hidden" name="stellplatz" value="'.$stellplatz.'">
                           <input type="hidden" name="reload" value="1">
                           <button type="submit" value="1" style="background: none; border: none; cursor: pointer;">
-                              <img src="images/trash_white.png" 
-                                   alt="Remove Icon" 
-                                   style="width: 24px; height: 24px;"
-                                   onmouseover="this.src=\'images/trash_red.png\';" 
-                                   onmouseout="this.src=\'images/trash_white.png\';">
+                          <img src="images/trash_white.png"
+                            class="animated-trash-icon" 
+                            style="width: 24px; height: 24px;">
                           </button>
                       </form>
                   </td>';
@@ -352,11 +350,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         <input type="hidden" name="reload" value="1">
                         <input type="hidden" name="queue_uid" value="'.$uid.'">
                         <button type="submit" value="1" style="background: none; border: none; cursor: pointer;">
-                            <img src="images/trash_white.png" 
-                                 alt="Remove Icon" 
-                                 style="width: 24px; height: 24px;"
-                                 onmouseover="this.src=\'images/trash_red.png\';" 
-                                 onmouseout="this.src=\'images/trash_white.png\';">
+                          <img src="images/trash_white.png"
+                            class="animated-trash-icon" 
+                            style="width: 24px; height: 24px;">
                         </button>
                     </form>
                 </td>';

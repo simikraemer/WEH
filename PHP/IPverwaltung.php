@@ -637,15 +637,13 @@ if (auth($conn) && $_SESSION['valid']) {
     echo "<td $cellStyle>";
     echo "<form method='post' style='margin: 0;'>";
     echo "<button type='submit' name='remove' value='" . $id . "' style='background: none; border: none; cursor: pointer; padding: 0;'>";
-    echo "<img src='images/trash_white.png' 
-               alt='Remove Icon' 
-               style='width: 24px; height: 24px;' 
-               onmouseover=\"this.src='images/trash_red_shadow.png';\" 
-               onmouseout=\"this.src='images/trash_white.png';\">";
+    echo '<img src="images/trash_white.png" 
+      class="animated-trash-icon" 
+      style="width: 24px; height: 24px;">';
     echo "</button>";
     echo "</form>";
     echo "</td>";
-}
+  }
 
     
     

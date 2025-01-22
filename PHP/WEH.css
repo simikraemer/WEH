@@ -1203,3 +1203,21 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   border-bottom: 1px solid white;
   font-size: 22px;
 }
+
+.animated-trash-icon {
+  transition: none; /* Standardstil */
+}
+
+.animated-trash-icon:hover {
+  animation: trash-hover 0.4s infinite; /* Gesamtdauer der Animation */
+}
+
+@keyframes trash-hover {
+  0%, 50% {
+    content: url('images/trash_red_shadow.png'); /* Erstes Bild länger anzeigen */
+  }
+  51%, 100% {
+    content: url('images/trash_red_shadow_inverted.png'); /* Zweites Bild kürzer anzeigen */
+  }
+}
+

@@ -84,10 +84,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo '<form method="post" action="" onClick="event.stopPropagation();" style="margin: 0;">';
         echo '<button type="submit" name="delete_protokoll" value="' . $id . '" style="background: none; border: none; cursor: pointer;">';
         echo '<img src="images/trash_white.png" 
-                   alt="Remove Icon" 
-                   style="width: 24px; height: 24px;" 
-                   onmouseover="this.src=\'images/trash_red_shadow.png\';" 
-                   onmouseout="this.src=\'images/trash_white.png\';">';
+          class="animated-trash-icon" 
+          style="width: 24px; height: 24px;">';
         echo '</button>';
         echo '</form>';
         echo '</td>';
