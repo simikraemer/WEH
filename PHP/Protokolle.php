@@ -80,12 +80,19 @@ if (auth($conn) && ($_SESSION['valid'])) {
       echo '<td>' . date('d.m.Y', $vzeit) . '</td>';
       
       if ($_SESSION["Schrift"]) {
-          echo '<td>';
-          echo '<form method="post" action="" onClick="event.stopPropagation();">';
-          echo '<button type="submit" name="delete_protokoll" value="' . $id . '" class="red-center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Entfernen</button>';
-          echo '</form>';
-          echo '</td>';
-      }
+        echo '<td>';
+        echo '<form method="post" action="" onClick="event.stopPropagation();" style="margin: 0;">';
+        echo '<button type="submit" name="delete_protokoll" value="' . $id . '" style="background: none; border: none; cursor: pointer;">';
+        echo '<img src="images/trash_white.png" 
+                   alt="Remove Icon" 
+                   style="width: 24px; height: 24px;" 
+                   onmouseover="this.src=\'images/trash_red.png\';" 
+                   onmouseout="this.src=\'images/trash_white.png\';">';
+        echo '</button>';
+        echo '</form>';
+        echo '</td>';
+    }
+    
       
       echo '</tr>';
   }
