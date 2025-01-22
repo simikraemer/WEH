@@ -91,8 +91,8 @@ function printRoomCell($roomnumber, $user_by_id, $roomtype, $hausbeitrag, $netzb
         }
         
         
-        echo '<td style="width: 40px; height: 30px; cursor: pointer; color: black; background-color: ' . $backgroundcolor . ';';
-        echo '" onmouseover="this.style.backgroundColor=\'#0ffa0f\'" onmouseout="this.style.backgroundColor=\'' . $backgroundcolor . '\'" onclick="submitForm(this)" title="' . $firstname .' '. $lastname .'">';        
+        echo '<td style="width: 40px; height: 30px; cursor: pointer; color: black; background-color: ' . $backgroundcolor . '; text-align: center; vertical-align: middle;"';
+        echo ' onmouseover="this.style.backgroundColor=\'#0ffa0f\'" onmouseout="this.style.backgroundColor=\'' . $backgroundcolor . '\'" onclick="submitForm(this)" title="' . $firstname .' '. $lastname .'">';
         echo '<form method="post">';
         echo '<input type="hidden" name="menu_show" value="1">';
         echo '<input type="hidden" name="uid" value="' . $uid . '">';
@@ -103,8 +103,11 @@ function printRoomCell($roomnumber, $user_by_id, $roomtype, $hausbeitrag, $netzb
         echo '<input type="hidden" name="lastname" value="' . $lastname . '">';
         echo '<input type="hidden" name="room" value="' . $room . '">';
         echo '<input type="hidden" name="groups" value="' . $groups . '">';
+        #echo '<span style="color: white; font-size: 15px; font-weight: bold; text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black;">' . htmlspecialchars($room) . '</span>'; // Weißer Text mit schwarzem Textschatten        
         echo '</form>';
         echo '</td>';
+        
+        
     } else {
         echo '<td style="width: 40px; cursor: pointer; background-color: black;" onmouseover="this.style.backgroundColor=\'#0ffa0f\'" onmouseout="this.style.backgroundColor=\'black\'" onclick="submitForm(this)">';
         echo '<form id="myForm" method="post">';
