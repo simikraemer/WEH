@@ -1213,10 +1213,15 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   color: white;
 }
 
-.clear-table th, 
+.clear-table th {  
+  border: 1px solid white;
+  padding: 10px;  
+  font-size: 30px;
+}
 .clear-table td {
   border: 1px solid white;
-  padding: 10px;
+  padding: 10px;  
+  font-size: 20px;
 }
 
 .clear-table td.status-red {
@@ -1229,4 +1234,10 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
 .clear-table td.status-green {
   color: green;
+}
+
+.clear-table tr:hover td {
+  background-color: #11a50d !important;
+  color: white !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
