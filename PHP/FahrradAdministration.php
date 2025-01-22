@@ -79,7 +79,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
           echo "<input type='hidden' name='stellplatz2' value='$stellplatz'>";
           echo "<input type='hidden' name='uid2' value='$uid2'>";
           echo "<br>";
-          echo "<input type='submit' name='stellplatz_action' value='Bestätigen'>";
+          echo "<input type='submit' name='stellplatz_action' value='Bestätigen' style='margin-right: 10px;'>";
           echo "<input type='submit' name='cancel' value='Abbrechen'>";
           echo '<input type="hidden" name="reload" value=1>';
           echo "</form>";
@@ -113,6 +113,16 @@ if (auth($conn) && ($_SESSION['valid'])) {
         }
         mysqli_stmt_free_result($stmt);
         mysqli_stmt_close($stmt);
+
+        echo '<div style="text-align: center;">
+        <span style="color: green; font-size: 20px;">Erfolgreich durchgeführt.</span><br><br>
+        </div>';
+        echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
+        echo "<script>
+          setTimeout(function() {
+            document.forms['reload'].submit();
+          }, 2000);
+        </script>";
       }
     
       if (isset($_POST["queue_uid"])) {
@@ -144,7 +154,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo "<input type='hidden' name='queue_uid2' value='$queue_uid'>";
         echo '<input type="hidden" name="reload" value=1>';
         echo "<br>";
-        echo "<input type='submit' name='queue_action' value='Bestätigen'>";
+        echo "<input type='submit' name='queue_action' value='Bestätigen' style='margin-right: 10px;'>";
         echo "<input type='submit' name='cancel' value='Abbrechen'>";
         echo "</form>";
         echo "</div>";
@@ -157,6 +167,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_bind_param($stmt, "iii", $zeit, $agentuid, $queue_uid);
         mysqli_stmt_execute($stmt);
+        $stmt->close();
 
         echo '<div style="text-align: center;">
         <span style="color: green; font-size: 20px;">Erfolgreich durchgeführt.</span><br><br>
@@ -165,9 +176,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo "<script>
           setTimeout(function() {
             document.forms['reload'].submit();
-          }, 1000);
+          }, 2000);
         </script>";
-        $stmt->close();
       }
       
     }
@@ -245,8 +255,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
     echo '<th>Einteilung</th>';
     echo '<th>Raum</th>';
     echo '<th>Name</th>';
-    echo '<th>Kontakt</th>';
-    echo '<th>Entfernen</th>';
+    echo '<th>Mail</th>';
+    echo '<th>Kick</th>';
     echo '</tr>';   
     foreach ($users_stellplatz as $stellplatz => $users) {
         foreach ($users as $user) {
@@ -262,14 +272,34 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo "<td style='color: white;'>$user_platztimeform</td>";
             echo "<td style='color: white;'>" . ($user['room'] === 0 ? $user['oldroom'] . " <img src='images/sublet.png' width='20' height='20'>" : $user['room']) . "</td>";
             echo "<td style='color: white;'>$name</td>";
-            echo "<td><button class='center-btn' style='margin: 0 auto; display: inline-block; font-size: 20px;' onclick=\"location.href='mailto:" . $username . "@weh.rwth-aachen.de'\">Contact</button></td>";            echo '<td>';
-            echo '<form method="post">';
-			echo '<input type="hidden" name="stellplatz" value="'.$stellplatz.'">';
-      echo '<input type="hidden" name="reload" value=1>';
-			echo '<button type="submit" value="1" class="red-center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Remove</button>';
-			echo '</form>';
-            echo '</td>';
+            
+            // Contact-Icon mit mailto-Funktion
+            echo "<td style='text-align: center;'>
+                      <a href='mailto:$username@weh.rwth-aachen.de' style='display: inline-block;'>
+                          <img src='images/mail_white.png' 
+                               alt='Contact Icon' 
+                               style='width: 24px; height: 24px;'
+                               onmouseover=\"this.src='images/mail_green.png';\" 
+                               onmouseout=\"this.src='images/mail_white.png';\">
+                      </a>
+                  </td>";
+            
+            // Remove-Icon mit POST-Aufruf
+            echo '<td style="text-align: center;">
+                      <form method="post" style="margin: 0;">
+                          <input type="hidden" name="stellplatz" value="'.$stellplatz.'">
+                          <input type="hidden" name="reload" value="1">
+                          <button type="submit" value="1" style="background: none; border: none; cursor: pointer;">
+                              <img src="images/trash_white.png" 
+                                   alt="Remove Icon" 
+                                   style="width: 24px; height: 24px;"
+                                   onmouseover="this.src=\'images/trash_red.png\';" 
+                                   onmouseout="this.src=\'images/trash_white.png\';">
+                          </button>
+                      </form>
+                  </td>';
             echo '</tr>';
+            
             
             
         }
@@ -285,8 +315,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
     echo '<th>Anmeldung</th>';
     echo '<th>Raum</th>';
     echo '<th>Name</th>';
-    echo '<th>Kontakt</th>';
-    echo '<th>Entfernen</th>';
+    echo '<th>Mail</th>';
+    echo '<th>Kick</th>';
     echo '</tr>';   
     
     $position = 1; // Zählvariable für die Position in der Queue
@@ -304,14 +334,34 @@ if (auth($conn) && ($_SESSION['valid'])) {
           echo "<td style='color: white;'>$user_zeitform</td>";
           echo "<td style='color: white;'>" . ($user['room'] === 0 ? $user['oldroom'] . " <img src='images/sublet.png' width='20' height='20'>" : $user['room']) . "</td>";
           echo "<td style='color: white;'>$name</td>";
-          echo "<td><button class='center-btn' style='margin: 0 auto; display: inline-block; font-size: 20px;' onclick=\"location.href='mailto:" . $username . "@weh.rwth-aachen.de'\">Contact</button></td>";            echo '<td>';
-          echo '<form method="post">';
-          echo '<input type="hidden" name="reload" value=1>';
-          echo '<input type="hidden" name="queue_uid" value="'.$uid.'">';
-          echo '<button type="submit" value="1" class="red-center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Remove</button>';
-          echo '</form>';
-          echo '</td>';
+          
+          // Contact-Icon mit mailto-Funktion
+          echo "<td style='text-align: center;'>
+                    <a href='mailto:$username@weh.rwth-aachen.de' style='display: inline-block;'>
+                        <img src='images/mail_white.png' 
+                             alt='Contact Icon' 
+                             style='width: 24px; height: 24px;'
+                             onmouseover=\"this.src='images/mail_green.png';\" 
+                             onmouseout=\"this.src='images/mail_white.png';\">
+                    </a>
+                </td>";
+          
+          // Remove-Icon mit POST-Aufruf
+          echo '<td style="text-align: center;">
+                    <form method="post" style="margin: 0;">
+                        <input type="hidden" name="reload" value="1">
+                        <input type="hidden" name="queue_uid" value="'.$uid.'">
+                        <button type="submit" value="1" style="background: none; border: none; cursor: pointer;">
+                            <img src="images/trash_white.png" 
+                                 alt="Remove Icon" 
+                                 style="width: 24px; height: 24px;"
+                                 onmouseover="this.src=\'images/trash_red.png\';" 
+                                 onmouseout="this.src=\'images/trash_white.png\';">
+                        </button>
+                    </form>
+                </td>';
           echo '</tr>';
+          
   
           $position++; // Inkrementiere die Zählvariable für die Position in der Queue
         }
