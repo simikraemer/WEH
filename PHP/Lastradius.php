@@ -377,7 +377,7 @@ if (auth($conn) && $_SESSION['NetzAG']) {
         #}
         
         echo '<div style="text-align: center; display: flex; justify-content: center; align-items: center; margin-top: 10px;">            
-            <form action="House.php" method="post">
+            <form action="User.php" method="post">
                 <input type="hidden" name="id" value="' . $uid . '">
                 <button class="center-btn" type="submit">User bearbeiten</button>
             </form>

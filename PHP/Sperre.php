@@ -344,7 +344,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
       $turm4ausgabe = ($turm == 'tvk') ? 'TvK' : strtoupper($turm);
   
       // Form für die POST-Anfrage mit Benutzer-UID
-      echo "<form method='POST' action='House.php' target='_blank' style='display: none;' id='form_{$uid}'>
+      echo "<form method='POST' action='User.php' target='_blank' style='display: none;' id='form_{$uid}'>
               <input type='hidden' name='id' value='{$uid}'>
             </form>";
   
@@ -445,7 +445,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
       $turm4ausgabe = ($turm == 'tvk') ? 'TvK' : strtoupper($turm);    
       
       // Form für jede Zeile erstellen
-      echo "<form method='POST' action='House.php' target='_blank' style='display: none;' id='form_{$uid}'>
+      echo "<form method='POST' action='User.php' target='_blank' style='display: none;' id='form_{$uid}'>
               <input type='hidden' name='id' value='{$uid}'>
             </form>";
   

@@ -611,7 +611,7 @@ if (isset($_POST['selected_user']) && isset($_POST['group_id']) && !isset($_POST
         // Nur wenn Adminansicht aktiv ist, füge den "User bearbeiten" Button hinzu
         if ($_SESSION['adminview_agedit']) {
             echo '
-            <form action="House.php" method="post" target="_blank" style="display: inline-flex; align-items: center; justify-content: center;">
+            <form action="User.php" method="post" target="_blank" style="display: inline-flex; align-items: center; justify-content: center;">
                 <input type="hidden" name="id" value="' . $selected_user_id . '">
                 <button class="sml-center-btn" type="submit" style="padding: 10px 20px;">User bearbeiten</button>
             </form>

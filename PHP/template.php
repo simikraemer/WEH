@@ -30,13 +30,6 @@ $waschconn = mysqli_connect(
 
 $mailconfig = $config['mail'];
 
-// House.php Ajax request Subnetz
-if (isset($_GET['action']) && $_GET['action'] === 'getFreeSubnet') {
-    echo getFreeSubnet($conn);
-    // Beenden des Skripts nach der Ausgabe des Ergebnisses
-    exit;
-}
-
 echo '<form action="' . $_SERVER['PHP_SELF'] . '" method="post" name="reload">';
 echo '<input type="hidden" name="reload" value=0>';
 echo "</form>";

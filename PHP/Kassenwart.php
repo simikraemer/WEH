@@ -172,7 +172,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             $turm4ausgabe = ($user['turm'] == 'tvk') ? 'TvK' : strtoupper($user['turm']);
             
             // Create a form for each row
-            echo "<form method='POST' action='House.php' target='_blank' style='display: none;' id='form_{$user['uid']}'>
+            echo "<form method='POST' action='User.php' target='_blank' style='display: none;' id='form_{$user['uid']}'>
               <input type='hidden' name='id' value='{$user['uid']}'>
             </form>";
             
