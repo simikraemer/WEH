@@ -7,9 +7,14 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
     background-color: #181717;
     margin: 0;
   }
-
-  a:not([class]) {
-    color: #11a50d;
+  
+  a {
+    color: #11a50d; /* Normaler Linktext */
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  a:hover {
+      color: #00ff00; /* Hellgrün beim Hover */
   }
 
   .header-menu {

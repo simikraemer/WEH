@@ -502,42 +502,51 @@ if (auth($conn) && $_SESSION['valid']) {
     
 
 
-    echo "<br><br><br>";
-    echo '<div style="width: 70%; margin: 0 auto; text-align: left; color: white; font-size: 29px;">';
+    echo '<div style="width: 70%; margin: 0px auto; margin-top: 60px; text-align: center; color: white; font-size: 29px;">';
     echo 'On this page, you can view your RADIUS and DHCP Logs, allowing you to troubleshoot connection issues.';
     echo '</div>';
-    echo "<br><br>";
-    echo '<div style="width: 70%; margin: 0 auto; text-align: left; color: white; font-size: 25px;">';
-    echo '1. RADIUS (WLAN only!)';
+    
+    echo '<div style="width: 70%; margin: 0 auto; text-align: center; color: white; font-size: 20px; margin-bottom: 30px;">';
+    echo 'Below, you will find the most common issues that might be causing errors in the logs displayed above.';
     echo '</div>';
-    echo "<br>";
-    echo '<div style="width: 70%; margin: 0 auto; text-align: left; color: white; font-size: 20px;">';
-    echo 'The device\'s access to the access point is authenticated by verifying the credentials. 
-    <br>Common errors that may arise in this step include:
-    <br>      1. Incorrect Username - Remember to use &lt;username&gt;@weh.rwth-aachen.de for WiFi-Only Authentification!
-    <br>      2. Incorrect Password - Your WiFi-Only Password differs from your House Password!
-    <br>      3. <a href="https://doku.tid.dfn.de/de:dfnpki:tcs_ca_certs">Missing CA certificate</a> (Thin Linux Distros) - Your device can\'t authenticate the GÉANT SSL-Cert of our Server.
-    <br>      4. Wrong security type - Some devices can\'t use WPA2-Enterprise and need to be registered on <a href="https://backend.weh.rwth-aachen.de/PSK.php">this page</a>.';
+    
+    // Flexbox-Container für RADIUS und DHCP
+    echo '<div style="display: flex; justify-content: space-between; width: 70%; margin: 0 auto; margin-bottom: 60px; gap: 50px;">';
+    
+    // RADIUS-Bereich
+    echo '<div style="flex: 1; text-align: left; color: white; padding: 20px; border: 2px solid white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);">';
+    echo '<div style="font-size: 25px; margin-bottom: 10px; text-align: center;">1. RADIUS (WLAN only!)</div>';
+    echo '<div style="font-size: 20px;">';
+    echo '<p>The device\'s access to the access point is authenticated by verifying the credentials. Common errors that may arise in this step include:</p>';
+    echo '<ul style="list-style: disc; padding-left: 20px;">';
+    echo '<li>Incorrect Username - Remember to use &lt;username&gt;@weh.rwth-aachen.de for WiFi-Only Authentication!</li>';
+    echo '<li>Incorrect Password - Your WiFi-Only Password differs from your House Password!</li>';
+    echo '<li><a href="https://doku.tid.dfn.de/de:dfnpki:tcs_ca_certs" >Missing CA certificate</a> (Thin Linux Distros) - Your device can\'t authenticate the GÉANT SSL-Cert of our Server.</li>';
+    echo '<li>Wrong security type - Some devices can\'t use WPA2-Enterprise and need to be registered on <a href="https://backend.weh.rwth-aachen.de/PSK.php" >this page</a>.</li>';
+    echo '</ul>';
     echo '</div>';
-    echo "<br><br>";
-    echo '<div style="width: 70%; margin: 0 auto; text-align: left; color: white; font-size: 25px;">';
-    echo '2. DHCP';
     echo '</div>';
-    echo "<br>";
-    echo '<div style="width: 70%; margin: 0 auto; text-align: left; color: white; font-size: 20px;">';
-    echo 'For the device to connect to the internet, it needs to obtain an IP from our DHCP service.
-    <br>Common errors that may arise in this step include:
-    <br>      1. Device not registered - The MAC of your device is not assigned to an IP on <a href="https://backend.weh.rwth-aachen.de/IPverwaltung.php">this page</a>.
-    <br>      2. Randomized MAC Address - If you have a setting like this enabled, turn it off or your MAC will reset after some time!
-    <br>      3. IP not available - If you have multiple MACs on an IP, only one device can obtain an IP at a time!
-    <br>      4. LAN/WLAN - The same device uses different MACs for connecting via LAN and WLAN, so you need to register both!
-    <br>      5. Time - After registering a device it may take up to 10 minutes for it to actually request a new IP.
-    ';
-    echo "<br><br><br>The log files queried on this page reset themselves daily at 06:36.
-    <br>The logs are cached on our server for a week, but you can't view older logs from this page.
-    ";
-
-    echo '</div><br><br>';
+    
+    // DHCP-Bereich
+    echo '<div style="flex: 1; text-align: left; color: white; padding: 20px; border: 2px solid white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);">';
+    echo '<div style="font-size: 25px; margin-bottom: 10px; text-align: center;">2. DHCP</div>';
+    echo '<div style="font-size: 20px;">';
+    echo '<p>For the device to connect to the internet, it needs to obtain an IP from our DHCP service. Common errors that may arise in this step include:</p>';
+    echo '<ul style="list-style: disc; padding-left: 20px;">';
+    echo '<li>Device not registered - The MAC of your device is not assigned to an IP on <a href="https://backend.weh.rwth-aachen.de/IPverwaltung.php" >this page</a>.</li>';
+    echo '<li>Randomized MAC Address - If you have a setting like this enabled, turn it off or your MAC will reset after some time!</li>';
+    echo '<li>IP not available - If you have multiple MACs on an IP, only one device can obtain an IP at a time!</li>';
+    echo '<li>LAN/WLAN - The same device uses different MACs for connecting via LAN and WLAN, so you need to register both!</li>';
+    echo '<li>Time - After registering a device, it may take up to 10 minutes for it to actually request a new IP.</li>';
+    echo '</ul>';
+    echo '</div>';
+    echo '</div>';
+    
+    // Ende des Flexbox-Containers
+    echo '</div>';
+    
+    
+    
 
 }
 else {
