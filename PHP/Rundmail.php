@@ -226,7 +226,7 @@ if (auth($conn) && $_SESSION['valid']) {
       echo '<label for="titel" style="color: white; font-size: 25px;">Subject: </label>';
       echo '<input type="text" name="titel" id="titel" style="margin-top: 20px; font-size: 20px; text-align: center;" required><br><br>';
       echo '<label for="body" style="color: white; font-size: 25px;">Message: </label><br>';
-      echo '<textarea name="body" id="body" cols="120" rows="40" required></textarea><br>';      
+      echo '<textarea name="body" id="body" cols="120" rows="20" required></textarea><br>';      
       echo '<input type="hidden" name="reload" value=1>';
       echo '<button  type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">SEND</button>';
       echo '</form>';

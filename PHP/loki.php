@@ -6,11 +6,6 @@ require('conn.php');
 $sql = "SELECT pfad FROM infopics WHERE aktiv = 1";
 $result = mysqli_query($conn, $sql);
 
-// Fehlerbehandlung
-if (!$result) {
-    die("Fehler beim Abrufen der Bilder: " . mysqli_error($conn));
-}
-
 // Pfade sammeln
 $imagePaths = [];
 while ($row = mysqli_fetch_assoc($result)) {
