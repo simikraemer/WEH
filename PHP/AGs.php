@@ -115,15 +115,10 @@ if (auth($conn) && $_SESSION['valid']) {
         // Mailto-Link als kursiver Text
         echo '<p style="text-align:center; margin:0;"><a href="mailto:' . htmlspecialchars($group['mail']) . '" class="white-text" style="font-style:italic;">' . htmlspecialchars($group['mail']) . '</a></p>';
         
-        if (!empty($group["vacancy"])) {
-            echo '<p style="text-align:center; color:gold; margin-top:20px; font-size:20px;">';
-            echo 'Open Spots: ' . intval($group["vacancy"]);
-            echo '</p>';
-        }        
-
         echo '</div>'; // Ende des Wrappers
 
         if (!empty($group['users'])) {
+            echo '<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; height: 100%;">'; // Neues div für vertikale Ausrichtung
             echo '<table style="width:75%; border-collapse:collapse; margin: 0 auto; text-align:center;">';
             foreach ($group['users'] as $user) {
                 if ($user['turm'] === 'tvk') {
@@ -131,18 +126,18 @@ if (auth($conn) && $_SESSION['valid']) {
                 } else {
                     $turm_form = strtoupper($user['turm']); // Fallback für andere Werte, falls vorhanden
                 }
-
+        
                 // Überprüfung, ob der Benutzer Sprecher der Gruppe ist
                 $isSpeaker = ($user['sprecher'] == $group_id);
-
+        
                 // Bestimme Raumfarbe basierend auf Turm
                 $room_color = ($user['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-                            
+                                 
                 if ($group_id === 24 || $group_id === 27 ) {
                     // Mailto-Link für Hausmeister
                     $mailto = 'hausmeister@' . htmlspecialchars($user['turm']) . '.rwth-aachen.de';
                     $output = '<strong>' . $turm_form . '</strong>';
-                } elseif ($user["pid"] != 11) {                    
+                } elseif ($user["pid"] != 11) {                         
                     $mailto = $user["username"] . '@' . htmlspecialchars($user['turm']) . '.rwth-aachen.de';
                     $output = '<strong>' . $turm_form . '</strong>';
                 } else {
@@ -159,19 +154,27 @@ if (auth($conn) && $_SESSION['valid']) {
                     echo '<td style="padding:4px 8px;" class="white-text">
                             <img src="images/ags/vorstand.png" width="18" height="18" alt="Sprecher Icon" style="vertical-align:">
                             <a href="mailto:' . $mailto . '" class="white-text">' . htmlspecialchars($user['name']) . '</a>
-                          </td>';
+                         </td>';
                 } else {
                     echo '<td style="padding:4px 8px;" class="white-text">
                             <a href="mailto:' . $mailto . '" class="white-text">' . htmlspecialchars($user['name']) . '</a>
-                          </td>';
-                }                
+                         </td>';
+                }                         
                 echo '</tr>';
-
+        
             }
             echo '</table>';
+            echo '</div>'; // Ende des neuen div
         } else {
             echo '<p class="white-text" style="text-align:center;">Keine Mitglieder in dieser AG.</p>';
         }
+
+        if (!empty($group["vacancy"])) {
+            echo '<p style="text-align:center; color:gold; margin-top:20px; font-size:16px;">';
+            echo intval($group["vacancy"]) . ' open spots for new members.<br>Contact the AG, if you want to join.';
+            echo '</p>';
+        }        
+
 
         echo '</div>';
     }

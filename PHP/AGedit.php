@@ -591,12 +591,17 @@ if (isset($_POST['edit_vacancy'])) {
     echo '<form method="post" action="">';
 
     // Eingabefeld für Vacancy
-    echo '<label for="vacancy" style="display: block; margin-bottom: 10px; font-size: 30px; color: white;">Set Vacancy:</label>';
-    echo '<input type="number" id="vacancy" name="vacancy" value="' . $current_vacancy . '" min="0" max="10" step="1" style="text-align: center; font-size: 30px; padding: 10px; width: 100px;">';
+    echo '<br>';
+    echo '<label for="vacancy" style="display: block; margin-bottom: 10px; font-size: 30px; color: white;">Anzahl der offenen Stellen:</label>';
+    echo '<br>';
+    echo '<input type="number" id="vacancy" name="vacancy" value="' . $current_vacancy . '" min="0" max="10" step="1" style="text-align: center; font-size: 30px; padding: 10px; width: 100px; appearance: textfield;">';
 
     // Speichern-Button
     echo '<br><br>';
+    echo '<div style="display: flex; justify-content: center; align-items: center; margin-top: 20px;">';
     echo '<button type="submit" name="save_vacancy" value="' . $group_id . '" class="center-btn">Speichern</button>';
+    echo '</div>';
+    
 
     echo '</form>';
     echo '</div>';
