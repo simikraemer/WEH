@@ -127,6 +127,18 @@ if (isset($_POST['set_speaker'])) {
 
 
 
+if (isset($_POST['save_vacancy'])) {
+    $vacancy = intval($_POST['vacancy']);
+    $group_id = intval($_POST['save_vacancy']);
+
+    $sql = "UPDATE groups SET vacancy = ? WHERE id = ?";
+
+    if ($stmt = $conn->prepare($sql)) {
+        $stmt->bind_param("ii", $vacancy, $group_id);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
 
 
 
@@ -199,14 +211,14 @@ $uid = $_SESSION['uid'];  // Wir verwenden noch die Session für die Benutzer-ID
 
 if (isset($_SESSION['adminview_agedit']) && $_SESSION['adminview_agedit'] == true) {
     // Admin View aktiviert: Alle aktiven Gruppen abfragen
-    $query = "SELECT g.id, g.name, g.session, g.turm
+    $query = "SELECT g.id, g.name, g.session, g.turm, g.vacancy
               FROM groups g
               WHERE active = TRUE 
               ORDER BY g.prio";
     $stmt = $conn->prepare($query);
 } else {
     // Normale Abfrage: Gruppen des Benutzers abfragen
-    $query = "SELECT g.id, g.name, g.session, u.sprecher, u.room, g.turm
+    $query = "SELECT g.id, g.name, g.session, u.sprecher, u.room, g.turm, g.vacancy
               FROM groups g 
               INNER JOIN users u ON FIND_IN_SET(g.id, u.groups)
               WHERE active = TRUE AND u.uid = ? AND u.pid IN (11,12) 
@@ -278,6 +290,12 @@ foreach ($groups as $index => $group) {
     echo '<div style="flex-grow: 1;">';  // Flex-grow sorgt dafür, dass der Gruppenname und Mitgliederliste den freien Platz einnehmen
     echo '<h2 style="font-size:28px; font-weight:bold; color:white; text-align:center; margin-bottom:10px;">' . htmlspecialchars($group['name']) . '</h2>';
 
+    if (!empty($group["vacancy"])) {
+        echo '<p style="text-align:center; color:gold; margin-top:20px; font-size:20px;">';
+        echo 'Open Spots: ' . intval($group["vacancy"]);
+        echo '</p>';
+    }    
+
 
     // Mitglieder der Gruppe anzeigen
     $query = "SELECT u.uid, u.firstname, u.lastname, u.turm, u.room, u.sprecher FROM users u 
@@ -334,27 +352,35 @@ foreach ($groups as $index => $group) {
     echo "</table>";
     echo '</div>';  // Ende der flex-grow div für Inhalte
     
+    // Container für die Buttons (Flexbox)
+    echo "<div style='display: flex; justify-content: center; gap: 10px; margin-top: 10px;'>";
+
     // Option zum Hinzufügen eines Benutzers, falls berechtigt
     if (in_array($group['id'], $sprecher) || $_SESSION['adminview_agedit']) {
-        echo "<div style='display: flex; justify-content: center;'>
-        <form method='post' action=''>
-            <input type='hidden' name='group_id' value='{$group['id']}'>
-            <button type='submit' name='add_user' class='sml-center-btn' style='margin-top: 10px;'>Benutzer hinzufügen</button>
-        </form>
-      </div>";
+        echo "<form method='post' action=''>
+                <input type='hidden' name='group_id' value='{$group['id']}'>
+                <button type='submit' name='add_user' class='sml-center-btn'>Benutzer hinzufügen</button>
+            </form>";
     }
 
     // Option zum Austreten
     if (!in_array($group['id'], $sprecher) && !$_SESSION['adminview_agedit']) {
-        echo "<div style='display: flex; justify-content: center;'>
-        <form method='post' action=''>
-            <input type='hidden' name='selected_user' value='{$_SESSION["user"]}'>
-            <input type='hidden' name='group_id' value='{$group['id']}'>
-            <input type='hidden' name='close_popup' value='true'>
-            <button type='submit' name='leave_group' class='sml-center-btn' style='margin-top: 10px;'>Austreten</button>
-        </form>
-        </div>";
+        echo "<form method='post' action=''>
+                <input type='hidden' name='selected_user' value='{$_SESSION["user"]}'>
+                <input type='hidden' name='group_id' value='{$group['id']}'>
+                <input type='hidden' name='close_popup' value='true'>
+                <button type='submit' name='leave_group' class='sml-center-btn'>Austreten</button>
+            </form>";
     }
+
+    // Neuer Button für "Vacancy"
+    echo "<form method='post' action=''>
+            <input type='hidden' name='group_id' value='{$group['id']}'>
+            <button type='submit' name='edit_vacancy' class='sml-center-btn'>Vacancy bearbeiten</button>
+        </form>";
+
+    echo "</div>";
+
 
     echo "</div>";  // Ende der Gruppen-Box
     $stmt->close();
@@ -542,6 +568,39 @@ if (isset($_POST['add_user'])) {
 
 
 
+
+
+
+
+if (isset($_POST['edit_vacancy'])) {
+    $group_id = $_POST['group_id'];
+
+    // Vacancy für die ausgewählte Gruppe aus $ag_complete holen
+    $current_vacancy = isset($ag_complete[$group_id]['vacancy']) ? intval($ag_complete[$group_id]['vacancy']) : 0;
+
+    // Start des Formulars und der Overlay-Box
+    echo ('<div class="overlay"></div>
+        <div class="anmeldung-form-container form-container">
+        <form method="post">
+            <button type="submit" name="close" value="close" class="close-btn">X</button>
+        </form>
+        <br>');
+
+    // Formular-Inhalt
+    echo '<div style="text-align: center;">';
+    echo '<form method="post" action="">';
+
+    // Eingabefeld für Vacancy
+    echo '<label for="vacancy" style="display: block; margin-bottom: 10px; font-size: 30px; color: white;">Set Vacancy:</label>';
+    echo '<input type="number" id="vacancy" name="vacancy" value="' . $current_vacancy . '" min="0" max="10" step="1" style="text-align: center; font-size: 30px; padding: 10px; width: 100px;">';
+
+    // Speichern-Button
+    echo '<br><br>';
+    echo '<button type="submit" name="save_vacancy" value="' . $group_id . '" class="center-btn">Speichern</button>';
+
+    echo '</form>';
+    echo '</div>';
+}
 
 
 
