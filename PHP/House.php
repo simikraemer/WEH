@@ -61,7 +61,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
   echo '<form method="post" style="display:flex; justify-content:center;">';
   echo '<button type="submit" name="weh" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">WEH</button>';
   echo '<button type="submit" name="tvk" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">TvK</button>';
-  echo '<button type="submit" name="sublet" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Sublet</button>';
+  echo '<button type="submit" name="sublet" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Subtenant</button>';
+  echo '<button type="submit" name="subletter" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Subletter</button>';
   echo '<button type="submit" name="moved" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Ausgezogen</button>';
   echo '<button type="submit" name="out" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Abgemeldet</button>';
   echo '<button type="submit" name="ehre" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Ehrenmitglieder</button>';
@@ -362,18 +363,29 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                     <input type='hidden' name='id' value='{$user['uid']}'>
                   </form>";
 
+            // Prüfen, ob $dateColumn "Sublet Ende" ist
+            $cellStyle = "";
+            if ($dateColumn == "Sublet Ende" && isset($user['date'])) {
+                $currentDate = strtotime(date("Y-m-d")); // Aktuelles Datum als Timestamp
+                $userDate = strtotime($user['date']);  // Datum des Users als Timestamp
+    
+                if ($userDate < $currentDate) {
+                    $cellStyle = "background-color: red;";
+                }
+            }
+
             // Klickbare Zeile
             echo "<tr onclick='document.getElementById(\"form_{$user['uid']}\").submit();' style='cursor: pointer;'>";
             if ($tstampANDroomRow && isset($user['date'])) {
-                echo "<td>{$user['date']}</td>";
+                echo "<td style='$cellStyle'>{$user['date']}</td>";
             }
-            echo "<td>{$user['uid']}</td>";
-            echo "<td>{$user['name']}</td>";
+            echo "<td style='$cellStyle'>{$user['uid']}</td>";
+            echo "<td style='$cellStyle'>{$user['name']}</td>";
             if ($tstampANDroomRow) {
-                echo "<td>{$user['room']}</td>";
-                echo "<td>{$user['turm']}</td>";
+                echo "<td style='$cellStyle'>{$user['room']}</td>";
+                echo "<td style='$cellStyle'>{$user['turm']}</td>";
             }
-            #echo "<td>{$user['username']}</td>";
+            #echo "<td style='$cellStyle'>{$user['username']}</td>";
             echo "</tr>";
         }
     } else {
@@ -531,6 +543,29 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
   }
 
 
+  if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
+    if ($_POST["processSubletReturn"] == "Bestätigen") {
+        $subletterUid = $_POST["user_id"];
+        $emptyRoom = $_POST["emptyroom"];
+        $currentUsername = $_SESSION['username'];
+
+        $success = processSubletReturn($conn, $subletterUid, $emptyRoom, $currentUsername);
+
+        if ($success) {
+          echo "<div style='text-align: center;'>
+                  <span style='color: green; font-size: 20px;'>Erfolgreich durchgeführt.</span>
+                </div><br><br>";
+            echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
+            echo "<script>
+                setTimeout(function() {
+                    document.forms['reload'].submit();
+                }, 2000);
+              </script>";
+        }
+    }
+  }  
+
+
   
   $sqltx = "SELECT uid FROM sperre WHERE starttime < UNIX_TIMESTAMP() AND UNIX_TIMESTAMP() < endtime AND internet = 1";
   $stmttx = mysqli_prepare($conn, $sqltx);
@@ -651,40 +686,23 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
       echo "<input type='hidden' name='emptyroom' value='1'>";
     }
     echo "<input type='hidden' name='reload' value='1'>";
-    echo "<input type='submit' name='sublet' value='Bestätigen'>";
+    echo "<input type='submit' name='processSubletReturn' value='Bestätigen'>";
     echo "<input type='hidden' name='user_id' value='$user_id'>";
     echo "</form>";
     echo "<form method='post'>";
-    echo "<input type='submit' name='sublet' value='Abbrechen'>";
+    echo "<input type='submit' name='processSubletReturn' value='Abbrechen'>";
     echo "</form>";
     echo "</div>";
 
-  } elseif (isset($_POST["sublet"])){ 
-
-      if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
-        if ($_POST["sublet"] == "Bestätigen") {
-            $subletterUid = $_POST["user_id"];
-            $emptyRoom = $_POST["emptyroom"];
-            $currentUsername = $_SESSION['username'];
-    
-            $success = processSubletReturn($conn, $subletterUid, $emptyRoom, $currentUsername);
-    
-            if ($success) {
-              echo "<div style='text-align: center;'>
-                      <span style='color: green; font-size: 20px;'>Erfolgreich durchgeführt.</span>
-                    </div><br><br>";
-                echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-                echo "<script>
-                    setTimeout(function() {
-                        document.forms['reload'].submit();
-                    }, 4000);
-                  </script>";
-            }
-        }
-      }  
+  } elseif (isset($_POST["subletter"])){ 
 
       $query = "SELECT uid, oldroom, turm, firstname, lastname, username, subletterend FROM users WHERE pid = 12 ORDER BY subletterend";
       renderCustomUserTable($conn, $query, "Sublet Ende");   
+
+  } elseif (isset($_POST["sublet"])){ 
+
+      $query = "SELECT uid, room, turm, firstname, lastname, username, subtenanttill FROM users WHERE subtenanttill != 0 && pid = 11 && room != 0 ORDER BY subtenanttill";
+      renderCustomUserTable($conn, $query, "Sublet Ende");
 
   } elseif (isset($_POST["moved"])) {
 
