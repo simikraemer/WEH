@@ -15,6 +15,8 @@ mysqli_set_charset($conn, "utf8");
 if (auth($conn) && $_SESSION['valid']) {
     load_menu();
 
+    $globalAGs = [7, 9, 66, 61, 62, 63];
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['action'])) {
             if ($_POST['action'] === 'turmchoice_weh') {
@@ -29,14 +31,14 @@ if (auth($conn) && $_SESSION['valid']) {
     $weh_button_color = ($turm === 'weh') ? 'background-color:#18ec13;' : 'background-color:#fff;';
     $tvk_button_color = ($turm === 'tvk') ? 'background-color:#FFA500;' : 'background-color:#fff;';
     echo '<div style="display:flex; justify-content:center; align-items:center;">';
-    echo '<form method="post" style="display:flex; justify-content:center; align-items:center; gap:0px;">';
+    echo '<form method="post" action="AGs.php" style="display:flex; justify-content:center; align-items:center; gap:0px;">';
     echo '<button type="submit" name="action" value="turmchoice_weh" class="house-button" style="font-size:50px; width:200px; ' . $weh_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">WEH</button>';
     echo '<button type="submit" name="action" value="turmchoice_tvk" class="house-button" style="font-size:50px; width:200px; ' . $tvk_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">TvK</button>';
     echo '</form>';
     echo '</div>';
     echo "<br><br>";
     
-    echo '<table class="clear-table">';
+    echo '<table class="clear-table" style="width:20%;">';
     echo '<thead>';
     echo '<tr>';
     echo '<th style="width:50%; text-align:center;">AG Name</th>';
@@ -46,12 +48,15 @@ if (auth($conn) && $_SESSION['valid']) {
     echo '<tbody>';
 
     foreach ($ag_complete as $group_id => $group) {
-        if ($group["turm"] != $turm) {
+        if ($group["turm"] != $turm && !in_array($group_id, $globalAGs)) {
             continue;
         }
         if (!empty($group["vacancy"])) {
-            echo '<tr onclick="highlightContainer(\'container_' . $group_id . '\'); location.href=\'#container_' . $group_id . '\';" style="cursor: pointer;">';
-            echo '<td style="width:50%;">' . htmlspecialchars($group["name"]) . '</td>';
+            $randfarbe = in_array($group_id, $globalAGs) 
+            ? "white" 
+            : (["weh" => "#11a50d", "tvk" => "#E49B0F"][$group["turm"]] ?? "white");
+
+            echo '<tr onclick="highlightContainer(\'container_' . $group_id . '\', \'' . $randfarbe . '\'); location.href=\'#container_' . $group_id . '\';" style="cursor: pointer;">';            echo '<td style="width:50%;">' . htmlspecialchars($group["name"]) . '</td>';
             echo '<td style="width:50%;">' . intval($group["vacancy"]) . '</td>';
             echo '</tr>';
         }       
@@ -90,19 +95,18 @@ if (auth($conn) && $_SESSION['valid']) {
     // Ausgabe
     echo '<div style="display:flex; flex-wrap:wrap; justify-content:center; margin:10px; padding:0px 60px 60px 60px;">';
     foreach ($ag_complete as $group_id => $group) {
-        if ($group["turm"] != $turm) {
+        if ($group["turm"] != $turm && !in_array($group_id, $globalAGs)) {
             continue;
         }
         if ($group_id === 26) {
             continue;
         }
 
-        $randfarbe = [
-            "weh" => "#11a50d",
-            "tvk" => "#E49B0F"
-        ][$group["turm"]] ?? "white";        
+        $randfarbe = in_array($group_id, $globalAGs) 
+        ? "white" 
+        : (["weh" => "#11a50d", "tvk" => "#E49B0F"][$group["turm"]] ?? "white");
         
-        echo '<div id="container_' . $group_id . '" class="ag-box" style="border: 20px outset ' . $randfarbe . '; transition: background-color 0.5s ease;">';
+        echo '<div id="container_' . $group_id . '" class="ag-box" style="border: 20px outset ' . $randfarbe . '; transition: background-color 1s ease;">';
         
         // Wrapper für Name und Mail mit festem Abstand
         echo '<div style="margin-bottom:20px;">';
@@ -152,7 +156,7 @@ if (auth($conn) && $_SESSION['valid']) {
                 echo '<td style="padding:4px 8px; color:' . $room_color . ';">' . $output . '</td>';
                 if ($isSpeaker) {
                     echo '<td style="padding:4px 8px;" class="white-text">
-                            <img src="images/ags/vorstand.png" width="18" height="18" alt="Sprecher Icon" style="vertical-align:">
+                            <img src="images/ags/vorstand.png" width="16" height="16" alt="Sprecher Icon" style="vertical-align:">
                             <a href="mailto:' . $mailto . '" class="white-text">' . htmlspecialchars($user['name']) . '</a>
                          </td>';
                 } else {
@@ -182,9 +186,6 @@ if (auth($conn) && $_SESSION['valid']) {
 }
 
 
-
-
-
 else {
   header("Location: denied.php");
 }
@@ -192,7 +193,7 @@ $conn->close();
 
 ?>
 <script>
-    function highlightContainer(containerId) {
+    function highlightContainer(containerId, $randfarbe) {
         const container = document.getElementById(containerId);
 
         if (container) {
@@ -200,12 +201,12 @@ $conn->close();
             const originalColor = container.style.backgroundColor;
 
             // Hintergrundfarbe setzen (highlight)
-            container.style.backgroundColor = "#333";
+            container.style.backgroundColor = $randfarbe;
 
             // Nach kurzer Zeit zurücksetzen
             setTimeout(() => {
                 container.style.backgroundColor = originalColor;
-            }, 1000); // Farbe nach 1 Sekunde zurücksetzen
+            }, 600);
         }
     }
 </script>
