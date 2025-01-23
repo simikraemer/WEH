@@ -6,7 +6,6 @@
     <head>
     <link rel="stylesheet" href="WEH.css" media="screen">
     </head>
-
 <?php
 
 // Connect to database PATH
@@ -15,6 +14,52 @@ mysqli_set_charset($conn, "utf8");
 
 if (auth($conn) && $_SESSION['valid']) {
     load_menu();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_POST['action'])) {
+            if ($_POST['action'] === 'turmchoice_weh') {
+                $_SESSION["ap_turm_var"] = 'weh';
+            } elseif ($_POST['action'] === 'turmchoice_tvk') {
+                $_SESSION["ap_turm_var"] = 'tvk';
+            }
+        }
+    }
+    
+    $turm = isset($_SESSION["ap_turm_var"]) ? $_SESSION["ap_turm_var"] : 'weh';
+    $weh_button_color = ($turm === 'weh') ? 'background-color:#18ec13;' : 'background-color:#fff;';
+    $tvk_button_color = ($turm === 'tvk') ? 'background-color:#FFA500;' : 'background-color:#fff;';
+    echo '<div style="display:flex; justify-content:center; align-items:center;">';
+    echo '<form method="post" style="display:flex; justify-content:center; align-items:center; gap:20px;">';
+    echo '<button type="submit" name="action" value="turmchoice_weh" class="house-button" style="font-size:50px; width:200px; ' . $weh_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">WEH</button>';
+    echo '<button type="submit" name="action" value="turmchoice_tvk" class="house-button" style="font-size:50px; width:200px; ' . $tvk_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">TvK</button>';
+    echo '</form>';
+    echo '</div>';
+    echo "<br><br>";
+    
+    echo '<table class="clear-table">';
+    echo '<thead>';
+    echo '<tr>';
+    echo '<th style="width:50%; text-align:center;">AG Name</th>';
+    echo '<th style="width:50%; text-align:center;">Vacancies</th>';
+    echo '</tr>';
+    echo '</thead>';
+    echo '<tbody>';
+
+    foreach ($ag_complete as $group_id => $group) {
+        if ($group["turm"] != $turm) {
+            continue;
+        }
+        if (!empty($group["vacancy"])) {
+            echo '<tr onclick="highlightContainer(\'container_' . $group_id . '\'); location.href=\'#container_' . $group_id . '\';" style="cursor: pointer;">';
+            echo '<td style="width:50%;">' . htmlspecialchars($group["name"]) . '</td>';
+            echo '<td style="width:50%;">' . intval($group["vacancy"]) . '</td>';
+            echo '</tr>';
+        }       
+    }
+
+    echo '</tbody>';
+    echo '</table>';
+
 
     foreach ($ag_complete as $id => &$data_user_erweiterung) {
         $data_user_erweiterung['users'] = array();
@@ -45,6 +90,9 @@ if (auth($conn) && $_SESSION['valid']) {
     // Ausgabe
     echo '<div style="display:flex; flex-wrap:wrap; justify-content:center; margin:10px; padding:0px 60px 60px 60px;">';
     foreach ($ag_complete as $group_id => $group) {
+        if ($group["turm"] != $turm) {
+            continue;
+        }
         if ($group_id === 26) {
             continue;
         }
@@ -54,19 +102,25 @@ if (auth($conn) && $_SESSION['valid']) {
             "tvk" => "#E49B0F"
         ][$group["turm"]] ?? "white";        
         
-        echo '<div class="ag-box" style="border: 20px outset ' . $randfarbe . ';">';
+        echo '<div id="container_' . $group_id . '" class="ag-box" style="border: 20px outset ' . $randfarbe . '; transition: background-color 0.5s ease;">';
         
         // Wrapper für Name und Mail mit festem Abstand
         echo '<div style="margin-bottom:20px;">';
         
         // Gruppenname mit Gruppenlink
         echo '<h2 class="white-text" style="font-size:28px; font-weight:bold; text-align:center; margin-bottom:10px;">';
-        echo '<a href="' . htmlspecialchars($group['link']) . '" class="white-text">' . htmlspecialchars($group['name']) . '</a>';
+        echo '<a href="' . htmlspecialchars($group['link']) . '" class="white-text">' . $group['name'] . '</a>';
         echo '</h2>';
             
         // Mailto-Link als kursiver Text
         echo '<p style="text-align:center; margin:0;"><a href="mailto:' . htmlspecialchars($group['mail']) . '" class="white-text" style="font-style:italic;">' . htmlspecialchars($group['mail']) . '</a></p>';
         
+        if (!empty($group["vacancy"])) {
+            echo '<p style="text-align:center; color:gold; margin-top:20px; font-size:20px;">';
+            echo 'Open Spots: ' . intval($group["vacancy"]);
+            echo '</p>';
+        }        
+
         echo '</div>'; // Ende des Wrappers
 
         if (!empty($group['users'])) {
@@ -118,7 +172,7 @@ if (auth($conn) && $_SESSION['valid']) {
         } else {
             echo '<p class="white-text" style="text-align:center;">Keine Mitglieder in dieser AG.</p>';
         }
-        
+
         echo '</div>';
     }
     echo '</div>';
@@ -132,3 +186,23 @@ else {
   header("Location: denied.php");
 }
 $conn->close();
+
+?>
+<script>
+    function highlightContainer(containerId) {
+        const container = document.getElementById(containerId);
+
+        if (container) {
+            // Ursprüngliche Hintergrundfarbe speichern
+            const originalColor = container.style.backgroundColor;
+
+            // Hintergrundfarbe setzen (highlight)
+            container.style.backgroundColor = "#333";
+
+            // Nach kurzer Zeit zurücksetzen
+            setTimeout(() => {
+                container.style.backgroundColor = originalColor;
+            }, 1000); // Farbe nach 1 Sekunde zurücksetzen
+        }
+    }
+</script>

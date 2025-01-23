@@ -39,10 +39,10 @@ echo "</form>";
 ### AGs definieren ###
 ######################
 
-$sql = "SELECT id, name, mail, session, agessen, link, turm, menu FROM groups WHERE active = TRUE ORDER BY prio;";
+$sql = "SELECT id, name, mail, session, agessen, link, turm, menu, vacancy FROM groups WHERE active = TRUE ORDER BY prio;";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen, $link, $turm, $menu);
+mysqli_stmt_bind_result($stmt, $id, $name, $mail, $session, $agessen, $link, $turm, $menu, $vacancy);
 
 $ag_complete = array();
 while (mysqli_stmt_fetch($stmt)) {
@@ -55,7 +55,8 @@ while (mysqli_stmt_fetch($stmt)) {
             "agessen" => $agessen,
             "link" => $link,
             "turm" => $turm,
-            "menu" => $menu
+            "menu" => $menu,
+            "vacancy" => $vacancy
         );
     }
 
