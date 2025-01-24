@@ -117,13 +117,22 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
   }
 
   
+    if (!isset($_SESSION["AdminPanelToggleState"])) {
+      $_SESSION["AdminPanelToggleState"] = "none"; // Standardmäßig eingeklappt
+    }
+
+    // Wenn ein Toggle-Request erfolgt, den Zustand der Session-Variable umschalten
+    if (isset($_POST["toggleAdminPanel"])) {
+        $_SESSION["AdminPanelToggleState"] = $_SESSION["AdminPanelToggleState"] === "none" ? "block" : "none";
+    }
+
 
 
     if ($_SESSION['NetzAG']) {
         echo '<div style="margin: 0 auto; text-align: center;">';
         echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
         echo '<span class="white-text" style="font-size: 35px; cursor: pointer;" onclick="toggleAdminPanel()">Admin Panel</span>';
-        echo '<div id="adminPanel" style="display: none;">'; // Beginn des ausklappbaren Bereichs
+        echo '<div id="adminPanel" style="display: ' . $_SESSION["AdminPanelToggleState"] . ';">'; // Beginn des ausklappbaren Bereichs
 
         echo '<form method="post">';
         echo '<label for="uid" style="color: white; font-size: 25px;">UID: </label>';
@@ -176,20 +185,31 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
         echo '</div>';
         echo '</div>';
 
-        if (isset($_POST['uid'])) {
-          echo '<script>document.getElementById("adminPanel").style.display = "block";</script>';
-        }
-
         echo '<script>
-        function toggleAdminPanel() {
-            var panel = document.getElementById("adminPanel");
-            if (panel.style.display === "none") {
-                panel.style.display = "block";
-            } else {
-                panel.style.display = "none";
-            }
-        }
-        </script>';
+          function toggleAdminPanel() {
+              // Unsichtbares Formular erstellen und absenden, um den Zustand zu speichern
+              var form = document.createElement("form");
+              form.method = "POST";
+              form.action = ""; // Seite wird neu geladen
+    
+              // Hidden Field für toggleAdminPanel
+              var inputToggle = document.createElement("input");
+              inputToggle.type = "hidden";
+              inputToggle.name = "toggleAdminPanel";
+              inputToggle.value = "1";
+              form.appendChild(inputToggle);
+    
+              // Hidden Field für UID
+              var inputUid = document.createElement("input");
+              inputUid.type = "hidden";
+              inputUid.name = "uid";
+              inputUid.value = "' . $selected_uid . '";
+              form.appendChild(inputUid);
+    
+              document.body.appendChild(form);
+              form.submit();
+          }
+      </script>';
 
         echo "<br><br>";
     }
