@@ -58,15 +58,19 @@ mysqli_set_charset($conn, "utf8");
 if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["TvK-Sprecher"])) {
   load_menu();
 
-  echo '<form method="post" style="display:flex; justify-content:center;">';
-  echo '<button type="submit" name="weh" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">WEH</button>';
-  echo '<button type="submit" name="tvk" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">TvK</button>';
-  echo '<button type="submit" name="sublet" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Subtenant</button>';
-  echo '<button type="submit" name="subletter" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Subletter</button>';
-  echo '<button type="submit" name="moved" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Ausgezogen</button>';
-  echo '<button type="submit" name="out" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Abgemeldet</button>';
-  echo '<button type="submit" name="ehre" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Ehrenmitglieder</button>';
-  echo '<button type="submit" name="dummy" class="house-button" style="font-size:20px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Dummys</button>';
+  echo '<form method="post" action="House.php" style="display:flex; justify-content:center; flex-wrap:wrap; gap:10px;">';
+  echo '<div style="display:flex; flex-basis:100%; justify-content:center;">'; // Container für die erste Zeile
+  echo '<button type="submit" name="weh" class="house-button" style="font-size:50px; width:200px; background-color:#fff; color:#000; border:2px solid #000; transition:background-color 0.2s;">WEH</button>';
+  echo '<button type="submit" name="tvk" class="house-button" style="font-size:50px; width:200px; background-color:#fff; color:#000; border:2px solid #000; transition:background-color 0.2s;">TvK</button>';
+  echo '</div>'; // Ende der ersten Zeile    
+  echo '<div style="display:flex; flex-basis:100%; justify-content:center;">'; // Container für die zweite Zeile
+  echo '<button type="submit" name="sublet" class="house-button" style="font-size:20px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Subtenant</button>';
+  echo '<button type="submit" name="subletter" class="house-button" style="font-size:20px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Subletter</button>';
+  echo '<button type="submit" name="moved" class="house-button" style="font-size:20px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Ausgezogen</button>';
+  echo '<button type="submit" name="out" class="house-button" style="font-size:20px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Abgemeldet</button>';
+  echo '<button type="submit" name="ehre" class="house-button" style="font-size:20px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Ehrenmitglieder</button>';
+  echo '<button type="submit" name="dummy" class="house-button" style="font-size:20px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Dummys</button>';
+  echo '</div>'; // Ende der zweiten Zeile
   echo '</form>';
   echo '<br><br>';
 

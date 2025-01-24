@@ -1412,7 +1412,7 @@ function displayWashingSlots($waschconn) {
 
 
 function renderUserPostButtons($uid) {
-    echo "<div style='display: flex; justify-content: center;'>";
+    echo "<div style='display: flex; justify-content: center; margin-top:10px;'>";
     
     if ($_SESSION["NetzAG"]) {
         echo "<div style='margin: 0 10px;'>";

@@ -301,51 +301,6 @@ if (isset($_POST['save_transfer_id'])) {
 
 
 
-
-
-
-
-
-
-  echo '<div style="display: flex; flex-direction: row; align-items: flex-start; justify-content: center; font-size: 25px; color: white;">';
-  echo '<div style="flex: 1; text-align: center;">';
-  echo '<h1>Bank</h1>';    
-  echo '<span style="color: red; font-size:20px;">It may take a few days for bank transfers to appear in your WEH account!</span>';  
-  echo '<span style="color: #708090; font-size:18px;"><br>For faster processing, consider using the PayPal option.</span><br><br>';  
-  echo '<span style="color: white;">Name: </span><span class="white-text">WEH e.V.</span><br>';
-  echo '<span style="color: white;">IBAN: </span><span class="white-text">DE90 3905 0000 1070 3346 00</span><br>';
-  echo '<span style="color: white;">Überweisungsbetreff: </span><span class="white-text">W' . $_SESSION["user"] . 'H</span><br><br>';
-  echo '<span style="color: #708090; font-size:18px;">If you do not set this exact Transfer Reference,<br>we will not be able to assign your payment to your account!</span><br>';
-  
-  echo '</div>';
-  echo '<div style="flex: 1; text-align: center;">';
-  echo '<h1>PayPal</h1>';
-  
-  echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form">';
-  echo '<label for="paypal-amount" style="color: white; font-size: 25px;">Amount: </label>';
-  echo '<select  id="paypal-amount" name="paypal-amount" style="margin-top: 20px; font-size: 20px;">';
-  echo '<option value="5">5 € (0.35 € fee)</option>';
-  echo '<option value="10">10 € (0.35 € fee)</option>';
-  echo '<option value="20" selected>20 € </option>';
-  echo '<option value="30">30 € </option>';
-  echo '<option value="40">40 € </option>';
-  echo '<option value="50">50 € </option>';
-  echo '<option value="75">75 € </option>';
-  echo '<option value="100">100 € </option>';
-  echo '</select>&nbsp&nbsp';
-  echo '<button  type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">TRANSFER</button>';
-  echo '</form><br>';
-  echo '<span style="color: #708090; font-size:18px;">It can take up to 10 seconds to process your payment!</span><br>';
-  echo '</div>';
-  echo '</div>';
-  
-  
-
-
-
-  echo "<br><br><br><hr><br><br>";
-
-
   $uid = isset($_POST['uid']) ? $_POST['uid'] : $_SESSION["uid"];
   $selected_uid = $uid;
 
@@ -694,8 +649,44 @@ if (isset($_POST['save_transfer_id'])) {
         }
     </script>';
   }
+  
+  echo '<div style="display: flex; flex-direction: row; align-items: flex-start; justify-content: center; font-size: 25px; color: white;">';
+  echo '<div style="flex: 1; text-align: center;">';
+  echo '<h1>Bank</h1>';    
+  echo '<span style="color: red; font-size:20px;">It may take a few days for bank transfers to appear in your WEH account!</span>';  
+  echo '<span style="color: #708090; font-size:18px;"><br>For faster processing, consider using the PayPal option.</span><br><br>';  
+  echo '<span style="color: white;">Name: </span><span class="white-text">WEH e.V.</span><br>';
+  echo '<span style="color: white;">IBAN: </span><span class="white-text">DE90 3905 0000 1070 3346 00</span><br>';
+  echo '<span style="color: white;">Überweisungsbetreff: </span><span class="white-text">W' . $_SESSION["user"] . 'H</span><br><br>';
+  echo '<span style="color: #708090; font-size:18px;">If you do not set this exact Transfer Reference,<br>we will not be able to assign your payment to your account!</span><br>';
+  
+  echo '</div>';
+  echo '<div style="flex: 1; text-align: center;">';
+  echo '<h1>PayPal</h1>';
+  
+  echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form">';
+  echo '<label for="paypal-amount" style="color: white; font-size: 25px;">Amount: </label>';
+  echo '<select  id="paypal-amount" name="paypal-amount" style="margin-top: 20px; font-size: 20px;">';
+  echo '<option value="5">5 € (0.35 € fee)</option>';
+  echo '<option value="10">10 € (0.35 € fee)</option>';
+  echo '<option value="20" selected>20 € </option>';
+  echo '<option value="30">30 € </option>';
+  echo '<option value="40">40 € </option>';
+  echo '<option value="50">50 € </option>';
+  echo '<option value="75">75 € </option>';
+  echo '<option value="100">100 € </option>';
+  echo '</select>&nbsp&nbsp';
+  echo '<button  type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">TRANSFER</button>';
+  echo '</form><br>';
+  echo '<span style="color: #708090; font-size:18px;">It can take up to 10 seconds to process your payment!</span><br>';
+  echo '</div>';
+  echo '</div>';
+  
+  
 
-  echo "<br><br>";
+
+
+  echo "<br><br><br><hr><br><br>";
   
 
   if ($selected_uid != 472 && $selected_uid != 2524 && $selected_uid != 492) {
