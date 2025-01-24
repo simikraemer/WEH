@@ -321,7 +321,7 @@ if (isset($_POST['save_transfer_id'])) {
     echo '<span class="white-text" style="font-size: 35px; cursor: pointer; display: inline-block;" onclick="toggleAdminPanel()">Admin Panel</span>';
     echo '<div id="adminPanel" style="display: ' . $_SESSION["AdminPanelToggleState"] . ';">'; // Beginn des ausklappbaren Bereichs
 
-    renderUserPostButtons($selected_uid);
+    renderUserPostButtons($conn,$selected_uid);
 
 #    echo '<form method="post">';
 #    echo '<label for="uid" style="color: white; font-size: 25px;">UID: </label>';

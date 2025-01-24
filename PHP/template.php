@@ -1411,45 +1411,87 @@ function displayWashingSlots($waschconn) {
 }
 
 
-function renderUserPostButtons($uid) {
+function renderUserPostButtons($conn,$uid) {   
+   
+    $sql = "SELECT firstname, lastname FROM users WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $uid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $firstname, $lastname);
+    mysqli_stmt_fetch($stmt);
+
+    $name = strtok($firstname, ' ') . ' ' . strtok($lastname, ' ');
+    
+    echo "<div style='display: flex; justify-content: center; align-items: center; height: 100%; text-align: center;'>
+            <label for='uid' style='color: white; font-size: 60px; margin:10px;'>$name</label>
+          </div>";    
+
     echo "<div style='display: flex; justify-content: center; margin-top:10px;'>";
+
+    echo "<div style='margin: 0 10px;'>";
+    echo "<form method='post' action='User.php'>";
+    echo "<input type='hidden' name='id' value='" . htmlspecialchars($uid) . "'>";
+    echo "<img src='images/UserPostButtons/user_white.png' alt='Userpage' onmouseover=\"this.src='images/UserPostButtons/user_green.png'\" onmouseout=\"this.src='images/UserPostButtons/user_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
+    echo "</form>";
+    echo "</div>";
     
     if ($_SESSION["NetzAG"]) {
         echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='IPverwaltung.php' target='_blank'>";
+        echo "<form method='post' action='IPverwaltung.php'>";
         echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
-        echo "<img src='images/UserPostButtons/ipverwaltung_white.png' alt='IP-Verwaltung' onmouseover=\"this.src='images/UserPostButtons/ipverwaltung_green.png'\" onmouseout=\"this.src='images/UserPostButtons/ipverwaltung_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+        echo "<img src='images/UserPostButtons/ipverwaltung_white.png' alt='IP-Verwaltung' onmouseover=\"this.src='images/UserPostButtons/ipverwaltung_green.png'\" onmouseout=\"this.src='images/UserPostButtons/ipverwaltung_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
         echo "</form>";
         echo "</div>";
     }
 
     echo "<div style='margin: 0 10px;'>";
-    echo "<form method='post' action='UserKonto.php' target='_blank'>";
+    echo "<form method='post' action='UserKonto.php'>";
     echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
-    echo "<img src='images/UserPostButtons/mitgliedskonto_white.png' alt='Mitgliedskonto' onmouseover=\"this.src='images/UserPostButtons/mitgliedskonto_green.png'\" onmouseout=\"this.src='images/UserPostButtons/mitgliedskonto_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+    echo "<img src='images/UserPostButtons/mitgliedskonto_white.png' alt='Mitgliedskonto' onmouseover=\"this.src='images/UserPostButtons/mitgliedskonto_green.png'\" onmouseout=\"this.src='images/UserPostButtons/mitgliedskonto_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
     echo "</form>";
     echo "</div>";
 
     if ($_SESSION["NetzAG"]) {
         echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='Troubleshoot.php' target='_blank'>";
+        echo "<form method='post' action='Troubleshoot.php'>";
         echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
-        echo "<img src='images/UserPostButtons/troubleshoot_white.png' alt='Troubleshoot' onmouseover=\"this.src='images/UserPostButtons/troubleshoot_green.png'\" onmouseout=\"this.src='images/UserPostButtons/troubleshoot_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+        echo "<img src='images/UserPostButtons/troubleshoot_white.png' alt='Troubleshoot' onmouseover=\"this.src='images/UserPostButtons/troubleshoot_green.png'\" onmouseout=\"this.src='images/UserPostButtons/troubleshoot_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
         echo "</form>";
         echo "</div>";
     }
 
     if ($_SESSION["Webmaster"]) {
         echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='WaschmarkenExchange.php' target='_blank'>";
+        echo "<form method='post' action='WaschmarkenExchange.php'>";
         echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
-        echo "<img src='images/UserPostButtons/waschmarken_white.png' alt='Waschmarken' onmouseover=\"this.src='images/UserPostButtons/waschmarken_green.png'\" onmouseout=\"this.src='images/UserPostButtons/waschmarken_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+        echo "<img src='images/UserPostButtons/waschmarken_white.png' alt='Waschmarken' onmouseover=\"this.src='images/UserPostButtons/waschmarken_green.png'\" onmouseout=\"this.src='images/UserPostButtons/waschmarken_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
         echo "</form>";
         echo "</div>";
     }
 
     echo "</div>";
+
+    echo "<script>
+        function handleMouseDown(event, imgElement) {
+            var form = imgElement.closest('form');
+
+            // Prüfen auf Mittelklick oder Strg/Cmd + Klick
+            if (event.button === 1 || event.ctrlKey || event.metaKey) {
+                // Ziel in neuem Tab öffnen
+                let newForm = form.cloneNode(true);
+                newForm.target = '_blank';
+                document.body.appendChild(newForm);
+                newForm.submit();
+                document.body.removeChild(newForm);
+            } else if (event.button === 0) {
+                // Normaler Klick, Ziel im gleichen Tab öffnen
+                form.submit();
+            }
+        }
+    </script>";
+
 }
+
 
 
   

@@ -35,188 +35,188 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     if (isset($_POST["id"])) {    
 
         if (isset($_POST["id_update"])) {
-        // Eingegebene Postvariablen definieren
-        $id = $_POST['id'];
-        $room = isset($_POST['room']) ? $_POST['room'] : 0;
-        $oldroom = isset($_POST['oldroom']) && $_POST['oldroom'] !== '' ? $_POST['oldroom'] : 0;
-        $firstname = isset($_POST['firstname']) ? $_POST['firstname'] : '';
-        $lastname = isset($_POST['lastname']) ? $_POST['lastname'] : '';
-        $name = $firstname . " " . $lastname;      
-        $telefon = isset($_POST['telefon']) ? $_POST['telefon'] : '';
-        $email = isset($_POST['email']) ? $_POST['email'] : '';
-        $geburtsort = isset($_POST['geburtsort']) ? $_POST['geburtsort'] : '';
-        $historie = isset($_POST['historie']) ? $_POST['historie'] : '';
-        $username = $_POST['username'];
-        $pid = $_POST['pid'];
-        $geburtstag = isset($_POST['geburtstag']) ? $_POST['geburtstag'] : '';
-        $starttime = isset($_POST['starttime']) ? $_POST['starttime'] : '';
-        $ausgezogen = isset($_POST['ausgezogen']) ? $_POST['ausgezogen'] : '';
-        $endtime = isset($_POST['endtime']) ? $_POST['endtime'] : '';
-        $subletterstart = isset($_POST['subletterstart']) ? $_POST['subletterstart'] : '';
-        $subletterend = isset($_POST['subletterend']) ? $_POST['subletterend'] : '';
-        $subtenanttill = isset($_POST['subtenanttill']) ? $_POST['subtenanttill'] : '';
-        $subnet = isset($_POST['subnet']) ? $_POST['subnet'] : '';
-        $mailisactive = isset($_POST['mailisactive']) ? $_POST['mailisactive'] : '';
-        $honory = isset($_POST['honory']) ? $_POST['honory'] : '';
-        $forwardemail = isset($_POST['forwardemail']) ? $_POST['forwardemail'] : '';
-        $aliase = isset($_POST['aliase']) ? $_POST['aliase'] : '';
-        $mailsettings = isset($_POST['mailsettings']) ? $_POST['mailsettings'] : '';
-        $mailquota = isset($_POST['mailquota']) ? $_POST['mailquota'] : '';
-        $insolvent = isset($_POST['insolvent']) ? $_POST['insolvent'] : '';
-        $pwwifi = isset($_POST['pwwifi']) ? $_POST['pwwifi'] : '';
-        $turm = $_POST['turm'];
+            // Eingegebene Postvariablen definieren
+            $id = $_POST['id'];
+            $room = isset($_POST['room']) ? $_POST['room'] : 0;
+            $oldroom = isset($_POST['oldroom']) && $_POST['oldroom'] !== '' ? $_POST['oldroom'] : 0;
+            $firstname = isset($_POST['firstname']) ? $_POST['firstname'] : '';
+            $lastname = isset($_POST['lastname']) ? $_POST['lastname'] : '';
+            $name = $firstname . " " . $lastname;      
+            $telefon = isset($_POST['telefon']) ? $_POST['telefon'] : '';
+            $email = isset($_POST['email']) ? $_POST['email'] : '';
+            $geburtsort = isset($_POST['geburtsort']) ? $_POST['geburtsort'] : '';
+            $historie = isset($_POST['historie']) ? $_POST['historie'] : '';
+            $username = $_POST['username'];
+            $pid = $_POST['pid'];
+            $geburtstag = isset($_POST['geburtstag']) ? $_POST['geburtstag'] : '';
+            $starttime = isset($_POST['starttime']) ? $_POST['starttime'] : '';
+            $ausgezogen = isset($_POST['ausgezogen']) ? $_POST['ausgezogen'] : '';
+            $endtime = isset($_POST['endtime']) ? $_POST['endtime'] : '';
+            $subletterstart = isset($_POST['subletterstart']) ? $_POST['subletterstart'] : '';
+            $subletterend = isset($_POST['subletterend']) ? $_POST['subletterend'] : '';
+            $subtenanttill = isset($_POST['subtenanttill']) ? $_POST['subtenanttill'] : '';
+            $subnet = isset($_POST['subnet']) ? $_POST['subnet'] : '';
+            $mailisactive = isset($_POST['mailisactive']) ? $_POST['mailisactive'] : '';
+            $honory = isset($_POST['honory']) ? $_POST['honory'] : '';
+            $forwardemail = isset($_POST['forwardemail']) ? $_POST['forwardemail'] : '';
+            $aliase = isset($_POST['aliase']) ? $_POST['aliase'] : '';
+            $mailsettings = isset($_POST['mailsettings']) ? $_POST['mailsettings'] : '';
+            $mailquota = isset($_POST['mailquota']) ? $_POST['mailquota'] : '';
+            $insolvent = isset($_POST['insolvent']) ? $_POST['insolvent'] : '';
+            $pwwifi = isset($_POST['pwwifi']) ? $_POST['pwwifi'] : '';
+            $turm = $_POST['turm'];
 
-        $pwhaus_changed = false;
-        if(isset($_POST['pwhaus']) && strlen($_POST['pwhaus']) > 0) {
-            $pwhaus = pwhash($_POST['pwhaus']);
-            $pwhaus_changed = true;
-        }
+            $pwhaus_changed = false;
+            if(isset($_POST['pwhaus']) && strlen($_POST['pwhaus']) > 0) {
+                $pwhaus = pwhash($_POST['pwhaus']);
+                $pwhaus_changed = true;
+            }
 
-        $pwwifi_changed = false;
-        if(isset($_POST['pwwifi']) && strlen($_POST['pwwifi']) > 0) {
-            $pwwifi = $_POST['pwwifi'];
-            $pwwifi_changed = true;
-        }
+            $pwwifi_changed = false;
+            if(isset($_POST['pwwifi']) && strlen($_POST['pwwifi']) > 0) {
+                $pwwifi = $_POST['pwwifi'];
+                $pwwifi_changed = true;
+            }
 
-        // Überprüfen ob Essentielles bereits belegt ist, erstmal alle Räume, Subnets und Usernames abrufen
-        $sql = "SELECT subnet, username FROM users WHERE uid != ?";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "i", $id);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $verify_subnet, $verify_username);
-        $resultArray = array();
-        while (mysqli_stmt_fetch($stmt)) {
-            $resultArray[] = array(
-                'allsubnets' => $verify_subnet,
-                'allusernames' => $verify_username
-            );
-        }
-
-        // Überprüfen ob Essentielles bereits belegt ist, erstmal alle Räume, Subnets und Usernames abrufen
-        $sql = "SELECT room FROM users WHERE uid != ? AND turm = ?";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "is", $id, $turm);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $verify_room);
-        $resultArray = array();
-        while (mysqli_stmt_fetch($stmt)) {
-            $resultArray[] = array(
-                'allrooms' => $verify_room
-            );
-        }
-
-        // Alle möglichen Eingabefehler überprüfen
-        $eingabefehler = false;
-        $fehlermeldung = '';
-        
-        if (in_array($room, array_column($resultArray, 'allrooms')) && $room != 0) {
-            $eingabefehler = true;
-
-            $sql = "SELECT username FROM users WHERE room = ? AND turm = ?";
+            // Überprüfen ob Essentielles bereits belegt ist, erstmal alle Räume, Subnets und Usernames abrufen
+            $sql = "SELECT subnet, username FROM users WHERE uid != ?";
             $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "is", $room, $turm);
+            mysqli_stmt_bind_param($stmt, "i", $id);
             mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $username_from_room);
-            mysqli_stmt_fetch($stmt);
-            $fehlermeldung .= "Raum bereits von Benutzer '$username_from_room' belegt!<br>";
-        }
+            mysqli_stmt_bind_result($stmt, $verify_subnet, $verify_username);
+            $resultArray = array();
+            while (mysqli_stmt_fetch($stmt)) {
+                $resultArray[] = array(
+                    'allsubnets' => $verify_subnet,
+                    'allusernames' => $verify_username
+                );
+            }
 
-        if (in_array($subnet, array_column($resultArray, 'allsubnets')) && $subnet != '') {
-            $eingabefehler = true;
-            $username_from_sublet = $resultArray[array_search($subnet, array_column($resultArray, 'allsubnets'))]['allusernames'];
-            $fehlermeldung .= "Subnetz bereits von Benutzer '$username_from_sublet' belegt!<br>";
-        } elseif ($subnet != '' && !preg_match('/^10\.(2\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.0|3\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.0|6\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.0)$/', $subnet)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Subnetz hat das falsche Format!<br>";
-        }
+            // Überprüfen ob Essentielles bereits belegt ist, erstmal alle Räume, Subnets und Usernames abrufen
+            $sql = "SELECT room FROM users WHERE uid != ? AND turm = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "is", $id, $turm);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $verify_room);
+            $resultArray = array();
+            while (mysqli_stmt_fetch($stmt)) {
+                $resultArray[] = array(
+                    'allrooms' => $verify_room
+                );
+            }
 
-        if (in_array($username, array_column($resultArray, 'allusernames'))) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Username schon belegt!<br>";
-        } 
+            // Alle möglichen Eingabefehler überprüfen
+            $eingabefehler = false;
+            $fehlermeldung = '';
+            
+            if (in_array($room, array_column($resultArray, 'allrooms')) && $room != 0) {
+                $eingabefehler = true;
 
-        if ($geburtstag !== '0' && $geburtstag !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $geburtstag)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Geburtsdatum!<br>";
-        }
+                $sql = "SELECT username FROM users WHERE room = ? AND turm = ?";
+                $stmt = mysqli_prepare($conn, $sql);
+                mysqli_stmt_bind_param($stmt, "is", $room, $turm);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_bind_result($stmt, $username_from_room);
+                mysqli_stmt_fetch($stmt);
+                $fehlermeldung .= "Raum bereits von Benutzer '$username_from_room' belegt!<br>";
+            }
 
-        if ($starttime !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $starttime)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Einzugsdatum!<br>";
-        }
+            if (in_array($subnet, array_column($resultArray, 'allsubnets')) && $subnet != '') {
+                $eingabefehler = true;
+                $username_from_sublet = $resultArray[array_search($subnet, array_column($resultArray, 'allsubnets'))]['allusernames'];
+                $fehlermeldung .= "Subnetz bereits von Benutzer '$username_from_sublet' belegt!<br>";
+            } elseif ($subnet != '' && !preg_match('/^10\.(2\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.0|3\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.0|6\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.0)$/', $subnet)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Subnetz hat das falsche Format!<br>";
+            }
 
-        if ($subletterstart !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subletterstart)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Subletter Start!<br>";
-        }
+            if (in_array($username, array_column($resultArray, 'allusernames'))) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Username schon belegt!<br>";
+            } 
 
-        if ($subletterend !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subletterend)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Subletter End!<br>";
-        }      
-        if ($subtenanttill !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subtenanttill)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Untermieter bis!<br>";
-        }
+            if ($geburtstag !== '0' && $geburtstag !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $geburtstag)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Geburtsdatum!<br>";
+            }
 
-        if ($ausgezogen !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $ausgezogen)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Auszugsdatum!<br>";
-        }
+            if ($starttime !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $starttime)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Einzugsdatum!<br>";
+            }
 
-        if ($endtime !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $endtime)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Austrittsdatum!<br>";
-        }
+            if ($subletterstart !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subletterstart)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Subletter Start!<br>";
+            }
 
-        if ($insolvent !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $insolvent)) {
-            $eingabefehler = true;
-            $fehlermeldung .= "Ungültiges Datumsformat für Insolvenzdatum!<br>";
-        }
+            if ($subletterend !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subletterend)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Subletter End!<br>";
+            }      
+            if ($subtenanttill !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $subtenanttill)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Untermieter bis!<br>";
+            }
 
-        if ($eingabefehler) {
-            echo "<p style='color:red; text-align:center; font-size: 30px;'>$fehlermeldung</p>";
-        } else {
+            if ($ausgezogen !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $ausgezogen)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Auszugsdatum!<br>";
+            }
 
-            // Datumsvariablen in 0 (leerer String) oder UNIXTIME umformen
-            $geburtstag = $_POST['geburtstag'] != '' ? strtotime($_POST['geburtstag']) : 0;
-            $starttime = $_POST['starttime'] != '' ? strtotime($_POST['starttime']) : 0;
-            $ausgezogen = $_POST['ausgezogen'] != '' ? strtotime($_POST['ausgezogen']) : 0;
-            $endtime = $_POST['endtime'] != '' ? strtotime($_POST['endtime']) : 0;
-            $subletterstart = $_POST['subletterstart'] != '' ? strtotime($_POST['subletterstart']) : 0;
-            $subletterend = $_POST['subletterend'] != '' ? strtotime($_POST['subletterend']) : 0;
-            $subtenanttill = $_POST['subtenanttill'] != '' ? strtotime($_POST['subtenanttill']) : 0; 
-            $insolvent = $_POST['insolvent'] != '' ? strtotime($_POST['insolvent']) : 0; 
+            if ($endtime !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $endtime)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Austrittsdatum!<br>";
+            }
 
-            // $sql = "UPDATE users SET room=?, name=?, firstname=?, lastname=?, starttime=?, endtime=?, telefon=?, email=?, geburtstag=?, geburtsort=?, historie=?, oldroom=?, username=?, ausgezogen=?, pid=?, subletterstart=?, subletterend=?, subtenanttill=?, subnet=?, mailisactive=?, forwardemail=?, aliase=?, mailsettings=?, mailquota=?, insolvent=? WHERE uid=?";
-            // $stmt = mysqli_prepare($conn, $sql);
-            // mysqli_stmt_bind_param($stmt, "ssssssssssssssissssiisiiii", $room, $name, $firstname, $lastname, $starttime, $endtime, $telefon, $email, $geburtstag, $geburtsort, $historie, $oldroom, $username, $ausgezogen, $pid, $subletterstart, $subletterend, $subtenanttill, $subnet, $mailisactive, $forwardemail, $aliase, $mailsettings, $mailquota, $insolvent, $id);
-            // mysqli_stmt_execute($stmt);
-            // $stmt->close();
+            if ($insolvent !== '' && !preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $insolvent)) {
+                $eingabefehler = true;
+                $fehlermeldung .= "Ungültiges Datumsformat für Insolvenzdatum!<br>";
+            }
 
-            $sql = "UPDATE users SET room=?, name=?, firstname=?, lastname=?, starttime=?, endtime=?, telefon=?, email=?, geburtstag=?, geburtsort=?, historie=?, oldroom=?, username=?, ausgezogen=?, pid=?, subletterstart=?, subletterend=?, subtenanttill=?, subnet=?, mailisactive=?, forwardemail=?, aliase=?, mailsettings=?, mailquota=?, insolvent=?, honory=?, turm=?";
-            $paramTypes = "ssssssssssssssissssiisiiiis";
-            $params = [$room, $name, $firstname, $lastname, $starttime, $endtime, $telefon, $email, $geburtstag, $geburtsort, $historie, $oldroom, $username, $ausgezogen, $pid, $subletterstart, $subletterend, $subtenanttill, $subnet, $mailisactive, $forwardemail, $aliase, $mailsettings, $mailquota, $insolvent, $honory, $turm];
-            if ($pwhaus_changed) {
-                $sql .= ", pwhaus=?";
+            if ($eingabefehler) {
+                echo "<p style='color:red; text-align:center; font-size: 30px;'>$fehlermeldung</p>";
+            } else {
+
+                // Datumsvariablen in 0 (leerer String) oder UNIXTIME umformen
+                $geburtstag = $_POST['geburtstag'] != '' ? strtotime($_POST['geburtstag']) : 0;
+                $starttime = $_POST['starttime'] != '' ? strtotime($_POST['starttime']) : 0;
+                $ausgezogen = $_POST['ausgezogen'] != '' ? strtotime($_POST['ausgezogen']) : 0;
+                $endtime = $_POST['endtime'] != '' ? strtotime($_POST['endtime']) : 0;
+                $subletterstart = $_POST['subletterstart'] != '' ? strtotime($_POST['subletterstart']) : 0;
+                $subletterend = $_POST['subletterend'] != '' ? strtotime($_POST['subletterend']) : 0;
+                $subtenanttill = $_POST['subtenanttill'] != '' ? strtotime($_POST['subtenanttill']) : 0; 
+                $insolvent = $_POST['insolvent'] != '' ? strtotime($_POST['insolvent']) : 0; 
+
+                // $sql = "UPDATE users SET room=?, name=?, firstname=?, lastname=?, starttime=?, endtime=?, telefon=?, email=?, geburtstag=?, geburtsort=?, historie=?, oldroom=?, username=?, ausgezogen=?, pid=?, subletterstart=?, subletterend=?, subtenanttill=?, subnet=?, mailisactive=?, forwardemail=?, aliase=?, mailsettings=?, mailquota=?, insolvent=? WHERE uid=?";
+                // $stmt = mysqli_prepare($conn, $sql);
+                // mysqli_stmt_bind_param($stmt, "ssssssssssssssissssiisiiii", $room, $name, $firstname, $lastname, $starttime, $endtime, $telefon, $email, $geburtstag, $geburtsort, $historie, $oldroom, $username, $ausgezogen, $pid, $subletterstart, $subletterend, $subtenanttill, $subnet, $mailisactive, $forwardemail, $aliase, $mailsettings, $mailquota, $insolvent, $id);
+                // mysqli_stmt_execute($stmt);
+                // $stmt->close();
+
+                $sql = "UPDATE users SET room=?, name=?, firstname=?, lastname=?, starttime=?, endtime=?, telefon=?, email=?, geburtstag=?, geburtsort=?, historie=?, oldroom=?, username=?, ausgezogen=?, pid=?, subletterstart=?, subletterend=?, subtenanttill=?, subnet=?, mailisactive=?, forwardemail=?, aliase=?, mailsettings=?, mailquota=?, insolvent=?, honory=?, turm=?";
+                $paramTypes = "ssssssssssssssissssiisiiiis";
+                $params = [$room, $name, $firstname, $lastname, $starttime, $endtime, $telefon, $email, $geburtstag, $geburtsort, $historie, $oldroom, $username, $ausgezogen, $pid, $subletterstart, $subletterend, $subtenanttill, $subnet, $mailisactive, $forwardemail, $aliase, $mailsettings, $mailquota, $insolvent, $honory, $turm];
+                if ($pwhaus_changed) {
+                    $sql .= ", pwhaus=?";
+                    $paramTypes .= "s";
+                    $params[] = $pwhaus;
+                }
+                if ($pwwifi_changed) {
+                $sql .= ", pwwifi=?";
                 $paramTypes .= "s";
-                $params[] = $pwhaus;
+                $params[] = $pwwifi;
+                }
+                $sql .= " WHERE uid=?";
+                $paramTypes .= "i";
+                $params[] = $id;
+                $stmt = mysqli_prepare($conn, $sql);
+                mysqli_stmt_bind_param($stmt, $paramTypes, ...$params);
+                mysqli_stmt_execute($stmt);
+                $stmt->close();
+            
+                echo "<div style='text-align: center; font-size: 20px; color: green;'>Änderungen erfolgreich eingetragen.</div>";
             }
-            if ($pwwifi_changed) {
-            $sql .= ", pwwifi=?";
-            $paramTypes .= "s";
-            $params[] = $pwwifi;
-            }
-            $sql .= " WHERE uid=?";
-            $paramTypes .= "i";
-            $params[] = $id;
-            $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, $paramTypes, ...$params);
-            mysqli_stmt_execute($stmt);
-            $stmt->close();
-        
-            echo "<div style='text-align: center; font-size: 20px; color: green;'>Änderungen erfolgreich eingetragen.</div>";
-        }
         }
 
         $sql = "SELECT room, name, firstname, lastname, starttime, endtime, telefon, email, geburtstag, geburtsort, historie, oldroom, username, ausgezogen, pid, subletterstart, subletterend, subtenanttill, subnet, mailisactive, forwardemail, aliase, mailsettings, mailquota, insolvent, honory, turm, lastradius FROM users WHERE uid = ?";
@@ -262,9 +262,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
         echo "<hr>";
         
-        echo '<div style="display: flex; justify-content: center; align-items: center; height: 100%; text-align: center;">';
-        echo '<label for="uid" style="color: white; font-size: 60px; margin:10px;">' . $name . '</label><br>';
-        echo '</div>';
+        renderUserPostButtons($conn,$_POST["id"]);
+        echo "<br><br>";
 
         $uploadDir = "anmeldung/" . $username . "/"; // Neuer Pfad für die Dateien des Benutzers
 
@@ -330,10 +329,6 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         echo "</div>"; // Ende Flexbox-Container
 
         echo "<div style='display: flex; flex-direction: column; align-items: center;'>";
-        
-        renderUserPostButtons($_POST["id"]);
-
-        echo "<br><br>";
 
         $zeit = time();
 
