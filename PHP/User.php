@@ -320,43 +320,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         echo "</div>"; // Ende Flexbox-Container
 
         echo "<div style='display: flex; flex-direction: column; align-items: center;'>";
-
-        echo "<div style='display: flex; justify-content: center;'>";
         
-
-        if ($_SESSION["NetzAG"]) {
-        echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='IPverwaltung.php' target='_blank'>";
-        echo "<input type='hidden' name='uid' value='".$_POST["id"]."'>";
-        echo "<input type='submit' class='center-btn' style='margin-bottom: 20px; margin-top: 20px; font-size: 25px;' value='IP-Verwaltung'>";
-        echo "</form>";
-        echo "</div>";
-        }
-
-        echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='UserKonto.php' target='_blank'>";
-        echo "<input type='hidden' name='uid' value='".$_POST["id"]."'>";
-        echo "<input type='submit' class='center-btn' style='margin-bottom: 20px; margin-top: 20px; font-size: 25px;' value='Mitgliedskonto'>";  
-        echo "</form>";
-        echo "</div>";
-
-        if ($_SESSION["NetzAG"]) {
-        echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='Troubleshoot.php' target='_blank'>";
-        echo "<input type='hidden' name='uid' value='".$_POST["id"]."'>";
-        echo "<input type='submit' class='center-btn' style='margin-bottom: 20px; margin-top: 20px; font-size: 25px;' value='Troubleshoot'>";
-        echo "</form>";
-        echo "</div>";
-
-        echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='WaschmarkenExchange.php' target='_blank'>";
-        echo "<input type='hidden' name='uid' value='".$_POST["id"]."'>";
-        echo "<input type='submit' class='center-btn' style='margin-bottom: 20px; margin-top: 20px; font-size: 25px;' value='Waschmarken'>";
-        echo "</form>";
-        echo "</div>";
-        }
-
-        echo "</div>";
+        renderUserPostButtons($_POST["id"]);
 
         echo "<br><br>";
 

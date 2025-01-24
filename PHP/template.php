@@ -1410,5 +1410,47 @@ function displayWashingSlots($waschconn) {
     return $stringie;
 }
 
+
+function renderUserPostButtons($uid) {
+    echo "<div style='display: flex; justify-content: center;'>";
+    
+    if ($_SESSION["NetzAG"]) {
+        echo "<div style='margin: 0 10px;'>";
+        echo "<form method='post' action='IPverwaltung.php' target='_blank'>";
+        echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
+        echo "<img src='images/UserPostButtons/ipverwaltung_white.png' alt='IP-Verwaltung' onmouseover=\"this.src='images/UserPostButtons/ipverwaltung_green.png'\" onmouseout=\"this.src='images/UserPostButtons/ipverwaltung_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+        echo "</form>";
+        echo "</div>";
+    }
+
+    echo "<div style='margin: 0 10px;'>";
+    echo "<form method='post' action='UserKonto.php' target='_blank'>";
+    echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
+    echo "<img src='images/UserPostButtons/mitgliedskonto_white.png' alt='Mitgliedskonto' onmouseover=\"this.src='images/UserPostButtons/mitgliedskonto_green.png'\" onmouseout=\"this.src='images/UserPostButtons/mitgliedskonto_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+    echo "</form>";
+    echo "</div>";
+
+    if ($_SESSION["NetzAG"]) {
+        echo "<div style='margin: 0 10px;'>";
+        echo "<form method='post' action='Troubleshoot.php' target='_blank'>";
+        echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
+        echo "<img src='images/UserPostButtons/troubleshoot_white.png' alt='Troubleshoot' onmouseover=\"this.src='images/UserPostButtons/troubleshoot_green.png'\" onmouseout=\"this.src='images/UserPostButtons/troubleshoot_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+        echo "</form>";
+        echo "</div>";
+    }
+
+    if ($_SESSION["Webmaster"]) {
+        echo "<div style='margin: 0 10px;'>";
+        echo "<form method='post' action='WaschmarkenExchange.php' target='_blank'>";
+        echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
+        echo "<img src='images/UserPostButtons/waschmarken_white.png' alt='Waschmarken' onmouseover=\"this.src='images/UserPostButtons/waschmarken_green.png'\" onmouseout=\"this.src='images/UserPostButtons/waschmarken_white.png'\" style='cursor: pointer;' onclick=\"this.closest('form').submit();\">";
+        echo "</form>";
+        echo "</div>";
+    }
+
+    echo "</div>";
+}
+
+
   
 ?>

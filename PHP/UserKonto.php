@@ -349,23 +349,24 @@ if (isset($_POST['save_transfer_id'])) {
   $uid = isset($_POST['uid']) ? $_POST['uid'] : $_SESSION["uid"];
   $selected_uid = $uid;
 
-  if (!isset($_SESSION["AdminPanelToggleState"])) {
-    $_SESSION["AdminPanelToggleState"] = "none"; // Standardmäßig eingeklappt
-  }
-
-  // Wenn ein Toggle-Request erfolgt, den Zustand der Session-Variable umschalten
-  if (isset($_POST["toggleAdminPanel"])) {
-      $_SESSION["AdminPanelToggleState"] = $_SESSION["AdminPanelToggleState"] === "none" ? "block" : "none";
-  }
-
 
   if ($editable) {
+    if (!isset($_SESSION["AdminPanelToggleState"])) {
+      $_SESSION["AdminPanelToggleState"] = "none"; // Standardmäßig eingeklappt
+    }
+
+    // Wenn ein Toggle-Request erfolgt, den Zustand der Session-Variable umschalten
+    if (isset($_POST["toggleAdminPanel"])) {
+        $_SESSION["AdminPanelToggleState"] = $_SESSION["AdminPanelToggleState"] === "none" ? "block" : "none";
+    }
+
+
     echo '<div style="margin: 0 auto; text-align: center;">';
     echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
-    echo '<span class="white-text" style="font-size: 35px; cursor: pointer;" onclick="toggleAdminPanel()">Admin Panel</span>';
+    echo '<span class="white-text" style="font-size: 35px; cursor: pointer; display: inline-block;" onclick="toggleAdminPanel()">Admin Panel</span>';
     echo '<div id="adminPanel" style="display: ' . $_SESSION["AdminPanelToggleState"] . ';">'; // Beginn des ausklappbaren Bereichs
 
-
+    renderUserPostButtons($selected_uid);
 
 #    echo '<form method="post">';
 #    echo '<label for="uid" style="color: white; font-size: 25px;">UID: </label>';
