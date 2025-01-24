@@ -263,7 +263,6 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         echo "<hr>";
         
         renderUserPostButtons($conn,$_POST["id"]);
-        echo "<br><br>";
 
         $uploadDir = "anmeldung/" . $username . "/"; // Neuer Pfad für die Dateien des Benutzers
 
@@ -522,6 +521,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
             echo "</div>";
         }
         
+        echo "<div style='margin-bottom: 60px;'>";
 
         echo "<table class='userpage-table'>";
 
@@ -594,6 +594,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
 
         echo "</table>";
+        echo "</div>";
     } else {
         echo '<div style="text-align: center; color: white; font-size: 40px;">Kein User selected!</div>';
     }   

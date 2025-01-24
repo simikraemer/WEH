@@ -1426,7 +1426,7 @@ function renderUserPostButtons($conn,$uid) {
             <label for='uid' style='color: white; font-size: 60px; margin:10px;'>$name</label>
           </div>";    
 
-    echo "<div style='display: flex; justify-content: center; margin-top:10px;'>";
+    echo "<div style='display: flex; justify-content: center; margin-top:0px; margin-bottom:10px;'>";
 
     echo "<div style='margin: 0 10px;'>";
     echo "<form method='post' action='User.php'>";

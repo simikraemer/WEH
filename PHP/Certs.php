@@ -175,7 +175,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
     if ($result->num_rows > 0) {
         echo '<form method="POST" action="" id="updateForm">';  // Formularstart
-        echo '<table class="grey-table" style="margin: 0 auto; margin-bottom: 40px; text-align: center; border-collapse: collapse; border: 2px solid white; width: 100%; box-shadow: 0px 0px 30px rgba(255, 255, 255, 0.5); border-radius: 8px;">';
+        echo '<table class="grey-table" style="margin: 0 auto; margin-bottom: 40px; text-align: center; border-collapse: collapse; border: 2px solid white; width: 100%; border-radius: 8px;">';
         
         // Tabellenkopf
         echo '<tr style="background-color: transparent; color: #ffffff; font-size: 25px;">';

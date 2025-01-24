@@ -77,7 +77,6 @@ if (auth($conn) && $_SESSION['valid']) {
         renderUserPostButtons($conn,$uid);
 
         echo '<form method="post">';
-        echo '<label for="uid" style="color: white; font-size: 25px;">Bewohner: </label>';
         
         echo '<select name="uid" style="margin-top: 20px; font-size: 20px; text-align: center;" onchange="this.form.submit()">';
     
