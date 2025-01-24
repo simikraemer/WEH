@@ -1460,14 +1460,14 @@ function renderUserPostButtons($conn,$uid) {
         echo "</div>";
     }
 
-    if ($_SESSION["Webmaster"]) {
-        echo "<div style='margin: 0 10px;'>";
-        echo "<form method='post' action='WaschmarkenExchange.php'>";
-        echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
-        echo "<img src='images/UserPostButtons/waschmarken_white.png' alt='Waschmarken' onmouseover=\"this.src='images/UserPostButtons/waschmarken_green.png'\" onmouseout=\"this.src='images/UserPostButtons/waschmarken_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
-        echo "</form>";
-        echo "</div>";
-    }
+    #if ($_SESSION["Webmaster"]) {
+    #    echo "<div style='margin: 0 10px;'>";
+    #    echo "<form method='post' action='WaschmarkenExchange.php'>";
+    #    echo "<input type='hidden' name='uid' value='" . htmlspecialchars($uid) . "'>";
+    #    echo "<img src='images/UserPostButtons/waschmarken_white.png' alt='Waschmarken' onmouseover=\"this.src='images/UserPostButtons/waschmarken_green.png'\" onmouseout=\"this.src='images/UserPostButtons/waschmarken_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
+    #    echo "</form>";
+    #    echo "</div>";
+    #}
 
     echo "</div>";
 

@@ -291,39 +291,44 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         // Button-Container für Mietvertrag und Anmeldeformular
         echo "<div style='display: flex; justify-content: center; gap: 20px; margin: 0 10px;'>";
 
-
-        if ($mvFile) {
-            echo "<a href=\"$mvFile\" target=\"_blank\" class=\"center-btn\" style='
-                margin-bottom: 20px; 
-                margin-top: 20px; 
-                font-size: 25px; 
-                text-align: center; 
-                display: inline-block; 
-                padding: 10px 20px; 
-                text-decoration: none; 
-                color: #fff; 
-                background-color: #444; 
-                border: none; 
-                border-radius: 5px; 
-                font-family: inherit;'>Mietvertrag</a>";
+        if ($mvFile || $afFile) {
+            echo "<div style='
+                display: flex; 
+                justify-content: center; 
+                gap: 20px; 
+                margin-top: 20px;
+                margin-bottom: 20px;'>
+            ";
+        
+            if ($mvFile) {
+                echo "<a href=\"$mvFile\" target=\"_blank\" class=\"center-btn\" style='
+                    width: 200px; 
+                    font-size: 25px; 
+                    text-align: center; 
+                    display: inline-block; 
+                    padding: 10px 20px; 
+                    text-decoration: none; 
+                    border: none; 
+                    border-radius: 5px; 
+                    font-family: inherit;'>Mietvertrag</a>";
+            }
+        
+            if ($afFile) {
+                echo "<a href=\"$afFile\" target=\"_blank\" class=\"center-btn\" style='
+                    width: 200px; 
+                    font-size: 25px; 
+                    text-align: center; 
+                    display: inline-block; 
+                    padding: 10px 20px; 
+                    text-decoration: none; 
+                    border: none; 
+                    border-radius: 5px; 
+                    font-family: inherit;'>Anmeldeformular</a>";
+            }
+        
+            echo "</div>";
         }
         
-        if ($afFile) {
-            echo "<a href=\"$afFile\" target=\"_blank\" class=\"center-btn\" style='
-                margin-bottom: 20px; 
-                margin-top: 20px; 
-                font-size: 25px; 
-                text-align: center; 
-                display: inline-block; 
-                padding: 10px 20px; 
-                text-decoration: none; 
-                color: #fff; 
-                background-color: #444; 
-                border: none; 
-                border-radius: 5px; 
-                font-family: inherit;'>Anmeldeformular</a>";
-        }
-
         echo "</div>"; // Ende Button-Container
 
         echo "</div>"; // Ende Flexbox-Container
