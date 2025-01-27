@@ -787,21 +787,5 @@ else {
 // Close the connection to the database
 $conn->close();
 ?>
-
-<script>
-function setFreeSubnet() {
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      document.getElementById('subnet-input').value = xhr.responseText;
-    }
-  };
-  xhr.open('GET', 'template.php?action=getFreeSubnet', true);
-  xhr.send();
-}
-
-
-
-</script>
 </body>
 </html>

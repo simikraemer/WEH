@@ -695,43 +695,6 @@ function getAgsIcons($ags, $icon_size) {
     return $ags_icons;
 }
 
-
-function getFreeSubnet($conn) { // wurde bei Anmeldung.php und House.php durch getRoomSubnet($conn, $room) ersetzt, da Room-Subnet-Mapping eingeführt wurde
-    // Alle möglichen Subnets in ein Array speichern
-    $alleSubs = [];
-    for ($i = 0; $i < 256; $i++) {
-        $ip = "10.2." . $i . ".0";
-        $alleSubs[] = $ip;
-    }
-    
-    for ($i = 0; $i < 33; $i++) {
-        $ip = "10.3." . $i . ".0";
-        $alleSubs[] = $ip;
-    }
-    
-    // Alle belegten Subnets abfragen
-    $sql = "SELECT subnet FROM users WHERE subnet <> ''";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $subnet);
-    $belegteSubs = [];
-    while (mysqli_stmt_fetch($stmt)) {
-        $belegteSubs[] = $subnet;
-    }
-    mysqli_stmt_close($stmt);
-
-    // Alle möglichen Subnets minus belegte Subnets ergibt freie Subnets
-    $freieSubs = array_diff($alleSubs, $belegteSubs);
-
-    if (empty($freieSubs)) {
-        return false;
-    }
-
-    // Den ersten Eintrag der freien Subnets ausgeben
-    $ersterEintrag = reset($freieSubs);
-    return $ersterEintrag;
-}
-
 function getRoomSubnet($conn, $room, $turm) {
     $sql = "SELECT subnet FROM natmapping WHERE room = ? AND turm = ?";
     $stmt = mysqli_prepare($conn, $sql);
