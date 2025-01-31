@@ -4,8 +4,27 @@ require('template.php');
 mysqli_set_charset($conn, "utf8");
 
 if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === true) {
-    
-    $videoDir = "videos/namethegame/";
+
+    // Standardwerte setzen
+    $mode = $_POST['mode'] ?? 'Name the Game';
+    switch ($mode) {
+        case 'Spot the Shot':
+            $videoDir = "videos/spottheshot/";
+            $unmuteTime = 59;
+            break;
+        case 'Pick the Hit':
+            $videoDir = "videos/pickthehit/";
+            $unmuteTime = 30;
+            break;
+        case 'Test':
+            $videoDir = "videos/test/";
+            $unmuteTime = 58;
+            break;
+        default:
+            $videoDir = "videos/namethegame/";
+            $unmuteTime = 45;
+    }
+
     $videos = array_diff(scandir($videoDir), array('..', '.'));
     $videoFiles = array_values(array_filter($videos, function($file) {
         return preg_match('/\.(mp4|webm|ogg)$/i', $file);
@@ -24,9 +43,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="WEH.css" media="screen">
-    <title>Name the Game</title>
+    <link rel="stylesheet" href="WEH.css">
     <style>
         body { text-align: center; font-family: Arial, sans-serif; }
         .videoContainer { position: relative; display: inline-block; }
@@ -36,9 +53,9 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 
         #timerContainer {
             width: 100%;
-            max-width: 600px;
+            max-width: 650px;
             height: 25px;
-            background: #ddd;
+            background: white;
             border-radius: 5px;
             margin: 10px auto;
             position: relative;
@@ -83,12 +100,40 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 </head>
 <body>
 
-    <h1>Name the Game</h1>
+    <form method="POST" id="gameModeButtons">
+        <button type="submit" name="mode" value="Name the Game" class="weh-btn" 
+            style="<?php echo ($mode == 'Name the Game') ? 'background:green; color:white;' : ''; ?>">
+            Name the Game
+        </button>
+        
+        <button type="submit" name="mode" value="Spot the Shot" class="weh-btn" 
+            style="<?php echo ($mode == 'Spot the Shot') ? 'background:green; color:white;' : ''; ?>">
+            Spot the Shot
+        </button>
+        
+        <button type="submit" name="mode" value="Pick the Hit" class="weh-btn" 
+            style="<?php echo ($mode == 'Pick the Hit') ? 'background:green; color:white;' : ''; ?>">
+            Pick the Hit
+        </button>
+        
+        <button type="submit" name="mode" value="Test" class="weh-btn" 
+            style="<?php echo ($mode == 'Test') ? 'background:green; color:white;' : ''; ?>">
+            Test
+        </button>
+    </form>
+
+
 
     <div id="videoNav">
-        <button class="weh-btn" onclick="prevVideo()">← Vorheriges Video</button>
-        <button class="weh-btn" onclick="nextVideo()">Nächstes Video →</button>
-    </div>
+    <button class="weh-btn" onclick="prevVideo()" style="width: 320px;">
+        ← Vorheriges Video
+    </button>
+    
+    <button class="weh-btn" onclick="nextVideo()" style="width: 320px;">
+        Nächstes Video →
+    </button>
+</div>
+
 
     <div id="timerContainer">
         <div id="timerBar"></div>
@@ -118,33 +163,36 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
         const timerBar = document.getElementById("timerBar");
         const timerText = document.getElementById("timerText");
 
-        let pixelSize = 40;
+        let pixelSize = 60;
         let interval;
         let isRevealed = false;
         let timer;
         let countdown = 60;
+        let unmuteTime = <?php echo $unmuteTime; ?>;
 
-        canvas.width = 1040;
-        canvas.height = 585;
+
+        canvas.width = 1200;
+        canvas.height = 675;
 
         function loadVideo(index) {
+            countdown = 60;
+            pixel = 60;
             video.src = videoDir + videoFiles[index];
             video.load();
-            pixelSize = 60;
             isRevealed = false;
             videoBanner.style.display = "none";
             video.muted = true;
-            countdown = 60;
+
             updateTimerDisplay();
             resetTimerBar();
 
             video.oncanplay = () => {
                 video.play();
-                drawPixelatedVideo();
-                startPixelReduction();            
+                drawPixelatedVideo();       
+                startPixelReduction();     
                 if (!isRevealed) {
                     startTimer();
-                }
+                }    
             };
         }
 
@@ -161,7 +209,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
         function startPixelReduction() {
             clearInterval(interval);
             interval = setInterval(() => {
-                if (pixelSize > 1) {
+                if (!video.paused && !video.ended && pixelSize > 1) {
                     pixelSize -= 1;
                 } else {
                     clearInterval(interval);
@@ -169,17 +217,27 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
             }, 1000);
         }
 
+
         function startTimer() {
             clearInterval(timer);
             timer = setInterval(() => {
                 countdown--;
                 updateTimerDisplay();
 
-                // Nach 30s: Ton aktivieren
-                if (countdown === 30) {
+                if (countdown === unmuteTime && video.muted) {
                     video.muted = false;
-                }
 
+                    if (video.paused) {
+                        video.play();
+                    }
+
+                    if (!isRevealed) {
+                        setTimeout(() => {
+                            drawPixelatedVideo();
+                        }, 100);
+                    }
+                }
+                
                 // Nach 60s: Automatische Auflösung
                 if (countdown <= 0) {
                     clearInterval(timer);
@@ -189,6 +247,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
                 updateTimerBar();
             }, 1000);
         }
+
 
         function updateTimerDisplay() {
             timerText.innerText = countdown + "s";
@@ -284,7 +343,6 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
                 startPixelReduction();
             }
         });
-
         
         video.addEventListener("ended", () => {
             video.currentTime = 0; // Zurück an den Anfang
