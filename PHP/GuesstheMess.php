@@ -34,6 +34,8 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
         die("Keine Videos im Ordner vorhanden!");
     }
     shuffle($videoFiles);
+    $videoNumbers = array_flip(array_values($videoFiles)); // Erzeugt eine Map: filename -> Nummer
+    $totalVideos = count($videoFiles);    
 ?>
 
 
@@ -153,15 +155,18 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 
     <script>
         const videoFiles = <?php echo json_encode($videoFiles); ?>;
+        const videoNumbers = <?php echo json_encode($videoNumbers); ?>;
         const videoDir = "<?php echo $videoDir; ?>";
+        const totalVideos = <?php echo $totalVideos; ?>;
         let currentVideoIndex = 0;
+
 
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const video = document.getElementById("gameVideo");
         const videoBanner = document.getElementById("videoBanner");
         const timerBar = document.getElementById("timerBar");
-        const timerText = document.getElementById("timerText");
+        const timerText = document.getElementById("timerText");        
 
         let pixelSize = 60;
         let interval;
@@ -173,6 +178,25 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 
         canvas.width = 1200;
         canvas.height = 675;
+
+        function drawStartScreen() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "white";
+            ctx.font = "bold 40px Arial";
+            ctx.textAlign = "center";
+
+            let videoFilename = videoFiles[currentVideoIndex];
+            let videoNumber = videoNumbers[videoFilename] + 1; // Nummer basiert auf der Shuffle-Reihenfolge
+            let text = `Video ${videoNumber} von ${totalVideos}`;
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            ctx.font = "bold 30px Arial";
+            ctx.fillText("Klick zum Starten", canvas.width / 2, canvas.height / 2 + 50);
+        }
+
+
 
         function loadVideo(index) {
             countdown = 60;
@@ -187,12 +211,12 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
             resetTimerBar();
 
             video.oncanplay = () => {
-                video.play();
-                drawPixelatedVideo();       
-                startPixelReduction();     
-                if (!isRevealed) {
-                    startTimer();
-                }    
+                //video.play();
+                //drawPixelatedVideo();       
+                //startPixelReduction();     
+                //if (!isRevealed) {
+                //    startTimer();
+                //}    
             };
         }
 
@@ -226,16 +250,6 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 
                 if (countdown === unmuteTime && video.muted) {
                     video.muted = false;
-
-                    if (video.paused) {
-                        video.play();
-                    }
-
-                    if (!isRevealed) {
-                        setTimeout(() => {
-                            drawPixelatedVideo();
-                        }, 100);
-                    }
                 }
                 
                 // Nach 60s: Automatische Auflösung
@@ -320,6 +334,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
                 currentVideoIndex--;
                 loadVideo(currentVideoIndex);
                 resetCanvas();
+                drawStartScreen();
             }
         }
 
@@ -328,6 +343,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
                 currentVideoIndex++;
                 loadVideo(currentVideoIndex);
                 resetCanvas();
+                drawStartScreen();
             }
         }
 
@@ -357,9 +373,21 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
             }
         });
 
-        canvas.addEventListener("click", togglePlayPause);
+        canvas.addEventListener("click", () => {
+            if (video.paused && countdown === 60) { // Nur wenn das Video noch nicht gestartet ist
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Startscreen entfernen
+                video.play();
+                drawPixelatedVideo();
+                startPixelReduction();
+                startTimer();
+            } else {
+                togglePlayPause(); // Falls das Video schon läuft, normale Pause-Logik nutzen
+            }
+        });
+
 
         loadVideo(currentVideoIndex);
+        drawStartScreen();
     </script>
 
 </body>
