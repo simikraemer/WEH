@@ -104,7 +104,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             $turm = $row["turm"];
             $room = $row["room"];
             $kontostand = round($row["gesamt_betrag"], 2);
-            $userbeiträge = $sum_beiträge - ($row["aktiv"] == 1 ? $hausbeitrag : 0) - ($row["netzag"] == 1 || $row["pid"] == 12 ? $netzbeitrag : 0);
+            $userbeiträge = $sum_beiträge - ($row["aktiv"] == 1 || $row["pid"] == 12 ? $hausbeitrag : 0) - ($row["netzag"] == 1 || $row["pid"] == 12 ? $netzbeitrag : 0);
             if ($row["gesperrt"] == 1) {
                 $underpressure = "red";
             } elseif ($kontostand < $userbeiträge) {

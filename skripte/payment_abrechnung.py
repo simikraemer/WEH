@@ -38,7 +38,7 @@ def abrechnung():
 
     wehdb = connect_weh()
     cursor = wehdb.cursor()
-    cursor.execute("SELECT uid, groups, honory, pid, name, username, turm FROM users WHERE pid IN (11,12,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
+    cursor.execute("SELECT uid, groups, honory, pid, name, username, turm FROM users WHERE pid IN (11,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
     bewohner = cursor.fetchall()
     for row in bewohner:
         uid = row[0]
