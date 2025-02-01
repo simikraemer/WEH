@@ -1,10 +1,6 @@
 <?php
 session_start();
 require('template.php');
-mysqli_set_charset($conn, "utf8");
-
-if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === true) {
-
     // Standardwerte setzen
     $mode = $_POST['mode'] ?? 'Name the Game';
     switch ($mode) {
@@ -168,7 +164,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
         const timerBar = document.getElementById("timerBar");
         const timerText = document.getElementById("timerText");        
 
-        let pixelSize = 60;
+        let pixelSize = 80;
         let interval;
         let isRevealed = false;
         let timer;
@@ -200,7 +196,7 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 
         function loadVideo(index) {
             countdown = 60;
-            pixel = 60;
+            pixelSize = 80;
             video.src = videoDir + videoFiles[index];
             video.load();
             isRevealed = false;
@@ -234,11 +230,11 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
             clearInterval(interval);
             interval = setInterval(() => {
                 if (!video.paused && !video.ended && pixelSize > 1) {
-                    pixelSize -= 1;
+                    pixelSize -= 10;
                 } else {
                     clearInterval(interval);
                 }
-            }, 1000);
+            }, 10000);
         }
 
 
@@ -398,10 +394,6 @@ if (auth($conn) && isset($_SESSION['Webmaster']) && $_SESSION['Webmaster'] === t
 
 
 <?php
-} else {
-    header("Location: denied.php");
-    exit();
-}
 
 $conn->close();
 ?>
