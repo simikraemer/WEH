@@ -572,7 +572,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         if ($user["sublet"]) {
           echo('<p style="color:red; font-weight:bold">SUBLET</p>
           <label class="form-label">End of sublet:</label>
-          <input type="text" name="subletterend" class="form-input" value="'.htmlspecialchars(utf8_encode($user["subletterend"])).'" readonly>');
+          <input type="text" name="subletterend" class="form-input" value="'.htmlspecialchars(utf8_encode((date("d.m.Y", $user["subletterend"])))).'" readonly>');
         }
   
         if ($raumbelegt) {
