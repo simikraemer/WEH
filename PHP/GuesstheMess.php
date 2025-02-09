@@ -114,10 +114,10 @@ require('template.php');
             Pick the Hit
         </button>
         
-        <button type="submit" name="mode" value="Test" class="weh-btn" 
+        <!-- <button type="submit" name="mode" value="Test" class="weh-btn" 
             style="<?php echo ($mode == 'Test') ? 'background:green; color:white;' : ''; ?>">
             Test
-        </button>
+        </button> -->
     </form>
 
 
