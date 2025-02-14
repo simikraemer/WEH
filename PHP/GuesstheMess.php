@@ -39,7 +39,8 @@ require('template.php');
 
 <!DOCTYPE html>
 <html lang="de">
-<head>
+<head>    
+    <title>Guess the Mess</title>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="WEH.css">
     <style>
