@@ -12,24 +12,32 @@ require('template.php');
             $videoDir = "videos/pickthehit/";
             $unmuteTime = 30;
             break;
-        case 'Test':
-            $videoDir = "videos/test/";
-            $unmuteTime = 58;
-            break;
         default:
             $videoDir = "videos/namethegame/";
             $unmuteTime = 45;
     }
 
-    $videos = array_diff(scandir($videoDir), array('..', '.'));
-    $videoFiles = array_values(array_filter($videos, function($file) {
-        return preg_match('/\.(mp4|webm|ogg)$/i', $file);
-    }));
 
+    $videos = array_diff(scandir($videoDir), array('..', '.'));
+
+    $videoFiles = array_values(array_filter($videos, function($file) {
+        return preg_match('/^\d+\.\s.*\.(mp4|webm|ogg)$/i', $file);
+    }));
+    
+    // Sortieren der Dateien basierend auf der Nummerierung am Anfang des Namens
+    usort($videoFiles, function($a, $b) {
+        return intval(explode('.', $a)[0]) - intval(explode('.', $b)[0]);
+    });
+    
     if (empty($videoFiles)) {
         die("Keine Videos im Ordner vorhanden!");
     }
-    shuffle($videoFiles);
+    
+    // Entferne die Nummerierung aus den Dateinamen für die Ausgabe
+    $cleanVideoFiles = array_map(function($file) {
+        return preg_replace('/^\d+\.\s/', '', $file);
+    }, $videoFiles);
+
     $videoNumbers = array_flip(array_values($videoFiles)); // Erzeugt eine Map: filename -> Nummer
     $totalVideos = count($videoFiles);    
 ?>
@@ -105,20 +113,15 @@ require('template.php');
             Name the Game
         </button>
         
-        <button type="submit" name="mode" value="Spot the Shot" class="weh-btn" 
-            style="<?php echo ($mode == 'Spot the Shot') ? 'background:green; color:white;' : ''; ?>">
-            Spot the Shot
-        </button>
-        
         <button type="submit" name="mode" value="Pick the Hit" class="weh-btn" 
             style="<?php echo ($mode == 'Pick the Hit') ? 'background:green; color:white;' : ''; ?>">
             Pick the Hit
         </button>
         
-        <!-- <button type="submit" name="mode" value="Test" class="weh-btn" 
-            style="<?php echo ($mode == 'Test') ? 'background:green; color:white;' : ''; ?>">
-            Test
-        </button> -->
+        <button type="submit" name="mode" value="Spot the Shot" class="weh-btn" 
+            style="<?php echo ($mode == 'Spot the Shot') ? 'background:green; color:white;' : ''; ?>">
+            Spot the Shot
+        </button>
     </form>
 
 
