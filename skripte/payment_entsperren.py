@@ -30,7 +30,7 @@ def checkpayment():
         "WHERE s.missedpayment = 1 "
         "AND s.endtime >= %s"
     )
-    var = (zeit, zeit)
+    var = (zeit,)
     wehcursor.execute(sql, var)
     bewohner = wehcursor.fetchall()
     print(f"Anzahl der Bewohner mit verpassten Zahlungen: {len(bewohner)}")
