@@ -337,13 +337,13 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         $zeit = time();
 
         // Zuerst: Holen Sie alle Sperren und speichern Sie sie in einem Array
-        $sql = "SELECT beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen, missedpayment
+        $sql = "SELECT beschreibung, mail, internet, waschen, buchen, drucken, werkzeugbuchen, missedpayment, id, starttime, endtime
                 FROM sperre 
                 WHERE uid = ? AND sperre.starttime <= ? AND sperre.endtime >= ?";
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_bind_param($stmt, "iii", $_POST["id"], $zeit, $zeit);
         mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $missedpayment);
+        mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $missedpayment, $id, $starttime, $endtime);
 
         $sperren = []; // Array für Sperrendaten
         while (mysqli_stmt_fetch($stmt)) {
@@ -355,7 +355,10 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                 'buchen' => $buchen,
                 'drucken' => $drucken,
                 'werkzeugbuchen' => $werkzeugbuchen,
-                'missedpayment' => $missedpayment
+                'missedpayment' => $missedpayment,
+                'id' => $id,
+                'starttime' => $starttime,
+                'endtime' => $endtime
             ];
         }
         mysqli_stmt_close($stmt);
@@ -380,6 +383,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                     <span style='font-weight: bold; font-size: 25px; color: rgb(0,200,0);'>Keine Sperre vorhanden</span>
                 </div>";
         } else {
+
+
             foreach ($sperren as $sperre) {
                 // Array der betroffenen Dienste
                 $services = [];
@@ -389,23 +394,75 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                 if ($sperre['buchen']) $services[] = "Buchen";
                 if ($sperre['drucken']) $services[] = "Drucken";
                 if ($sperre['werkzeugbuchen']) $services[] = "Werkzeugbuchen";
-
+            
                 // Dienste-Ausgabe
                 $servicesOutput = implode(", ", $services);
-
+                            
+                // Start- und Endzeit der Sperre umwandeln
+                $startzeit = date("d.m.Y H:i", $sperre['starttime']); 
+                $endzeit = $sperre['endtime'] == 2147483647 ? "Unbegrenzt" : date("d.m.Y H:i", $sperre['endtime']);
+            
                 echo "<div style='border: 2px solid red; border-radius: 10px; padding: 15px; margin-bottom: 20px; margin-top: 20px; font-size: 20px; background-color: transparent; text-align: center;'>
-                        <span style='font-weight: bold; font-size: 25px; color: red;'>Sperre:</span><br>
-                        <span style='font-size: 20px; color: red;'>" . htmlspecialchars($sperre['beschreibung']) . "</span><br><br>
-                        <span style='font-weight: bold; font-size: 18px; color: red;'>Betroffene Dienste:</span><br>
-                        <span style='font-size: 18px; color: red;'>" . htmlspecialchars($servicesOutput) . "</span>";
-
+                        <span style='font-weight: bold; font-size: 50px; color: red;'>Sperre</span><br>
+                        <span style='font-size: 20px; color: red;'>" . htmlspecialchars($sperre['beschreibung']) . "</span><br>
+                        <span style='font-size: 18px; color: red;'><i>" . htmlspecialchars($servicesOutput) . "</i></span><br><br>
+                        <span style='font-size: 18px; color: red;'><b>Start:</b> $startzeit<br><b>Ende:</b> $endzeit</span>";
+            
                 // Wenn "missedpayment" aktiv ist, zeige den Mail-Button
                 if ($sperre['missedpayment'] == 1) {
-                    echo '<form method="POST" style="margin-top: 20px;">';
+                    echo '<div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 10px;">';
+            
+                    // Sperre aussetzen Button
+                    echo '<form method="POST">';
                     echo '<input type="hidden" name="id" value="' . $_POST["id"] . '">';
-                    echo '<button type="submit" name="send_mail_banned" class="red-center-btn" id="sendBtn" 
-                            style="transition: all 0.3s ease; font-size: 15px; padding: 10px 20px; border-radius: 5px; background-color: red; color: white; cursor: pointer;">';
-
+                    echo '<input type="hidden" name="sperre_id" value="' . $sperre['id'] . '">';
+                    echo '<button type="submit" name="postpone_ban" id="postponeBtn" 
+                    style="transition: all 0.3s ease; font-size: 15px; padding: 10px 20px; 
+                           border-radius: 5px; background-color: darkred; color: white; 
+                           cursor: pointer; border: none; display: inline-block; text-align: center;"
+                    onmouseenter="if(this.dataset.locked !== \'true\') { this.style.backgroundColor=\'red\'; }"
+                    onmouseleave="if(this.dataset.locked !== \'true\') { this.style.backgroundColor=\'darkred\'; }">
+                    Sperre für zwei Stunden aussetzen
+                  </button>';
+                    echo '</form>';
+            
+                    // POST: Sperre aussetzen
+                    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['postpone_ban'])) {
+                        $sperre_id = $_POST["sperre_id"];
+                        $new_starttime = time() + 60 * 60 * 2; 
+            
+                        $sql = "UPDATE sperre SET starttime = ? WHERE id = ?";
+                        $stmt = mysqli_prepare($conn, $sql);
+            
+                        if ($stmt) {
+                            mysqli_stmt_bind_param($stmt, "ii", $new_starttime, $sperre_id);
+                            mysqli_stmt_execute($stmt);
+                            mysqli_stmt_close($stmt);
+            
+                            echo '<script>
+                                    const btn = document.getElementById("postponeBtn");
+                                    btn.style.backgroundColor = "green";
+                                    btn.textContent = "Sperre erfolgreich ausgesetzt.";
+                                    btn.disabled = true;
+                                    btn.dataset.locked = "true";
+                                </script>';
+                        }
+                    }
+            
+                    // Reminder-Mail Button
+                    echo '<form method="POST">';
+                    echo '<input type="hidden" name="id" value="' . $_POST["id"] . '">';
+                    echo '<button type="submit" name="send_mail_banned" id="sendMailBtn" 
+                    style="transition: all 0.3s ease; font-size: 15px; padding: 10px 20px; 
+                           border-radius: 5px; background-color: darkred; color: white; 
+                           cursor: pointer; border: none; display: inline-block; text-align: center;"
+                    onmouseenter="if(this.dataset.locked !== \'true\') { this.style.backgroundColor=\'red\'; }"
+                    onmouseleave="if(this.dataset.locked !== \'true\') { this.style.backgroundColor=\'darkred\'; }">
+                            Reminder mit Transferinfos an hinterlegte Mail senden
+                          </button>';
+                    echo '</form>';
+            
+                    // POST: Mail senden
                     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_mail_banned'])) {
                         $address = $mailconfig['address'];
                         $message = "Dear " . $firstname . ",\n\n" .
@@ -419,37 +476,34 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                                 "When your member account has a positive balance, your internet connection will be reactivated automatically.\n\n" .
                                 "It will take some time until the transfer will be entered for your account.\n\n" .
                                 "Best Regards,\nNetzwerk-AG WEH e.V.";
-
+            
                         $to = $email;
                         $subject = "WEH - Currently Banned";
                         $headers = "From: " . $address . "\r\n";
                         $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
-
+            
                         if (mail($to, $subject, $message, $headers)) {
                             echo '<script>
-                                    const btn = document.getElementById("sendBtn");
+                                    const btn = document.getElementById("sendMailBtn");
                                     btn.style.backgroundColor = "green";
                                     btn.textContent = "Mail erfolgreich versendet.";
                                     btn.disabled = true;
-                                </script>';
-                        } else {
-                            echo '<script>
-                                    const btn = document.getElementById("sendBtn");
-                                    btn.style.backgroundColor = "red";
-                                    btn.textContent = "Fehler beim Versenden der Mail.";
-                                    btn.disabled = true;
+                                    btn.dataset.locked = "true";
                                 </script>';
                         }
-                    } else {
-                        echo 'Reminder mit Transferinfos an hinterlegte Mail senden.';
                     }
-
-                    echo '</button>';
-                    echo '</form>';
+            
+                    echo '</div>';
                 }
-
+            
                 echo "</div>";
             }
+            
+
+
+
+
+
         }
 
         function calculateColor($diff_seconds) {
