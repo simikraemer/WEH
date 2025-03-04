@@ -38,7 +38,7 @@ def abrechnung():
 
     wehdb = connect_weh()
     cursor = wehdb.cursor()
-    cursor.execute("SELECT uid, groups, honory, pid, name, username, turm, mailisactive FROM users WHERE pid IN (11,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
+    cursor.execute("SELECT uid, groups, honory, pid, name, username, turm, mailisactive, email, forwardemail FROM users WHERE pid IN (11,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
     bewohner = cursor.fetchall()
     for row in bewohner:
         uid = row[0]
@@ -49,6 +49,8 @@ def abrechnung():
         username = row[5]
         turm = row[6]
         mailisactive = bool(row[7])
+        email = row[8]
+        forwardemail = bool(row[9])
         
         kontostand = get_kontostand(uid,cursor)
         if kontostand is None:
@@ -102,7 +104,7 @@ def abrechnung():
             insolvent(uid, zeit); insolventcount += 1; infostring = "Insolvent"
         elif restcheck < 0:
             addsperre(uid, zeit)
-            if mailisactive: sperrmail(uid, rest, name, username, turm)
+            if mailisactive: sperrmail(uid, rest, name, username, turm, email, forwardemail)
             sperrcount += 1
             infostring = "Gesperrt"
         else:
@@ -273,7 +275,7 @@ def confirmmail(uid,turm,monatsbeitrag):
     else:
         send_mail(subject, message, to_email)
 
-def sperrmail(uid, rest, name, username, turm):
+def sperrmail(uid, rest, name, username, turm, zweite_email, forwardemail):
     posrest = - rest
     
     subject = "WEH Account Ban"
@@ -295,6 +297,15 @@ def sperrmail(uid, rest, name, username, turm):
         print(f"To: {to_email}")
     else:
         send_mail(subject, message, to_email)
+    
+    if not forwardemail:    
+        if DEBUG:
+            print("DEBUG MODE: Email not sent. Here are the details:")
+            print(f"Subject: {subject}")
+            print(f"Message: {message}")
+            print(f"To: {zweite_email}")
+        else:
+            send_mail(subject, message, zweite_email)
 
 ## Funktionen zur Abrechnung ##        
 
