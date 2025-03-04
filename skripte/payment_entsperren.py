@@ -28,7 +28,7 @@ def checkpayment():
         "FROM users u "
         "JOIN sperre s ON u.uid = s.uid "
         "WHERE s.missedpayment = 1 "
-        "AND s.starttime <= %s AND s.endtime >= %s"
+        "AND s.endtime >= %s"
     )
     var = (zeit, zeit)
     wehcursor.execute(sql, var)
