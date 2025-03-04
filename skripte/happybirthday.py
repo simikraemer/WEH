@@ -17,26 +17,71 @@ def happybirthday():
     current_month = today.month
     current_day = today.day
     print(f"Heutiges Datum: {today}, Monat: {current_month}, Tag: {current_day}")
+    
+    # Verbindung zur Wasch-Datenbank
+    waschdb = connect_wasch()
+    print("Verbindung zur Wasch-Datenbank hergestellt.")
+    waschcursor = waschdb.cursor()
+    print("Wasch-Datenbankcursor erstellt")
 
+    print("Starte Abruf der Wasch-User mit status = 1...")
+    waschcursor.execute("SELECT uid FROM waschusers WHERE status = 1")
+    valid_uids = [row[0] for row in waschcursor.fetchall()]  # Direkt als int speichern
+
+    waschcursor.close()
+    waschdb.close()
+
+    # Verbindung zur WEH-Datenbank
     wehdb = connect_weh()
-    print("Verbindung zur WEH-Datenbank hergestellt:", wehdb)
+    print("Verbindung zur WEH-Datenbank hergestellt.")
     wehcursor = wehdb.cursor()
     print("WEH-Datenbankcursor erstellt")
 
-    sql = "SELECT username, geburtstag, firstname, uid, turm FROM users WHERE pid = 11"
-    wehcursor.execute(sql)
-    results = wehcursor.fetchall()
-    print("Benutzer gefunden:", results)
+    if valid_uids:  # Falls es gültige UIDs gibt
+        placeholders = ', '.join(['%s'] * len(valid_uids))  # Platzhalter für Parameter
+        sql = f"""
+            SELECT username, geburtstag, firstname, uid, turm 
+            FROM users 
+            WHERE pid = 11 AND uid IN ({placeholders})
+        """
+        print("Führe SQL-Abfrage in der WEH-Datenbank aus.")
+        #print("Führe SQL-Abfrage in der WEH-Datenbank aus mit UIDs:", valid_uids)
+
+        wehcursor.execute(sql, valid_uids)  # Parameterisierte Query für Sicherheit
+        results = wehcursor.fetchall()
+
+        print(f"Anzahl der gefundenen Benutzer in WEH-DB: {len(results)}")
+    else:
+        print("Keine gültigen UIDs gefunden. Es werden keine Benutzer aus der WEH-DB abgerufen.")
+        results = []
+
+    # Endgültige Benutzerliste ausgeben
+    #print("Benutzer gefunden:", results)
 
     for row in results:
-        birthday = datetime.fromtimestamp(row[1])
-        print(f"Überprüfe Geburtstag für Benutzer: {row[0]}, Geburtstag: {birthday}")
+        username, geburtstag, firstname, uid, turm = row
 
-        if birthday.month == current_month and birthday.day == current_day:
-            print(f"Benutzer {row[0]} hat heute Geburtstag!")
-            mail(row[2], row[0], row[4])
-            waschmarke(row[3])
-    
+        if geburtstag:
+            birthday = datetime.fromtimestamp(geburtstag)
+            #print(f"Überprüfe Geburtstag für Benutzer: {username}, Geburtstag: {birthday}")
+
+            if birthday.month == current_month and birthday.day == current_day:
+                print(f"🎉 Benutzer {username} hat heute Geburtstag!")
+
+                try:
+#                    mail(firstname, username, turm)
+                    print(f"✅ Geburtstagsmail an {username} gesendet.")
+                except Exception as e:
+                    print(f"⚠️ Fehler beim Senden der Mail an {username}: {e}")
+
+                try:
+#                    waschmarke(uid)
+                    print(f"✅ Waschmarke für {username} vergeben.")
+                except Exception as e:
+                    print(f"⚠️ Fehler beim Setzen der Waschmarke für {username}: {e}")
+        else:
+            print(f"⚠️ Kein gültiges Geburtsdatum für {username} gefunden.")
+
     wehcursor.close()
     wehdb.close()
     print("Verbindung zur WEH-Datenbank geschlossen")
