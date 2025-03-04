@@ -18,7 +18,7 @@ from fcol import send_mail
 from fcol import connect_weh
 from fcol import get_constant
 
-DEBUG = False
+DEBUG = True
 
 ## Grundprogramm ##
 
@@ -38,7 +38,7 @@ def abrechnung():
 
     wehdb = connect_weh()
     cursor = wehdb.cursor()
-    cursor.execute("SELECT uid, groups, honory, pid, name, username, turm FROM users WHERE pid IN (11,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
+    cursor.execute("SELECT uid, groups, honory, pid, name, username, turm, mailisactive FROM users WHERE pid IN (11,13) AND starttime < %s AND insolvent = 0 AND uid NOT IN (SELECT uid FROM sperre WHERE missedpayment = 1 AND starttime <= %s AND endtime >= %s)", (vornerwoche, zeit, zeit))
     bewohner = cursor.fetchall()
     for row in bewohner:
         uid = row[0]
@@ -48,6 +48,7 @@ def abrechnung():
         name = row[4]
         username = row[5]
         turm = row[6]
+        mailisactive = bool(row[7])
         
         kontostand = get_kontostand(uid,cursor)
         if kontostand is None:
@@ -94,22 +95,21 @@ def abrechnung():
                 kassenausgleichbetrag += hausbeitrag
 
         if restcheck < monatsbeitrag and restcheck > 0 and (pid == 11 or pid == 12):
-            warnmail(uid,turm,monatsbeitrag)
+            if mailisactive: warnmail(uid, turm, monatsbeitrag)
             warncount += 1
             infostring = "Vorgewarnt"
         elif restcheck < 0 and pid == 13:
-            insolvent(uid,zeit) # Relevant für das streichung.py Skript
-            insolventcount += 1
-            infostring = "Insolvent"
+            insolvent(uid, zeit); insolventcount += 1; infostring = "Insolvent"
         elif restcheck < 0:
-            addsperre(uid,zeit)
-            sperrmail(uid, rest, name, username, turm)
+            addsperre(uid, zeit)
+            if mailisactive: sperrmail(uid, rest, name, username, turm)
             sperrcount += 1
             infostring = "Gesperrt"
         else:
-            confirmmail(uid,turm,monatsbeitrag)
+            if mailisactive: confirmmail(uid, turm, monatsbeitrag)
             normalcount += 1
             infostring = "Gezahlt"
+
         
         ausgabe1 = str(name) + " [" + str(uid) + "] | " + str(infostring)
         ausgabe2 = "Vorher: " + str("{:.2f}".format(kontostand)) + "€ | Nachher: " + str("{:.2f}".format(rest)) + "€"
