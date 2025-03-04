@@ -82,6 +82,7 @@ if (isset($_POST['set_group'])) {
     $group_id = $_POST['group_id'];
     $changelog = "\n" . date("d.m.Y") . " Start {$ag_complete[$group_id]['name']} ({$_SESSION['agent']})";
 
+    // Nutzer zur Gruppe hinzufügen
     $sql = "UPDATE users 
             SET groups = TRIM(BOTH ',' FROM CONCAT_WS(',', groups, ?)), 
                 historie = CONCAT(COALESCE(historie, ''), ?) 
@@ -92,7 +93,22 @@ if (isset($_POST['set_group'])) {
         $stmt->execute();
         $stmt->close();
     }
+
+    // Vacancy um 1 reduzieren, wenn > 0 (aber nicht unter 0 setzen)
+    $sql_vacancy = "UPDATE groups 
+                    SET vacancy = CASE 
+                                    WHEN vacancy > 0 THEN vacancy - 1 
+                                    ELSE 0 
+                                  END 
+                    WHERE id = ?";
+
+    if ($stmt_vacancy = $conn->prepare($sql_vacancy)) {
+        $stmt_vacancy->bind_param("i", $group_id);
+        $stmt_vacancy->execute();
+        $stmt_vacancy->close();
+    }
 }
+
 
 
 

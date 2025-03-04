@@ -175,9 +175,19 @@ if (auth($conn) && $_SESSION['valid']) {
 
         if (!empty($group["vacancy"])) {
             echo '<p style="text-align:center; color:gold; margin-top:20px; font-size:16px;">';
-            echo intval($group["vacancy"]) . ' open spots for new members.<br>Contact the AG, if you want to join.';
+        
+            $vacancy = intval($group["vacancy"]);
+            
+            // Singular oder Plural ausgeben
+            if ($vacancy === 1) {
+                echo '1 open spot for a new member.<br>Contact the AG if you want to join.';
+            } else {
+                echo $vacancy . ' open spots for new members.<br>Contact the AG if you want to join.';
+            }
+        
             echo '</p>';
-        }        
+        }
+        
 
 
         echo '</div>';
