@@ -1377,14 +1377,15 @@ function displayWashingSlots($waschconn) {
 
 function renderUserPostButtons($conn,$uid) {   
    
-    $sql = "SELECT firstname, lastname FROM users WHERE uid = ?";
+    $sql = "SELECT firstname, lastname, username, turm FROM users WHERE uid = ?";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "i", $uid);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $firstname, $lastname);
+    mysqli_stmt_bind_result($stmt, $firstname, $lastname, $username, $turm);
     mysqli_stmt_fetch($stmt);
 
-    $name = strtok($firstname, ' ') . ' ' . strtok($lastname, ' ');
+    $name = strtok($firstname, ' ') . ' ' . strtok($lastname, ' ');    
+    $email = htmlspecialchars($username . "@" . $turm . ".rwth-aachen.de");
     
     echo "<div style='display: flex; justify-content: center; align-items: center; height: 100%; text-align: center;'>
             <label for='uid' style='color: white; font-size: 60px; margin:10px;'>$name</label>
@@ -1423,6 +1424,12 @@ function renderUserPostButtons($conn,$uid) {
         echo "</form>";
         echo "</div>";
     }
+    
+    echo "<div style='margin: 0 10px;'>";
+    echo "<a href='mailto:$email'>";
+    echo "<img src='images/UserPostButtons/mail_white.png' alt='E-Mail senden' onmouseover=\"this.src='images/UserPostButtons/mail_green.png'\" onmouseout=\"this.src='images/UserPostButtons/mail_white.png'\" style='cursor: pointer;' onmousedown=\"handleMouseDown(event, this)\">";
+    echo "</a>";
+    echo "</div>";
 
     #if ($_SESSION["Webmaster"]) {
     #    echo "<div style='margin: 0 10px;'>";
