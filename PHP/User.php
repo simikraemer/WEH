@@ -343,22 +343,22 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_bind_param($stmt, "iii", $_POST["id"], $zeit, $zeit);
         mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $beschreibung, $mail, $internet, $waschen, $buchen, $drucken, $werkzeugbuchen, $missedpayment, $id, $starttime, $endtime);
+        mysqli_stmt_bind_result($stmt, $sperre_beschreibung, $sperre_mail, $sperre_internet, $sperre_waschen, $sperre_buchen, $sperre_drucken, $sperre_werkzeugbuchen, $sperre_missedpayment, $sperre_id, $sperre_starttime, $sperre_endtime);
 
         $sperren = []; // Array für Sperrendaten
         while (mysqli_stmt_fetch($stmt)) {
             $sperren[] = [
-                'beschreibung' => $beschreibung,
-                'mail' => $mail,
-                'internet' => $internet,
-                'waschen' => $waschen,
-                'buchen' => $buchen,
-                'drucken' => $drucken,
-                'werkzeugbuchen' => $werkzeugbuchen,
-                'missedpayment' => $missedpayment,
-                'id' => $id,
-                'starttime' => $starttime,
-                'endtime' => $endtime
+                'beschreibung' => $sperre_beschreibung,
+                'mail' => $sperre_mail,
+                'internet' => $sperre_internet,
+                'waschen' => $sperre_waschen,
+                'buchen' => $sperre_buchen,
+                'drucken' => $sperre_drucken,
+                'werkzeugbuchen' => $sperre_werkzeugbuchen,
+                'missedpayment' => $sperre_missedpayment,
+                'id' => $sperre_id,
+                'starttime' => $sperre_starttime,
+                'endtime' => $sperre_endtime
             ];
         }
         mysqli_stmt_close($stmt);
