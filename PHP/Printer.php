@@ -16,8 +16,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         'drucker_waehlen' => ['next' => 'dokument_upload', 'previous' => null],
         'dokument_upload' => ['next' => 'druckoptionen', 'previous' => 'drucker_waehlen'],
         'druckoptionen' => ['next' => 'vorschau', 'previous' => 'dokument_upload'],
-        'vorschau' => ['next' => 'senden', 'previous' => 'druckoptionen'],
-        'senden' => ['next' => null, 'previous' => 'vorschau']
+        'vorschau' => ['next' => null, 'previous' => 'druckoptionen']
     ];
     
 
@@ -258,111 +257,205 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
             
             
-            case 'druckoptionen':
-                echo "<div class='printer_container'>";
-                echo "<h2 class='printer_h2'>Druckoptionen</h2>";
+        case 'druckoptionen':
+            echo "<div class='printer_container'>";
+            echo "<h2 class='printer_h2'>Druckoptionen</h2>";
+        
+            // Standardwerte (werden später dynamisch gesetzt)
+            $A4empty = false; // A4 leer
+            $A3empty = true; // A3 leer
+            $drucker_id = $_SESSION['drucker_id'] ?? null;
+            $A3available = ($drucker_id == 2 && !$A3empty);
             
-                // Standardwerte (werden später dynamisch gesetzt)
-                $A4empty = false; // A4 leer
-                $A3empty = true; // A3 leer
-                $drucker_id = $_SESSION['drucker_id'] ?? null;
-                $A3available = ($drucker_id == 2 && !$A3empty);
+            $defaultSelection = "A4"; // Standard A4
+            if ($A4empty && $A3available) {
+                $defaultSelection = "A3"; // Falls A4 leer ist und A3 verfügbar → Standard A3
+            }
+        
+            echo '<form method="POST" class="printer_form">';
+        
+            // 1️⃣ Papierformat (Dropdown für alle Drucker)
+            echo '<label for="papierformat" class="printer_h3">Papierformat:</label>';
+            echo '<select name="papierformat" id="papierformat" class="printer_select">';
+
+            // A4 (immer vorhanden)
+            echo '<option value="A4" ' . ($A4empty ? 'disabled class="printer_option_disabled"' : '') . 
+            ($defaultSelection == "A4" ? ' selected' : '') . '>A4' . ($A4empty ? ' (nicht verfügbar)' : '') . '</option>';
+
+            // A3 nur anzeigen, aber deaktivieren für Drucker != 2
+            if ($drucker_id == 2) {
+                echo '<option value="A3" ' . ($A3empty ? 'disabled class="printer_option_disabled"' : '') . 
+                    ($defaultSelection == "A3" ? ' selected' : '') . '>A3' . ($A3empty ? ' (nicht verfügbar)' : '') . '</option>';
+            } else {
+                echo '<option value="A3" class="printer_option_disabled" disabled>A3 (nicht verfügbar)</option>';
+            }
+
+            echo '</select>';
+        
+            // 2️⃣ Simplex / Duplex Auswahl mit Erklärung
+            echo '<label for="druckmodus" class="printer_h3">Druckmodus:</label>';
+            echo '<select name="druckmodus" id="druckmodus" class="printer_select" onchange="updateDuplexInfo()">';
+            echo '<option value="simplex">Simplex</option>';
+            echo '<option value="duplex">Duplex</option>';
+            echo '</select>';
+            echo '<p id="duplexInfo" class="printer_duplex_info">Simplex: Jede Seite wird auf ein eigenes Blatt gedruckt.</p>';
+        
+            // 3️⃣ Blattaufteilung (Dropdown)
+            echo '<label for="seiten_pro_blatt" class="printer_h3">Seiten pro Blatt:</label>';
+            echo '<select name="seiten_pro_blatt" id="seiten_pro_blatt" class="printer_select">';
+            echo '<option value="1">Ganze Seite</option>';
+            echo '<option value="2">2 Seiten pro Blatt</option>';
+            echo '<option value="4">4 Seiten pro Blatt</option>';
+            echo '</select>';
+
+            // 4️⃣ Anzahl der Kopien (1 bis 500)
+            echo '<label for="anzahl" class="printer_h3">Anzahl Kopien:</label>';
+            echo '<input type="number" name="anzahl" id="anzahl" class="printer_input printer_input-small" min="1" max="500" value="1">';
+        
+            // 5️⃣ Graustufen-Option (Immer sichtbar, aber für Nicht-ID-2 ausgegraut & fixiert)
+            echo '<label class="printer_h3">Schwarz-Weiß:</label>';
+            if ($drucker_id == 2) {
+                echo '<input type="checkbox" name="graustufen" class="printer_checkbox">';
+            } else {
+                echo '<input type="checkbox" name="graustufen" class="printer_checkbox" checked disabled style="cursor: not-allowed;">';
+                echo '<input type="hidden" name="graustufen" value="true">';
+            }
+                        
+            echo '<button type="submit" name="next_step" value="true" class="printer_button">Weiter</button>';
+        
+            echo '</form>';
+            echo "</div>";
+        
+            // JavaScript zur Aktualisierung der Duplex-Erklärung
+            echo '<script>
+                function updateDuplexInfo() {
+                    var mode = document.getElementById("druckmodus").value;
+                    var infoText = mode === "duplex" 
+                        ? "Beidseitiger Druck spart Papier, indem die Rückseite genutzt wird." 
+                        : "Jede Seite wird auf ein eigenes Blatt gedruckt.";
+                    document.getElementById("duplexInfo").innerText = infoText;
+                }
+            </script>';
+            break;
+            
+
                 
-                $defaultSelection = "A4"; // Standard A4
-                if ($A4empty && $A3available) {
-                    $defaultSelection = "A3"; // Falls A4 leer ist und A3 verfügbar → Standard A3
+
+
+
+            case 'vorschau':
+                echo "<div class='printer_container'>";
+                echo "<h2 class='printer_h2'>Druckvorschau</h2>";
+            
+                if (!isset($_SESSION['uploaded_files']) || empty($_SESSION['uploaded_files'])) {
+                    echo "<p class='printer_error-message'>⚠️ Keine Dateien zum Drucken hochgeladen!</p>";
+                    echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
+                    echo "</div>";
+                    break;
                 }
             
-                echo '<form method="POST" class="printer_form">';
+                // Absoluter Pfad zu den Uploads
+                $uploadsDir = "/WEH/PHP/printuploads/";
             
-                // 1️⃣ Papierformat (Dropdown für alle Drucker)
-                echo '<label for="papierformat" class="printer_h3">Papierformat:</label>';
-                echo '<select name="papierformat" id="papierformat" class="printer_select">';
-
-                // A4 (immer vorhanden)
-                echo '<option value="A4" ' . ($A4empty ? 'disabled class="printer_option_disabled"' : '') . 
-                ($defaultSelection == "A4" ? ' selected' : '') . '>A4' . ($A4empty ? ' (nicht verfügbar)' : '') . '</option>';
-
-                // A3 nur anzeigen, aber deaktivieren für Drucker != 2
-                if ($drucker_id == 2) {
-                    echo '<option value="A3" ' . ($A3empty ? 'disabled class="printer_option_disabled"' : '') . 
-                        ($defaultSelection == "A3" ? ' selected' : '') . '>A3' . ($A3empty ? ' (nicht verfügbar)' : '') . '</option>';
-                } else {
-                    echo '<option value="A3" class="printer_option_disabled" disabled>A3 (nicht verfügbar)</option>';
-                }
-
-                echo '</select>';
+                // Druckoptionen auslesen
+                $papierformat = $_POST['papierformat'] ?? 'A4';
+                $druckmodus = $_POST['druckmodus'] ?? 'simplex';
+                $seiten_pro_blatt = $_POST['seiten_pro_blatt'] ?? 1;
+                $anzahl_kopien = $_POST['anzahl'] ?? 1;
+                $graustufen = isset($_POST['graustufen']);
             
-                // 2️⃣ Simplex / Duplex Auswahl mit Erklärung
-                echo '<label for="druckmodus" class="printer_h3">Druckmodus:</label>';
-                echo '<select name="druckmodus" id="druckmodus" class="printer_select" onchange="updateDuplexInfo()">';
-                echo '<option value="simplex">Simplex</option>';
-                echo '<option value="duplex">Duplex</option>';
-                echo '</select>';
-                echo '<p id="duplexInfo" class="printer_duplex_info">Simplex: Jede Seite wird auf ein eigenes Blatt gedruckt.</p>';
+                // **Alle hochgeladenen Dateien durchgehen**
+                $pdf_files = [];
             
-                // 3️⃣ Blattaufteilung (Dropdown)
-                echo '<label for="seiten_pro_blatt" class="printer_h3">Seiten pro Blatt:</label>';
-                echo '<select name="seiten_pro_blatt" id="seiten_pro_blatt" class="printer_select">';
-                echo '<option value="1">Ganze Seite</option>';
-                echo '<option value="2">2 Seiten pro Blatt</option>';
-                echo '<option value="4">4 Seiten pro Blatt</option>';
-                echo '</select>';
-
-                // 4️⃣ Anzahl der Kopien (1 bis 500)
-                echo '<label for="anzahl" class="printer_h3">Anzahl Kopien:</label>';
-                echo '<input type="number" name="anzahl" id="anzahl" class="printer_input printer_input-small" min="1" max="500" value="1">';
+                foreach ($_SESSION['uploaded_files'] as $file) {
+                    $filePath = $uploadsDir . basename($file['path']);
+                    $fileType = $file['type'];
             
-                // 5️⃣ Graustufen-Option (Immer sichtbar, aber für Nicht-ID-2 ausgegraut & fixiert)
-                echo '<label class="printer_h3">Schwarz-Weiß:</label>';
-                if ($drucker_id == 2) {
-                    echo '<input type="checkbox" name="graustufen" class="printer_checkbox">';
-                } else {
-                    echo '<input type="checkbox" name="graustufen" class="printer_checkbox" checked disabled style="cursor: not-allowed;">';
-                    echo '<input type="hidden" name="graustufen" value="true">';
-                }
-                            
-                echo '<button type="submit" name="next_step" value="true" class="printer_button">Weiter</button>';
+                    if ($fileType === 'application/pdf') {
+                        // **PDF bleibt unverändert**
+                        if (file_exists($filePath)) {
+                            $pdf_files[] = $filePath;
+                        } else {
+                            echo "<p class='printer_error-message'>⚠️ Datei nicht gefunden: $filePath</p>";
+                        }
+                    } elseif (in_array($fileType, ['image/jpeg', 'image/png'])) {
+                        // **Bild in PDF umwandeln**
+                        $pdfPath = $uploadsDir . uniqid() . ".pdf";
             
-                echo '</form>';
-                echo "</div>";
+                        // **Imagemagick-Befehl zur Umwandlung mit absolutem Pfad**
+                        $convertCmd = "convert " . escapeshellarg($filePath) . " " . escapeshellarg($pdfPath) . " 2>&1";
+                        $output = shell_exec($convertCmd);
             
-                // JavaScript zur Aktualisierung der Duplex-Erklärung
-                echo '<script>
-                    function updateDuplexInfo() {
-                        var mode = document.getElementById("druckmodus").value;
-                        var infoText = mode === "duplex" 
-                            ? "Beidseitiger Druck spart Papier, indem die Rückseite genutzt wird." 
-                            : "Jede Seite wird auf ein eigenes Blatt gedruckt.";
-                        document.getElementById("duplexInfo").innerText = infoText;
+                        if (file_exists($pdfPath)) {
+                            $pdf_files[] = $pdfPath;
+                        } else {
+                            echo "<p class='printer_error-message'>⚠️ Fehler beim Konvertieren von {$file['name']}: $output</p>";
+                        }
                     }
-                </script>';
+                }
+            
+                // **PDFs zusammenfügen**
+                if (empty($pdf_files)) {
+                    echo "<p class='printer_error-message'>⚠️ Keine validen Dateien zum Drucken!</p>";
+                    echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
+                    echo "</div>";
+                    break;
+                }
+
+
+                foreach ($pdf_files as $file) {
+                    if (!file_exists($file)) {
+                        echo "<p class='printer_error-message'>⚠️ Datei nicht gefunden: $file</p>";
+                        echo "<pre>" . shell_exec("ls -lah " . escapeshellarg(dirname($file))) . "</pre>"; // Listet Dateien im Verzeichnis
+                    }
+                }
+
+                
+                // **Kommando für pdftk mit absolutem Pfad**
+                $merged_pdf_path = $uploadsDir . "merged_" . uniqid() . ".pdf";
+$cmd = "pdftk " . implode(" ", array_map(fn($file) => escapeshellarg(realpath($file)), $pdf_files)) . " cat output " . escapeshellarg(realpath($merged_pdf_path)) . " 2>&1";
+                $pdftk_output = shell_exec($cmd);
+            
+                // **Überprüfen, ob das PDF tatsächlich erstellt wurde**
+                if (!file_exists($merged_pdf_path)) {
+                    echo "<p class='printer_error-message'>⚠️ Fehler beim Erstellen des PDFs: $pdftk_output</p>";
+                    echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
+                    echo "</div>";
+                    break;
+                }
+            
+                // **Seitenanzahl berechnen**
+                $gesamtseiten = get_pdf_page_count($merged_pdf_path);
+            
+                // **PDF-Vorschau anzeigen**
+                echo "<iframe src='$merged_pdf_path' class='printer_preview'></iframe>";
+                echo "<h3 class='printer_h3'>Gesamtseiten: $gesamtseiten</h3>";
+                echo "<h3 class='printer_h3'>Preis: 3,00€</h3>";
+            
+                // Weiter- und Zurück-Buttons
+                echo "<form method='POST'>";
+                echo "<button type='submit' name='next_step' value='true' class='printer_button'>Druckauftrag senden</button>";
+                echo "</form>";
+                echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
+            
+                echo "</div>";
                 break;
             
+            
+            
+            
 
                 
 
 
 
 
-            
 
 
-        case 'vorschau':
-            echo "<h2>Vorschau des Druckauftrags</h2>";
-            echo "<p><strong>Drucker-ID:</strong> " . ($_SESSION['drucker_id'] ?? "Nicht ausgewählt") . "</p>";
-            echo "<p><strong>Farbe:</strong> " . ($_SESSION['druckoptionen'] ?? "Nicht gesetzt") . "</p>";
-            echo "<p><strong>Dokument:</strong> " . ($_SESSION['dokument'] ?? "Nicht hochgeladen") . "</p>";
-            echo '<form method="POST">';
-            echo '<button type="submit" name="auftrag_bestaetigen" value="true">Druckauftrag abschließen</button>';
-            echo '</form>';
-            break;
 
-        case 'senden':
-            echo "<h2>Druckauftrag gesendet!</h2>";
-            echo "<p>Ihr Druckauftrag wurde erfolgreich an den Server gesendet.</p>";
-            session_destroy(); // Sitzung nach Abschluss zurücksetzen
-            break;
+
+
+
     }
 
     

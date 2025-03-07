@@ -1488,6 +1488,24 @@ function get_pdf_page_count($file) {
     return $output ? (int)trim(str_replace("Pages:", "", $output)) : 1;
 }
 
+// Datei speichern (mit sicherem Namen)
+function sanitizeFileName($filename) {
+    // Entfernt alle nicht-ASCII-Zeichen und ersetzt sie mit "_"
+    $filename = iconv("UTF-8", "ASCII//TRANSLIT", $filename);
+    $filename = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
+    return $filename;
+}
+
+if (move_uploaded_file($tmp_name, $uploadsDir . sanitizeFileName($fileName))) {
+    $_SESSION['uploaded_files'][] = [
+        'name' => $fileName,
+        'path' => $uploadsDir . sanitizeFileName($fileName),
+        'type' => $fileType,
+        'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
+    ];
+}
+
+
 
   
 ?>
