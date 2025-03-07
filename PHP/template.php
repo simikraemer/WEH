@@ -1505,7 +1505,30 @@ if (move_uploaded_file($tmp_name, $uploadsDir . sanitizeFileName($fileName))) {
     ];
 }
 
+function sanitizeFileName($filename) {
+    // Umlaute und Sonderzeichen in englische Entsprechungen umwandeln
+    $replacements = [
+        'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss', // Umlaute
+        'é' => 'e', 'è' => 'e', 'à' => 'a', 'á' => 'a', 'ç' => 'c', // Akzentzeichen
+        // Weitere allgemeine Ersetzungen für Sonderzeichen
+        ' ' => '_', '!' => '', '@' => '', '#' => '', '$' => '', '%' => '', '^' => '', '&' => '', '*' => '', '(' => '', ')' => '',
+        '{' => '', '}' => '', '[' => '', ']' => '', ':' => '', ';' => '', '"' => '', "'" => '', '<' => '', '>' => '', ',' => '',
+        '.' => '', '?' => '', '/' => '', '\\' => '', '|' => '', '+' => '', '=' => '', '~' => '', '`' => ''
+    ];
 
+    // Sonderzeichen mit den Ersetzungen in $replacements umwandeln
+    $filename = strtr($filename, $replacements);
+
+    // Alle Zeichen, die nicht a-zA-Z0-9_ sind, durch _ ersetzen
+    $filename = preg_replace('/[^a-zA-Z0-9_]/', '_', $filename);
+
+    // Sicherstellen, dass der Dateiname mit einer Zahl oder einem Buchstaben beginnt
+    if (preg_match('/^[^a-zA-Z0-9_]/', $filename)) {
+        $filename = 'file_' . $filename; // fügt "file_" voran, wenn der Name ungültig beginnt
+    }
+
+    return $filename;
+}
 
   
 ?>

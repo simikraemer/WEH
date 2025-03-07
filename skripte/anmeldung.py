@@ -89,8 +89,9 @@ def anmeldung_übertragen():  # Überträgt neue Anmeldungen von WordPress in an
 
 def newanmeldungmail(zeit, room, firstname, lastname, turm):  # Sendet Mail an uns zur Information über neue Anmeldung
     subject = "Anmeldung " + str(turm) + "-" + str(room) + " - " + str(firstname) + " " + str(lastname)
+    formatted_date = datetime.datetime.fromtimestamp(zeit).strftime('%d.%m.%Y')
     message = (
-        f"Neue Anmeldung\nEinzugsdatum: {zeit}\n"
+        f"Neue Anmeldung\nEinzugsdatum: {formatted_date}\n"
         f"Name: {firstname} {lastname}\n"
         f"Turm: {turm}\nRaum: {room}\n\n"
         "Hier bestätigen: https://backend.weh.rwth-aachen.de/Anmeldung.php"
