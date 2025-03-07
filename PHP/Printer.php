@@ -132,7 +132,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
         case 'dokument_upload':
             echo "<div class='printer_container'>";
         
-            echo "<h2 class='printer_h2'>Dokument hochladen</h2>";
         
             // Falls keine Session für hochgeladene Dateien existiert, initialisieren
             if (!isset($_SESSION['uploaded_files'])) {
@@ -163,10 +162,18 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         continue;
                     }
 
-                    // Prüfe, ob das PDF verschlüsselt ist
-                    if ($fileType === "application/pdf" && is_pdf_encrypted($tmp_name)) {
-                        echo "<p class='printer_error-message'>Fehler: '$fileName' ist verschlüsselt und wird nicht akzeptiert!</p>";
-                        continue;
+                    // Prüfen, ob die PDF beschädigt ist und ob es verschlüsselt ist
+                    if ($fileType === "application/pdf") {
+                        if (is_pdf_encrypted($tmp_name)) {
+                            echo "<p class='printer_error-message'>Fehler: '$fileName' ist verschlüsselt und wird nicht akzeptiert!</p>";
+                            continue;
+                        }
+
+                        // Prüfen, ob das PDF korrekt formatiert ist
+                        if (!is_valid_pdf($tmp_name)) {
+                            echo "<p class='printer_error-message'>Fehler: '$fileName' ist beschädigt oder falsch formatiert!</p>";
+                            continue;
+                        }
                     }
 
                     // Dateinamen formatieren
@@ -263,7 +270,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
             
         case 'druckoptionen':
             echo "<div class='printer_container'>";
-            echo "<h2 class='printer_h2'>Druckoptionen</h2>";
         
             // Standardwerte (werden später dynamisch gesetzt)
             $A4empty = false; // A4 leer
@@ -296,8 +302,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
             echo '</select>';
 
-            $duplexInfo = "Jede Zweite";
-            $simplexInfo = "Jede Seite wird auf ein eigenes Blatt gedruckt.";
+            $duplexInfo = "Beidseitiger Druck: Kostengünstiger als Simplex und spart Papier.";
+            $simplexInfo = "Simplex-Druck: Jede Seite wird auf ein eigenes Blatt gedruckt.";            
         
             // 2️⃣ Simplex / Duplex Auswahl mit Erklärung
             echo '<label for="druckmodus" class="printer_h3">Druckmodus:</label>';
@@ -354,7 +360,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
             case 'vorschau':
                 echo "<div class='printer_container'>";
-                echo "<h2 class='printer_h2'>Druckvorschau</h2>";
             
                 if (!isset($_SESSION['uploaded_files']) || empty($_SESSION['uploaded_files'])) {
                     echo "<p class='printer_error-message'>⚠️ Keine Dateien zum Drucken hochgeladen!</p>";
@@ -363,94 +368,122 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     break;
                 }
             
+
+                
+
                 // Absoluter Pfad zu den Uploads
                 $uploadsDir = "/WEH/PHP/printuploads/";
-            
+
                 // Druckoptionen auslesen
                 $papierformat = $_POST['papierformat'] ?? 'A4';
                 $druckmodus = $_POST['druckmodus'] ?? 'simplex';
                 $seiten_pro_blatt = $_POST['seiten_pro_blatt'] ?? 1;
                 $anzahl_kopien = $_POST['anzahl'] ?? 1;
                 $graustufen = isset($_POST['graustufen']);
-            
+
                 // **Alle hochgeladenen Dateien durchgehen**
                 $pdf_files = [];
-            
+
                 foreach ($_SESSION['uploaded_files'] as $file) {
                     $filePath = $uploadsDir . basename($file['path']);
                     $fileType = $file['type'];
-            
+
+                    // PDF-Dateien direkt hinzufügen
                     if ($fileType === 'application/pdf') {
-                        // **PDF bleibt unverändert**
-                        if (file_exists($filePath)) {
-                            $pdf_files[] = $filePath;
-                        }
+                        $pdf_files[] = $filePath;
                     } elseif (in_array($fileType, ['image/jpeg', 'image/png'])) {
-                        // **Bild in PDF umwandeln**
-                        $pdfPath = $uploadsDir . uniqid() . ".pdf";
-            
-                        // **Bild wird auf A4 ausgerichtet**
-                        $convertCmd = "convert " . escapeshellarg($filePath) . 
-                                      " -resize 595x842 -gravity center -extent 595x842 -background white -density 300 -quality 100 " . 
-                                      escapeshellarg($pdfPath) . " 2>&1";
+                        // **Bild in PDF umwandeln mit Graustufen**
+                        $pdfPath = $uploadsDir . uniqid() . "_grayscale.pdf";
+                        
+                        $convertCmd = "convert " . escapeshellarg($filePath) . " -resize 595x842 -gravity center -extent 595x842 -background white -density 300 -quality 100 ";
+                        
+                        $convertCmd .= escapeshellarg($pdfPath);
                         shell_exec($convertCmd);
-            
+
                         if (file_exists($pdfPath)) {
                             chmod($pdfPath, 0644);
                             $pdf_files[] = $pdfPath;
                         }
                     }
                 }
-            
+
                 // **PDFs zusammenfügen**
                 if (empty($pdf_files)) {
                     echo "<p class='printer_error-message'>⚠️ Keine validen Dateien zum Drucken!</p>";
                     echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
                     echo "</div>";
-                    break;
+                    exit;
                 }
-            
-                // **Kommando für pdftk mit absolutem Pfad**
+
+                // **PDFs mit pdftk zusammenführen**
                 $merged_pdf_path = $uploadsDir . "merged_" . uniqid() . ".pdf";
                 $cmd = "pdftk " . implode(" ", array_map(fn($file) => escapeshellarg($file), $pdf_files)) . 
-                       " cat output " . escapeshellarg($merged_pdf_path) . " 2>&1";
+                    " cat output " . escapeshellarg($merged_pdf_path) . " 2>&1";
                 shell_exec($cmd);
-            
-                // **Überprüfen, ob das PDF tatsächlich erstellt wurde**
-                if (!file_exists($merged_pdf_path)) {
-                    echo "<p class='printer_error-message'>⚠️ Fehler beim Erstellen des PDFs!</p>";
-                    echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
-                    echo "</div>";
-                    break;
+
+                // **Seiten pro Blatt mit pdfjam anpassen**
+                $final_pdf_path = $merged_pdf_path;
+                $nup = "2x1";
+
+                if ($seiten_pro_blatt == 4 || $seiten_pro_blatt == 2) {
+
+                    // **Erster Durchlauf mit pdfjam**
+                    $pdfjamCmd = "pdfjam " . escapeshellarg($merged_pdf_path) . 
+                                " --nup 2x1 --landscape --outfile " . escapeshellarg($final_pdf_path);
+                    exec($pdfjamCmd . " 2>&1", $output, $return_var);
                 }
-            
-                // **Seitenanzahl berechnen**
-                $gesamtseiten = get_pdf_page_count($merged_pdf_path);
-            
-                // **PDF-Vorschau: Nur die ersten 1-2 Seiten als Bild generieren**
+
+                if ($seiten_pro_blatt == 4) {
+                    // **PDF nach erstem pdfjam-Durchlauf um 90 Grad drehen**
+                    $rotated_pdf_path = $uploadsDir . "rotated_" . uniqid() . ".pdf";
+                    $rotateCmd = "pdftk " . escapeshellarg($final_pdf_path) . " cat 1-endleft output " . escapeshellarg($rotated_pdf_path);
+                    exec($rotateCmd . " 2>&1", $rotate_output, $rotate_return_var);
+
+                    // **Zweiter Durchlauf mit pdfjam**
+                    $pdfjamCmd = "pdfjam " . escapeshellarg($rotated_pdf_path) . 
+                                " --nup 2x1 --landscape --outfile " . escapeshellarg($final_pdf_path);
+                    exec($pdfjamCmd . " 2>&1", $output, $return_var);
+
+                    // **Nach der Verarbeitung wieder senkrecht drehen**
+                    $final_rotated_pdf_path = $uploadsDir . "final_rotated_" . uniqid() . ".pdf";
+                    $finalRotateCmd = "pdftk " . escapeshellarg($final_pdf_path) . " cat 1-endright output " . escapeshellarg($final_rotated_pdf_path);
+                    exec($finalRotateCmd . " 2>&1", $final_rotate_output, $final_rotate_return_var);
+
+                    // **Das finale, wieder senkrechte PDF als endgültige Datei setzen**
+                    rename($final_rotated_pdf_path, $final_pdf_path);
+                }
+
+
                 $previewDir = $uploadsDir . "preview_" . uniqid() . "/"; // Verzeichnis für Vorschaubilder
                 mkdir($previewDir, 0777, true); // Ordner erstellen
-            
+
                 // **Falls Duplex → 2 Seiten generieren, sonst nur 1**
                 $pageCount = ($druckmodus === "duplex") ? 2 : 1;
-            
-                // **PDF in Bilder konvertieren (nur Seiten 1 & 2)**
-                $imagePattern = $previewDir . "seite_%02d.jpg";
-                $convertCmd = "convert -density 300 " . escapeshellarg($merged_pdf_path) . 
-                              "[0-" . ($pageCount - 1) . "] -quality 100 -resize 1200x " . escapeshellarg($imagePattern) . " 2>&1";
-                shell_exec($convertCmd);
-            
-                // **Erzeuge Dateipfade für Seite 1 & 2**
-                $previewImages = glob($previewDir . "*.jpg");
-            
-                // Falls Simplex & keine zweite Seite → Füge leere weiße Seite als Rückseite hinzu
-                if ($druckmodus === "simplex" && count($previewImages) === 1) {
-                    $blankPage = $previewDir . "seite_02.jpg";
-                    $createWhitePage = "convert -size 800x1120 xc:white " . escapeshellarg($blankPage);
-                    shell_exec($createWhitePage);
-                    $previewImages[] = $blankPage;
+
+                // **Maximale Seitenanzahl im PDF prüfen**
+                $maxPages = min($pageCount, get_pdf_page_count($merged_pdf_path)); // Nicht mehr Seiten als vorhanden
+
+                // **PDF in Bilder konvertieren (Seite 1 & 2 separat!)**
+                for ($i = 0; $i < $maxPages; $i++) {
+                    $imagePath = sprintf($previewDir . "seite_%02d.jpg", $i);
+
+                    $convertCmd = "convert -density 300 " . escapeshellarg($merged_pdf_path) . 
+                                "[$i] " . // **Konvertiere immer genau eine Seite**
+                                "-background white -alpha remove -flatten " . 
+                                "-colorspace sRGB ";
+
+                    // Falls Graustufen aktiviert sind
+                    if ($graustufen) {
+                        $convertCmd .= "-colorspace Gray ";
+                    }
+
+                    $convertCmd .= "-quality 100 " . escapeshellarg($imagePath) . " 2>&1";
+                    shell_exec($convertCmd);
                 }
-            
+
+                // **Erzeuge Dateipfade für die Bilder**
+                $previewImages = glob($previewDir . "*.jpg");
+
                 // **Falls keine Bilder erzeugt wurden, Fehler ausgeben**
                 if (empty($previewImages)) {
                     echo "<p class='printer_error-message'>⚠️ Fehler beim Erstellen der Vorschau!</p>";
@@ -458,27 +491,98 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     echo "</div>";
                     break;
                 }
-            
+
                 // **Vorschau anzeigen**
                 echo "<div class='printer_preview_container'>";
 
-                // **Vorderseite**
-                echo "<div class='printer_image_box'>";
-                echo "<h3 class='printer_h3'>Vorderseite</h3>";
-                echo "<img src='/" . str_replace("/WEH/PHP/", "", $previewImages[0]) . "' class='printer_preview_image'>";
+                // **Rückseite nur anzeigen, wenn sie existiert**
+                if ($druckmodus === "duplex" && isset($previewImages[1])) {                    
+                    echo "<div class='printer_image_box'>";
+                    echo "<h3 class='printer_h3'>Vorderseite</h3>";
+                    echo "<img src='/" . str_replace("/WEH/PHP/", "", $previewImages[0]) . "' class='printer_preview_image'>";
+                    echo "</div>";
+
+                    echo "<div class='printer_image_box'>";
+                    echo "<h3 class='printer_h3'>Rückseite</h3>";
+                    echo "<img src='/" . str_replace("/WEH/PHP/", "", $previewImages[1]) . "' class='printer_preview_image'>";
+                    echo "</div>";
+                } else {                    
+                    echo "<div class='printer_image_box'>";
+                    echo "<img src='/" . str_replace("/WEH/PHP/", "", $previewImages[0]) . "' class='printer_preview_image'>";
+                    echo "</div>";
+                }
+
                 echo "</div>";
+
+
                 
-                // **Rückseite**
-                echo "<div class='printer_image_box'>";
-                echo "<h3 class='printer_h3'>Rückseite</h3>";
-                echo "<img src='/" . str_replace("/WEH/PHP/", "", $previewImages[1]) . "' class='printer_preview_image'>";
-                echo "</div>";
-                
-                echo "</div>";
-                
-            
-                echo "<h3 class='printer_h3'>Gesamtseiten: $gesamtseiten</h3>";
-                echo "<h3 class='printer_h3'>Preis: 3,00€</h3>";
+                // Preise für Druckoptionen
+                $preise = [
+                    'sw_simplex' => 0.02,  // Schwarz-Weiß, Simplex [2cent pro Blatt]
+                    'sw_duplex' => 0.015,   // Schwarz-Weiß, Duplex [1.5cent pro Blatt]
+                    'farbe_simplex' => 0.08, // Farbe, Simplex [8cent pro Blatt]
+                    'farbe_duplex' => 0.06,  // Farbe, Duplex [6cent pro Blatt]
+                ];
+
+                // Druckmodus und Graustufenoption auslesen
+                $graustufen = isset($_POST['graustufen']);
+                $druckmodus = $_POST['druckmodus'] ?? 'simplex';
+
+                // **Seitenanzahl aus PDF holen**
+                $gesamtseiten = get_pdf_page_count($merged_pdf_path);
+
+                // **Berechnung der Seitenanzahl für den Preis**
+                $duplex_seiten = 0; // Zählt die Seiten, die als Duplex gezählt werden
+                $simplex_seiten = 0; // Zählt die Seiten, die als Simplex gezählt werden
+
+                if ($gesamtseiten === 1) {
+                    // Wenn nur 1 Seite vorhanden ist, wird sie als Simplex gezählt
+                    $simplex_seiten = 1;
+                } else {
+                    // Berechne die Anzahl der Duplex-Seiten und Simplex-Seiten
+                    // Für Duplex: Jede gerade Seite wird als Duplex gezählt
+                    // Die letzte Seite wird als Simplex gezählt, wenn die Gesamtzahl ungerade ist
+                    $duplex_seiten = floor($gesamtseiten / 2) * 2;
+                    $simplex_seiten = $gesamtseiten % 2; // Falls die Seitenanzahl ungerade ist, gibt es eine Simplex-Seite
+                }
+
+                // Berechnung des Preises basierend auf Graustufen und Druckmodus
+                if ($graustufen) {
+                    // Graustufen Preisberechnung
+                    $preis_key_duplex = 'sw_duplex';
+                    $preis_key_simplex = 'sw_simplex';
+                } else {
+                    // Farbe Preisberechnung
+                    $preis_key_duplex = 'farbe_duplex';
+                    $preis_key_simplex = 'farbe_simplex';
+                }
+
+                // **Preis pro Druckeinheit abrufen**
+                $preis_pro_einheit_duplex = $preise[$preis_key_duplex];
+                $preis_pro_einheit_simplex = $preise[$preis_key_simplex];
+
+                // **Gesamtpreis berechnen**
+                $gesamtpreis = (($duplex_seiten * $preis_pro_einheit_duplex) + ($simplex_seiten * $preis_pro_einheit_simplex)) * $anzahl_kopien;
+
+                // **Preis auf zwei Nachkommastellen runden**
+                $gesamtpreis = number_format($gesamtpreis, 2, ',', '.');
+
+                // **String für Seitenanzahl (Singular oder Plural) erstellen**
+                $seiten_string = ($gesamtseiten > 1) ? "$gesamtseiten Seiten" : "1 Seite";
+
+                // **String mit Modus & Seitenanzahl anzeigen**
+                if ($anzahl_kopien > 1) {
+                    echo "<h3 class='printer_h3'>$anzahl_kopien x $seiten_string</h3>";
+                } else {
+                    echo "<h3 class='printer_h3'>$seiten_string</h3>";
+                }
+
+
+                echo "<h2 class='printer_h2'>$gesamtpreis €</h2>";
+
+
+
+
             
                 // Weiter- und Zurück-Buttons
                 echo "<form method='POST'>";

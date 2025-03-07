@@ -1528,5 +1528,33 @@ if (move_uploaded_file($tmp_name, $uploadsDir . sanitizeFileName($fileName))) {
     ];
 }
 
+function is_valid_pdf($filePath) {
+    // Versuche, die Datei mit `fpdf` oder `Ghostscript` zu überprüfen
+    if (!file_exists($filePath) || filesize($filePath) == 0) {
+        return false; // Datei existiert nicht oder ist leer
+    }
+
+    // Öffne die Datei und prüfe, ob sie mit "%PDF-" beginnt (Standard PDF-Header)
+    $handle = fopen($filePath, 'rb');
+    if ($handle === false) {
+        return false;
+    }
+    
+    $header = fread($handle, 5);
+    fclose($handle);
+
+    if ($header !== "%PDF-") {
+        return false; // Kein gültiges PDF
+    }
+
+    // Optional: Prüfe, ob Ghostscript die Datei öffnen kann (wenn auf dem Server verfügbar)
+    $output = null;
+    $returnVar = null;
+    exec("gs -q -o /dev/null -sDEVICE=nullpage " . escapeshellarg($filePath) . " 2>&1", $output, $returnVar);
+
+    return $returnVar === 0; // Wenn Ghostscript keinen Fehler gibt, ist das PDF gültig
+}
+
+
   
 ?>
