@@ -1474,6 +1474,20 @@ function renderUserPostButtons($conn,$uid) {
 }
 
 
+## Drucker
+
+function is_pdf_encrypted($file) {
+    $fp = fopen($file, 'r');
+    $firstBytes = fread($fp, 1024);
+    fclose($fp);
+    return strpos($firstBytes, '/Encrypt') !== false;
+}
+
+function get_pdf_page_count($file) {
+    $output = shell_exec("pdfinfo " . escapeshellarg($file) . " | grep Pages");
+    return $output ? (int)trim(str_replace("Pages:", "", $output)) : 1;
+}
+
 
   
 ?>
