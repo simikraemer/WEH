@@ -1408,3 +1408,36 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 .printer_input-small {
   width: 400px; /* Etwas kleiner, damit es optisch mit Select-Feldern übereinstimmt */
 }
+
+.printer_pdf_viewer {
+  width: 80vw; /* Breite anpassen */
+  height: 90vh; /* Fast die ganze Bildschirmhöhe für Scrollen */
+  border: none;
+  display: block;
+  margin: auto;
+}
+
+.printer_preview_container {
+  display: flex;
+  justify-content: center; /* Zentriert die Bilder */
+  gap: 10px; /* Abstand zwischen den Bildern */
+  padding: 20px;
+}
+
+.printer_image_box {
+  display: flex;
+  flex-direction: column; /* Bild und Überschrift untereinander */
+  align-items: center; /* Zentriert die Überschrift und das Bild */
+  width: 50%; /* Damit die Bilder nebeneinander passen */
+  max-width: 600px; /* Maximale Breite für das Bild */
+}
+
+.printer_preview_image {
+  height: 400px; /* Maximale Höhe */
+  width: auto; /* Verhindert Verzerrung */
+  max-width: 100%; /* Passt sich an, wenn zu groß */
+  border: 1px solid white;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+

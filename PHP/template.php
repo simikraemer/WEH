@@ -1490,10 +1490,33 @@ function get_pdf_page_count($file) {
 
 // Datei speichern (mit sicherem Namen)
 function sanitizeFileName($filename) {
-    // Entfernt alle nicht-ASCII-Zeichen und ersetzt sie mit "_"
-    $filename = iconv("UTF-8", "ASCII//TRANSLIT", $filename);
-    $filename = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $filename);
-    return $filename;
+    // Datei-Endung extrahieren
+    $ext = pathinfo($filename, PATHINFO_EXTENSION); // Holt die Erweiterung (pdf, jpg, png)
+    $name = pathinfo($filename, PATHINFO_FILENAME); // Holt nur den Dateinamen
+
+    // Ersetzungen für Umlaute & Sonderzeichen
+    $replacements = [
+        'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss',
+        'é' => 'e', 'è' => 'e', 'à' => 'a', 'á' => 'a', 'ç' => 'c',
+        ' ' => '_', '!' => '', '@' => '', '#' => '', '$' => '', '%' => '', '^' => '', '&' => '', '*' => '',
+        '(' => '', ')' => '', '{' => '', '}' => '', '[' => '', ']' => '', ':' => '', ';' => '', '"' => '',
+        "'" => '', '<' => '', '>' => '', ',' => '', '?' => '', '/' => '', '\\' => '', '|' => '', '+' => '',
+        '=' => '', '~' => '', '`' => ''
+    ];
+
+    // Sonderzeichen durch erlaubte Zeichen ersetzen
+    $name = strtr($name, $replacements);
+
+    // Alle Zeichen, die nicht a-zA-Z0-9_ sind, durch _ ersetzen
+    $name = preg_replace('/[^a-zA-Z0-9_]/', '_', $name);
+
+    // Falls der Name mit einer ungültigen Zahl oder einem Zeichen beginnt, füge "file_" hinzu
+    if (preg_match('/^[^a-zA-Z0-9_]/', $name)) {
+        $name = 'file_' . $name;
+    }
+
+    // Sicherstellen, dass die Erweiterung erhalten bleibt
+    return $name . '.' . strtolower($ext);
 }
 
 if (move_uploaded_file($tmp_name, $uploadsDir . sanitizeFileName($fileName))) {
@@ -1503,31 +1526,6 @@ if (move_uploaded_file($tmp_name, $uploadsDir . sanitizeFileName($fileName))) {
         'type' => $fileType,
         'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
     ];
-}
-
-function sanitizeFileName($filename) {
-    // Umlaute und Sonderzeichen in englische Entsprechungen umwandeln
-    $replacements = [
-        'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss', // Umlaute
-        'é' => 'e', 'è' => 'e', 'à' => 'a', 'á' => 'a', 'ç' => 'c', // Akzentzeichen
-        // Weitere allgemeine Ersetzungen für Sonderzeichen
-        ' ' => '_', '!' => '', '@' => '', '#' => '', '$' => '', '%' => '', '^' => '', '&' => '', '*' => '', '(' => '', ')' => '',
-        '{' => '', '}' => '', '[' => '', ']' => '', ':' => '', ';' => '', '"' => '', "'" => '', '<' => '', '>' => '', ',' => '',
-        '.' => '', '?' => '', '/' => '', '\\' => '', '|' => '', '+' => '', '=' => '', '~' => '', '`' => ''
-    ];
-
-    // Sonderzeichen mit den Ersetzungen in $replacements umwandeln
-    $filename = strtr($filename, $replacements);
-
-    // Alle Zeichen, die nicht a-zA-Z0-9_ sind, durch _ ersetzen
-    $filename = preg_replace('/[^a-zA-Z0-9_]/', '_', $filename);
-
-    // Sicherstellen, dass der Dateiname mit einer Zahl oder einem Buchstaben beginnt
-    if (preg_match('/^[^a-zA-Z0-9_]/', $filename)) {
-        $filename = 'file_' . $filename; // fügt "file_" voran, wenn der Name ungültig beginnt
-    }
-
-    return $filename;
 }
 
   
