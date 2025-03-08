@@ -84,10 +84,21 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
                     $printer_status = snmpget($ip, $community, "1.3.6.1.2.1.25.3.5.1.1.1");
                     $printer_status = preg_replace('/[^0-9]/', '', $printer_status);
-
+                    
                     $status_message = "Unbekannter Status"; // Standardwert
                     $printer_ready = false;
+                    
+                    // Zusätzliche SNMP-Abfrage für Fehlerbeschreibung
+                    $snmp_error_message = snmpget($ip, $community, "1.3.6.1.2.1.43.16.5.1.2.1.1");
+                    $snmp_error_message = trim(str_replace("STRING:", "", $snmp_error_message)); // Bereinigen
 
+                    $status_message = "⚠ Unbekannter Fehler oder Wartung erforderlich ($printer_status)";
+
+                    // Überprüfen, ob die Fehlermeldung "Load Paper" enthält
+                    if (strpos($snmp_error_message, "Load paper") !== false) {
+                        $status_message = "🛑 Kein Papier!";
+                    }
+                    
                     switch ($printer_status) {
                         case 2:
                         case 3:
@@ -109,12 +120,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         case 9:
                             $status_message = "❌ Drucker offline!";
                             break;
-                        default:
-                            $status_message = "⚠ Unbekannter Fehler oder Wartung erforderlich $printer_status";
-                            break;
                     }
-
-
+                    
 
                     // Papier-Kapazitäten
                     if ($ip === "137.226.141.5") { // SW Drucker (5x A4)
@@ -168,21 +175,21 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
                     // Papieranzeige (A4)
                     $output .= '<div class="printer_bar_container">';
-                    $output .= '<div class="printer_label">📂 Papier A4: ' . $papier_A4_aktuell . ' / ' . $papier_A4_max . '</div>';
+                    $output .= '<div class="printer_label">Papier A4: ' . $papier_A4_aktuell . ' / ' . $papier_A4_max . '</div>';
                     $output .= '<div class="printer_bar_bg"><div class="printer_bar printer_paper" style="width:' . ($papier_A4_aktuell / $papier_A4_max * 100) . '%"></div></div>';
                     $output .= '</div>';
 
                     // Papieranzeige (A3, falls vorhanden)
                     if ($papier_A3_max !== "-") {
                         $output .= '<div class="printer_bar_container">';
-                        $output .= '<div class="printer_label">📂 Papier A3: ' . $papier_A3_aktuell . ' / ' . $papier_A3_max . '</div>';
+                        $output .= '<div class="printer_label">Papier A3: ' . $papier_A3_aktuell . ' / ' . $papier_A3_max . '</div>';
                         $output .= '<div class="printer_bar_bg"><div class="printer_bar printer_paper" style="width:' . ($papier_A3_aktuell / $papier_A3_max * 100) . '%"></div></div>';
                         $output .= '</div>';
                     }
 
                     // Toner Schwarz
                     $output .= '<div class="printer_bar_container">';
-                    $output .= '<div class="printer_label">⚫ Schwarz: ' . $toner_black . '%</div>';
+                    $output .= '<div class="printer_label">Schwarz: ' . $toner_black . '%</div>';
                     $output .= '<div class="printer_bar_bg"><div class="printer_bar printer_black" style="width:' . $toner_black . '%"></div></div>';
                     $output .= '</div>';
 
@@ -190,19 +197,19 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     if ($d["farbe"] === "Farbe") {
                         // Cyan
                         $output .= '<div class="printer_bar_container">';
-                        $output .= '<div class="printer_label">🔵 Cyan: ' . $toner_cyan . '%</div>';
+                        $output .= '<div class="printer_label">Cyan: ' . $toner_cyan . '%</div>';
                         $output .= '<div class="printer_bar_bg"><div class="printer_bar printer_cyan" style="width:' . $toner_cyan . '%"></div></div>';
                         $output .= '</div>';
                         
                         // Magenta
                         $output .= '<div class="printer_bar_container">';
-                        $output .= '<div class="printer_label">🟣 Magenta: ' . $toner_magenta . '%</div>';
+                        $output .= '<div class="printer_label">Magenta: ' . $toner_magenta . '%</div>';
                         $output .= '<div class="printer_bar_bg"><div class="printer_bar printer_magenta" style="width:' . $toner_magenta . '%"></div></div>';
                         $output .= '</div>';
                         
                         // Gelb
                         $output .= '<div class="printer_bar_container">';
-                        $output .= '<div class="printer_label">🟡 Gelb: ' . $toner_yellow . '%</div>';
+                        $output .= '<div class="printer_label">Gelb: ' . $toner_yellow . '%</div>';
                         $output .= '<div class="printer_bar_bg"><div class="printer_bar printer_yellow" style="width:' . $toner_yellow . '%"></div></div>';
                         $output .= '</div>';
                     }
@@ -250,7 +257,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 $index = (int)$_POST['delete_file'];
                 if (isset($_SESSION['uploaded_files'][$index])) {
                     unlink($_SESSION['uploaded_files'][$index]['path']); // Löscht Datei vom Server
-                    array_splice($_SESSION['uploaded_files'], $index, 1); // Entfernt aus Session
+                    array_splice($_SESSION['uploaded_files'], $index, 0); // Entfernt aus Session
                 }
             }
         
@@ -297,110 +304,106 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         ];
                     }
                 }
-            }
+            }        
 
+            // Falls eine neue Reihenfolge gespeichert wurde
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order'])) {
+                $newOrder = json_decode($_POST['order'], true);
+                $sortedFiles = [];
 
-        
-
-// Falls eine neue Reihenfolge gespeichert wurde
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order'])) {
-    $newOrder = json_decode($_POST['order'], true);
-    $sortedFiles = [];
-
-    // Sortieren basierend auf Dateinamen
-    foreach ($newOrder as $filename) {
-        foreach ($_SESSION['uploaded_files'] as $file) {
-            if ($file['name'] === $filename) {
-                $sortedFiles[] = $file;
-                break;
-            }
-        }
-    }
-
-    $_SESSION['uploaded_files'] = $sortedFiles;
-
-    // Erfolgsnachricht zurückgeben
-    echo json_encode(['status' => 'success']);
-    exit;
-}
-
-// Falls eine Datei gelöscht werden soll
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_file'])) {
-    $index = (int) $_POST['delete_file'];
-    if (isset($_SESSION['uploaded_files'][$index])) {
-        array_splice($_SESSION['uploaded_files'], $index, 1);
-    }
-}
-
-// HTML als echo ausgeben
-echo '<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dateien verwalten</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
-    <link rel="stylesheet" href="styles.css"> <!-- Hier wird dein vorhandenes CSS eingebunden -->
-</head>
-<body>
-
-    <h3 class="printer_h3">Hochgeladene Dateien</h3>
-
-    <form method="POST">
-        <table class="printer_table">
-            <thead>
-                <tr><th>Reihenfolge</th><th>Dateiname</th><th>Seitenzahl</th><th>Aktion</th></tr>
-            </thead>
-            <tbody id="sortableTable">';
-
-// Dateien aus der Session ausgeben
-foreach ($_SESSION['uploaded_files'] as $index => $file) {
-    echo '<tr data-index="' . $index . '">';
-    echo '<td class="printer_drag-handle">☰</td>';
-    echo '<td>' . htmlspecialchars($file['name']) . '</td>';
-    echo '<td>' . htmlspecialchars($file['pages']) . '</td>';
-    echo '<td><button type="submit" name="delete_file" value="' . $index . '" class="printer_delete-button">Löschen</button></td>';
-    echo '</tr>';
-}
-
-echo '      </tbody>
-        </table>
-    </form>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            new Sortable(document.getElementById("sortableTable"), {
-                handle: ".printer_drag-handle",
-                animation: 150,
-                onEnd: function () {
-                    let sortedFilenames = [];
-                    document.querySelectorAll("#sortableTable tr").forEach(row => {
-                        let filename = row.querySelector("td:nth-child(2)").textContent.trim();
-                        sortedFilenames.push(filename);
-                    });
-
-                    let formData = new FormData();
-                    formData.append("order", JSON.stringify(sortedFilenames));
-
-                    fetch("", { method: "POST", body: formData })
-                        .then(response => response.json())
-                        .then(data => console.log("Neuanordnung gespeichert:", data))
-                        .catch(error => console.error("Fehler:", error));
+                // Sortieren basierend auf Dateinamen
+                foreach ($newOrder as $filename) {
+                    foreach ($_SESSION['uploaded_files'] as $file) {
+                        if ($file['name'] === $filename) {
+                            $sortedFiles[] = $file;
+                            break;
+                        }
+                    }
                 }
-            });
-        });
-    </script>
 
-</body>
-</html>';
+                $_SESSION['uploaded_files'] = $sortedFiles;
 
+                // Erfolgsnachricht zurückgeben
+                echo json_encode(['status' => 'success']);
+                exit;
+            }
 
-            
+            // Falls eine Datei gelöscht werden soll
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_file'])) {
+                $index = (int) $_POST['delete_file'];
+                if (isset($_SESSION['uploaded_files'][$index])) {
+                    array_splice($_SESSION['uploaded_files'], $index, 1);
+                }
+            }
+
+            // HTML als echo ausgeben
+            echo '<!DOCTYPE html>
+            <html lang="de">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Dateien verwalten</title>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+                <link rel="stylesheet" href="styles.css"> <!-- Hier wird dein vorhandenes CSS eingebunden -->
+            </head>
+            <body>
+
+                <h3 class="printer_h3">Hochgeladene Dateien</h3>
+
+                <form method="POST">
+                    <table class="printer_table">
+                        <thead>
+                            <tr><th>Reihenfolge</th><th>Dateiname</th><th>Seitenzahl</th><th>Aktion</th></tr>
+                        </thead>
+                        <tbody id="sortableTable">';
+
+            // Dateien aus der Session ausgeben
+            foreach ($_SESSION['uploaded_files'] as $index => $file) {
+                echo '<tr data-index="' . $index . '">';
+                echo '<td class="printer_drag-handle">☰</td>';
+                echo '<td>' . htmlspecialchars($file['name']) . '</td>';
+                echo '<td>' . htmlspecialchars($file['pages']) . '</td>';
+                echo '<td><button type="submit" name="delete_file" value="' . $index . '" class="printer_delete-button">Löschen</button></td>';
+                echo '</tr>';
+            }
+
+            echo '      </tbody>
+                    </table>
+                </form>
+
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        new Sortable(document.getElementById("sortableTable"), {
+                            handle: ".printer_drag-handle",
+                            animation: 150,
+                            onEnd: function () {
+                                let sortedFilenames = [];
+                                document.querySelectorAll("#sortableTable tr").forEach(row => {
+                                    let filename = row.querySelector("td:nth-child(2)").textContent.trim();
+                                    sortedFilenames.push(filename);
+                                });
+
+                                let formData = new FormData();
+                                formData.append("order", JSON.stringify(sortedFilenames));
+
+                                fetch("", { method: "POST", body: formData })
+                                    .then(response => response.json())
+                                    .then(data => console.log("Neuanordnung gespeichert:", data))
+                                    .catch(error => console.error("Fehler:", error));
+                            }
+                        });
+                    });
+                </script>
+
+            </body>
+            </html>';            
         
-            // Upload-Formular
+            // Upload-Formular (kompletter Bereich ist klickbar)
             echo '<form method="POST" enctype="multipart/form-data" id="uploadForm" class="printer_upload_button">';
             echo '<input type="file" name="dokumente[]" multiple accept=".jpg,.jpeg,.png,.pdf" required class="printer_file-input" onchange="this.form.submit()">';
+            echo '<span>Klicke hier oder ziehe eine Datei hinein</span>';
             echo '</form>';
+
             
             // Weiter-Button (nur wenn Dateien vorhanden sind)
             if (!empty($_SESSION['uploaded_files'])) {
@@ -575,6 +578,7 @@ echo '      </tbody>
             // **PDFs zusammenfügen**
             if (empty($pdf_files)) {
                 echo "<p class='printer_error-message'>⚠️ Keine validen Dateien zum Drucken!</p>";
+                echo "<p class='printer_error-message'>❗ Falls der Upload zu lange gedauert hat, wurden die Dateien möglicherweise automatisch gelöscht.</p>";
                 echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
                 echo "</div>";
                 exit;

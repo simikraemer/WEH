@@ -11,7 +11,7 @@ from fcol import connect_weh
 
 def clean_user(ends):
     sendto = "netag@weh.rwth-aachen.de"
-    subject = "Clean Users Updates"
+    subject = "User Cleanup"
     
     text = ""
     zeit = time.time()
