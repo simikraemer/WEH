@@ -4,12 +4,14 @@ session_start();
 require('template.php');
 // Verarbeite POST-Daten
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST["update_session"])) {
-        // Aktualisiere die Session-Werte basierend auf den Formular-Daten
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["update_session"])) {
         foreach ($_POST['session_values'] as $key => $value) {
-            $_SESSION[$key] = $value;
+            // Nur nicht-Array-Werte speichern
+            if (!is_array($_SESSION[$key])) {
+                $_SESSION[$key] = $value;
+            }
         }
-        
+    
         // Redirect zur selben Seite, um die Änderungen sichtbar zu machen
         header("Location: " . $_SERVER['PHP_SELF']);
         exit;
@@ -156,31 +158,35 @@ if (auth($conn) && $_SESSION["Webmaster"]) {
         <hr>
         <div style="margin-top: 40px;"></div>
 
-    <div style="text-align: center;">
-        <h2 style="color: white;">Nonchalante Übersicht aller Session Variablen</h2>
-        <form method="post" action="">
-            <input type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;" name="update_session" value="Save Changes">
-            <br><br>
-            <table border="1" style="margin: 0 auto; color: white; text-align: center;">
-                <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    foreach ($_SESSION as $key => $value) {
-                        echo "<tr>";
-                        echo "<td>" . htmlspecialchars($key) . "</td>";
-                        echo "<td><input type='text' name='session_values[" . htmlspecialchars($key) . "]' value='" . htmlspecialchars($value) . "'></td>";
-                        echo "</tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
-        </form>
-    </div>
+        <div style="text-align: center;">
+            <h2 style="color: white;">Nonchalante Übersicht aller Session Variablen</h2>
+            <form method="post">
+                <input type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;" name="update_session" value="Save Changes">
+                <br><br>
+                <table border="1" style="margin: 0 auto; color: white; text-align: center;">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        foreach ($_SESSION as $key => $value) {
+                            // Arrays überspringen
+                            if (is_array($value)) {
+                                continue;
+                            }
+                            echo "<tr>";
+                            echo "<td>" . htmlspecialchars($key) . "</td>";
+                            echo "<td><input type='text' name='session_values[" . htmlspecialchars($key) . "]' value='" . htmlspecialchars($value) . "'></td>";
+                            echo "</tr>";
+                        }
+                        ?>
+                    </tbody>
+                </table>
+            </form>
+        </div>
 
     <div style="margin-bottom: 30px;"></div>    
     <hr>

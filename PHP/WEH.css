@@ -1273,7 +1273,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
 /* Container für Inhalte, zentriert mit Rand */
 .printer_container {
-  width: 60%;
+  width: 80%;
   margin: auto;
   text-align: center;
 }
@@ -1301,7 +1301,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 }
 
 .printer_button:hover {
-  background-color: #666;
+  background-color: #555;
 }
 
 /* Fehlernachricht */
@@ -1337,6 +1337,32 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   padding: 10px;
 }
 
+.printer_flexbox {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.printer_flex_button {
+  width: 350px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: top;
+  text-align: center;
+}
+
+.printer_content {
+  flex-grow: 1; /* Lässt diesen Bereich den freien Platz nutzen */
+}
+
+.printer_status {
+  margin-bottom: 10px; /* Kleiner Abstand zum unteren Rand */
+}
+
+
 /* Drag & Drop Handle */
 .printer_drag-handle {
   cursor: grab;
@@ -1346,6 +1372,21 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 .printer_file-input {
   font-size: 18px;
   color: white;
+}
+
+
+.printer_turm_row {
+  width: 100%;
+  border-top: 2px solid white;  /* Weiße Linie als Trenner */
+  margin-top: 20px; /* Abstand zwischen den Zeilen */
+  padding-top: 10px;
+  font-size: 45px;
+}
+
+.printer_back_container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
 /* Löschen-Button */
@@ -1440,4 +1481,50 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
+/* Fortschrittsbalken-Container */
+.printer_bar_container {
+  width: 100%;
+  margin-top: 8px;
+}
 
+/* Label über dem Balken */
+.printer_label {
+  font-size: 14px;
+  text-align: left;
+}
+
+/* Hintergrund des Balkens */
+.printer_bar_bg {
+  width: 100%;
+  height: 12px;
+  background-color: #888;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Fortschrittsbalken */
+.printer_bar {
+  height: 100%;
+  border-radius: 6px;
+}
+
+/* Farben für die einzelnen Toner */
+.printer_black {
+  background-color: black;
+}
+
+.printer_cyan {
+  background-color: cyan;
+}
+
+.printer_magenta {
+  background-color: magenta;
+}
+
+.printer_yellow {
+  background-color: yellow;
+}
+
+.printer_paper {
+  background-color: white;
+}
