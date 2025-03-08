@@ -22,7 +22,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
     $drucker = [
         ["id" => 1, "turm" => "WEH", "farbe" => "Schwarz-Weiß", "modell" => "Kyocera ECOSYS P3260dn", "ip" => "137.226.141.5"],
         ["id" => 2, "turm" => "WEH", "farbe" => "Farbe", "modell" => "Kyocera ECOSYS M8124cidn", "ip" => "137.226.141.193"],
-        ["id" => 3, "turm" => "TvK", "farbe" => "Schwarz-Weiß", "modell" => "Firma MODEL XXX", "ip" => "todo"]
+        ["id" => 3, "turm" => "TvK", "farbe" => "Schwarz-Weiß", "modell" => "Firma MODEL XXX", "ip" => "137.226.141.5"]
     ];
     
 
@@ -78,9 +78,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
                 foreach ($turmGruppen[$turm] as $d) {
                     $ip = $d["ip"];
-                    $druckerTurm = strtolower($d["turm"]);
-                    $istGleicherTurm = ($druckerTurm === $nutzerTurm);
-                    $style = $istGleicherTurm ? "" : "opacity: 0.5; pointer-events: none;"; // Graue Buttons bei falschem Turm
 
                     // Falls IP nicht gesetzt, überspringen
                     if ($ip === "todo") continue;
@@ -89,11 +86,13 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     $printer_status = preg_replace('/[^0-9]/', '', $printer_status);
 
                     $status_message = "Unbekannter Status"; // Standardwert
+                    $printer_ready = false;
 
                     switch ($printer_status) {
                         case 2:
                         case 3:
                             $status_message = "✅ Drucker ist bereit";
+                            $printer_ready = true;
                             break;
                         case 5:
                             $status_message = "🛑 Kein Papier!";
@@ -145,20 +144,12 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         $toner_yellow = round(($toner_yellow_value / 6000) * 100);
                         $toner_black = round(($toner_black_value / 12000) * 100);
 
-                        ## NACH DIN A3 add
-                        #$papier_A4_aktuell = get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.2") + 
-                        #                    get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.3");
-                        #$papier_A4_max = 1000; // 2 Kassetten mit je 500 Blättern
-                        #$papier_A3_aktuell = get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.4");
-                        #$papier_A3_max = 500; // 1 Kassette mit 500 Blättern
-
-                        
+                        # NACH DIN A3 add
                         $papier_A4_aktuell = get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.2") + 
-                                            get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.3") + 
-                                            get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.4");
-                        $papier_A4_max = 1500; // 2 Kassetten mit je 500 Blättern
-                        $papier_A3_aktuell = "-";
-                        $papier_A3_max = "-";
+                                            get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.3");
+                        $papier_A4_max = 1000; // 2 Kassetten mit je 500 Blättern
+                        $papier_A3_aktuell = get_snmp_value($ip, "1.3.6.1.2.1.43.8.2.1.10.1.4");
+                        $papier_A3_max = 500; // 1 Kassette mit 500 Blättern
                     }
 
                     // Button-Formular
@@ -166,6 +157,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     $output .= '<input type="hidden" name="drucker_id" value="' . htmlspecialchars($d["id"]) . '">';
                     $output .= '<input type="hidden" name="next_step" value="true">';
 
+                    $druckerTurm = strtolower($d["turm"]);
+                    $istTurmdesUsers = ($druckerTurm === $nutzerTurm);
+                    $style = ($istTurmdesUsers && $printer_ready) ? "" : "opacity: 0.5; pointer-events: none;";
                     
                     $output .= '<button type="submit" class="printer_button printer_flex_button" style="' . $style . '">';
                     $output .= '<div class="printer_content">';
@@ -304,70 +298,116 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     }
                 }
             }
+
+
         
-            // Falls eine neue Reihenfolge gespeichert wurde
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order'])) {
-                $newOrder = json_decode($_POST['order'], true);
-                $sortedFiles = [];
-                foreach ($newOrder as $index) {
-                    $sortedFiles[] = $_SESSION['uploaded_files'][$index];
+
+// Falls eine neue Reihenfolge gespeichert wurde
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order'])) {
+    $newOrder = json_decode($_POST['order'], true);
+    $sortedFiles = [];
+
+    // Sortieren basierend auf Dateinamen
+    foreach ($newOrder as $filename) {
+        foreach ($_SESSION['uploaded_files'] as $file) {
+            if ($file['name'] === $filename) {
+                $sortedFiles[] = $file;
+                break;
+            }
+        }
+    }
+
+    $_SESSION['uploaded_files'] = $sortedFiles;
+
+    // Erfolgsnachricht zurückgeben
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+// Falls eine Datei gelöscht werden soll
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_file'])) {
+    $index = (int) $_POST['delete_file'];
+    if (isset($_SESSION['uploaded_files'][$index])) {
+        array_splice($_SESSION['uploaded_files'], $index, 1);
+    }
+}
+
+// HTML als echo ausgeben
+echo '<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dateien verwalten</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    <link rel="stylesheet" href="styles.css"> <!-- Hier wird dein vorhandenes CSS eingebunden -->
+</head>
+<body>
+
+    <h3 class="printer_h3">Hochgeladene Dateien</h3>
+
+    <form method="POST">
+        <table class="printer_table">
+            <thead>
+                <tr><th>Reihenfolge</th><th>Dateiname</th><th>Seitenzahl</th><th>Aktion</th></tr>
+            </thead>
+            <tbody id="sortableTable">';
+
+// Dateien aus der Session ausgeben
+foreach ($_SESSION['uploaded_files'] as $index => $file) {
+    echo '<tr data-index="' . $index . '">';
+    echo '<td class="printer_drag-handle">☰</td>';
+    echo '<td>' . htmlspecialchars($file['name']) . '</td>';
+    echo '<td>' . htmlspecialchars($file['pages']) . '</td>';
+    echo '<td><button type="submit" name="delete_file" value="' . $index . '" class="printer_delete-button">Löschen</button></td>';
+    echo '</tr>';
+}
+
+echo '      </tbody>
+        </table>
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            new Sortable(document.getElementById("sortableTable"), {
+                handle: ".printer_drag-handle",
+                animation: 150,
+                onEnd: function () {
+                    let sortedFilenames = [];
+                    document.querySelectorAll("#sortableTable tr").forEach(row => {
+                        let filename = row.querySelector("td:nth-child(2)").textContent.trim();
+                        sortedFilenames.push(filename);
+                    });
+
+                    let formData = new FormData();
+                    formData.append("order", JSON.stringify(sortedFilenames));
+
+                    fetch("", { method: "POST", body: formData })
+                        .then(response => response.json())
+                        .then(data => console.log("Neuanordnung gespeichert:", data))
+                        .catch(error => console.error("Fehler:", error));
                 }
-                $_SESSION['uploaded_files'] = $sortedFiles;
-                exit;
-            }
-        
-            // Tabelle mit hochgeladenen Dateien
-            echo '<h3 class="printer_h3">Hochgeladene Dateien</h3>';
-            echo '<form method="POST">';
-            echo '<table class="printer_table">';
-            echo '<thead>';
-            echo '<tr><th>Reihenfolge</th><th>Dateiname</th><th>Seitenzahl</th><th>Aktion</th></tr></thead>';
-            echo '<tbody id="sortableTable">';
-        
-            foreach ($_SESSION['uploaded_files'] as $index => $file) {
-                echo "<tr data-index='$index'>";
-                echo "<td class='printer_drag-handle'>☰</td>";
-                echo "<td>" . htmlspecialchars($file['name']) . "</td>";
-                echo "<td>" . htmlspecialchars($file['pages']) . "</td>";
-                echo "<td><button type='submit' name='delete_file' value='$index' class='printer_delete-button'>Löschen</button></td>";
-                echo "</tr>";
-            }
-        
-            echo '</tbody></table>';
-            echo '</form>';
+            });
+        });
+    </script>
+
+</body>
+</html>';
+
+
+            
         
             // Upload-Formular
-            echo '<form method="POST" enctype="multipart/form-data">';
-            echo '<input type="file" name="dokumente[]" multiple accept=".jpg,.jpeg,.png,.pdf" required class="printer_file-input">';
-            echo '<button type="submit" class="printer_button">Hochladen</button>';
+            echo '<form method="POST" enctype="multipart/form-data" id="uploadForm" class="printer_upload_button">';
+            echo '<input type="file" name="dokumente[]" multiple accept=".jpg,.jpeg,.png,.pdf" required class="printer_file-input" onchange="this.form.submit()">';
             echo '</form>';
-        
+            
             // Weiter-Button (nur wenn Dateien vorhanden sind)
             if (!empty($_SESSION['uploaded_files'])) {
                 echo '<form method="POST">';
                 echo '<button type="submit" name="next_step" value="true" class="printer_button">Weiter ➡</button>';
                 echo '</form>';
             }
-            
-            // JavaScript für Drag & Drop
-            echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>';
-            echo '<script>
-                new Sortable(document.getElementById("sortableTable"), {
-                    handle: ".printer_drag-handle",
-                    animation: 150,
-                    onEnd: function(evt) {
-                        let sortedIndexes = [];
-                        document.querySelectorAll("#sortableTable tr").forEach(row => {
-                            sortedIndexes.push(row.getAttribute("data-index"));
-                        });
-        
-                        let formData = new FormData();
-                        formData.append("order", JSON.stringify(sortedIndexes));
-        
-                        fetch("", { method: "POST", body: formData });
-                    }
-                });
-            </script>';
         
             echo "</div>"; // Container div schließen
             break;
@@ -423,7 +463,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '</select>';
 
             $duplexInfo = "Beidseitiger Druck: Kostengünstiger als Simplex und spart Papier.";
-            $simplexInfo = "Simplex-Druck: Jede Seite wird auf ein eigenes Blatt gedruckt.";            
+            $simplexInfo = "Simplex-Druck: Jede Seite wird auf ein eigenes Blatt gedruckt.";         
         
             // 2️⃣ Simplex / Duplex Auswahl mit Erklärung
             echo '<label for="druckmodus" class="printer_h3">Druckmodus:</label>';
@@ -431,7 +471,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '<option value="duplex">Duplex</option>';
             echo '<option value="simplex">Simplex</option>';
             echo '</select>';
-            echo '<p id="duplexInfo" class="printer_duplex_info">'.$duplexInfo.'</p>';
+            #echo '<p id="duplexInfo" class="printer_duplex_info">'.$duplexInfo.'</p>';
         
             // 3️⃣ Blattaufteilung (Dropdown)
             echo '<label for="seiten_pro_blatt" class="printer_h3">Seiten pro Blatt:</label>';

@@ -1297,11 +1297,12 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   font-size: 20px;
   cursor: pointer;
   margin: 10px;
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.2s, color 0.2s, transform 0.1s;
 }
 
 .printer_button:hover {
   background-color: #555;
+  transform: scale(1.02);
 }
 
 /* Fehlernachricht */
@@ -1527,4 +1528,35 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
 .printer_paper {
   background-color: white;
+}
+
+.printer_upload_button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  background-color: #333;
+  border: 2px dashed white;
+  border-radius: 8px;
+  width: 60%;
+  max-width: 400px;
+  margin: 20px auto;
+  text-align: center;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.printer_upload_button:hover {
+  background-color: #444;
+  transform: scale(1.02);
+}
+
+.printer_file-input {
+  font-size: 16px;
+  padding: 8px;
+  cursor: pointer;
+  color: white;
+  background-color: transparent;
+  border: none;
+  text-align: center;
 }
