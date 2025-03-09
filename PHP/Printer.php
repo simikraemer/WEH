@@ -22,9 +22,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
     ];        
     
     $drucker = [
-        ["id" => 1, "turm" => "WEH", "farbe" => "Schwarz-Weiß", "modell" => "Kyocera ECOSYS P3260dn", "ip" => "137.226.141.5"],
-        ["id" => 2, "turm" => "WEH", "farbe" => "Farbe", "modell" => "Kyocera ECOSYS M8124cidn", "ip" => "137.226.141.193"],
-        ["id" => 3, "turm" => "TvK", "farbe" => "Schwarz-Weiß", "modell" => "Firma MODEL XXX", "ip" => "137.226.141.5"]
+        ["id" => 1, "turm" => "WEH", "farbe" => "Schwarz-Weiß", "modell" => "Kyocera ECOSYS P3260dn", "ip" => "137.226.141.5", "name" => "WEHsw"],
+        ["id" => 2, "turm" => "WEH", "farbe" => "Farbe", "modell" => "Kyocera ECOSYS M8124cidn", "ip" => "137.226.141.193", "name" => "WEHfarbe"],
+        ["id" => 3, "turm" => "TvK", "farbe" => "Schwarz-Weiß", "modell" => "Firma MODEL XXX", "ip" => "137.226.141.5", "name" => "TvKfarbe"]
     ];
     
 
@@ -99,6 +99,18 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     // Überprüfen, ob die Fehlermeldung "Load Paper" enthält
                     if (strpos($snmp_error_message, "Load paper") !== false) {
                         $status_message = "🛑 Kein Papier!";
+                    }
+                    if (strpos($snmp_error_message, "Check waste toner") !== false) {
+                        $status_message = "🔥 Waste toner voll!";
+                    }
+                    if (strpos($snmp_error_message, "Paper jammed") !== false) {
+                        $status_message = "🚨 Papierstau!";
+                    }
+                    if (strpos($snmp_error_message, "Replace the toner") !== false) {
+                        $status_message = "🔥 Toner leer!";
+                    }
+                    if (strpos($snmp_error_message, "Close") !== false) {
+                        $status_message = "🚪 Klappe offen!";
                     }
                     
                     switch ($printer_status) {
@@ -685,59 +697,20 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
 
             
-            // Preise für Druckoptionen
-            $preise = [
-                'sw_simplex' => 0.02,  // Schwarz-Weiß, Simplex [2cent pro Blatt]
-                'sw_duplex' => 0.015,   // Schwarz-Weiß, Duplex [1.5cent pro Blatt]
-                'farbe_simplex' => 0.08, // Farbe, Simplex [8cent pro Blatt]
-                'farbe_duplex' => 0.06,  // Farbe, Duplex [6cent pro Blatt]
-            ];
-
-            // Druckmodus und Graustufenoption auslesen
-            $graustufen = isset($_POST['graustufen']);
-            $druckmodus = $_POST['druckmodus'] ?? 'simplex';
-
             // **Seitenanzahl aus PDF holen**
-            $gesamtseiten = get_pdf_page_count($merged_pdf_path);
+            $seiten = get_pdf_page_count($merged_pdf_path);
 
-            // **Berechnung der Seitenanzahl für den Preis**
-            $duplex_seiten = 0; // Zählt die Seiten, die als Duplex gezählt werden
-            $simplex_seiten = 0; // Zählt die Seiten, die als Simplex gezählt werden
+            // Gesamtseiten berechnen            
+            $gesamtseiten = $seiten * $anzahl_kopien;
 
-            if ($gesamtseiten === 1) {
-                // Wenn nur 1 Seite vorhanden ist, wird sie als Simplex gezählt
-                $simplex_seiten = 1;
-            } else {
-                // Berechne die Anzahl der Duplex-Seiten und Simplex-Seiten
-                // Für Duplex: Jede gerade Seite wird als Duplex gezählt
-                // Die letzte Seite wird als Simplex gezählt, wenn die Gesamtzahl ungerade ist
-                $duplex_seiten = floor($gesamtseiten / 2) * 2;
-                $simplex_seiten = $gesamtseiten % 2; // Falls die Seitenanzahl ungerade ist, gibt es eine Simplex-Seite
-            }
-
-            // Berechnung des Preises basierend auf Graustufen und Druckmodus
-            if ($graustufen) {
-                // Graustufen Preisberechnung
-                $preis_key_duplex = 'sw_duplex';
-                $preis_key_simplex = 'sw_simplex';
-            } else {
-                // Farbe Preisberechnung
-                $preis_key_duplex = 'farbe_duplex';
-                $preis_key_simplex = 'farbe_simplex';
-            }
-
-            // **Preis pro Druckeinheit abrufen**
-            $preis_pro_einheit_duplex = $preise[$preis_key_duplex];
-            $preis_pro_einheit_simplex = $preise[$preis_key_simplex];
-
-            // **Gesamtpreis berechnen**
-            $gesamtpreis = (($duplex_seiten * $preis_pro_einheit_duplex) + ($simplex_seiten * $preis_pro_einheit_simplex)) * $anzahl_kopien;
+            // Gesamtpreis berechnen
+            $gesamtpreis = berechne_gesamtpreis($gesamtseiten, $druckmodus, $graustufen);
 
             // **Preis auf zwei Nachkommastellen runden**
             $gesamtpreis = number_format($gesamtpreis, 2, ',', '.');
 
             // **String für Seitenanzahl (Singular oder Plural) erstellen**
-            $seiten_string = ($gesamtseiten > 1) ? "$gesamtseiten Seiten" : "1 Seite";
+            $seiten_string = ($seiten > 1) ? "$seiten Seiten" : "1 Seite";
 
             // **String mit Modus & Seitenanzahl anzeigen**
             if ($anzahl_kopien > 1) {
@@ -774,7 +747,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             $output .= '</form>';
             $output .= '</div>';
             echo $output;        
-        
+
             $papierformat = $_POST['papierformat'] ?? 'A4';
             $druckmodus = $_POST['druckmodus'] ?? 'simplex';
             $anzahl_kopien = $_POST['anzahl'] ?? 1;
@@ -785,7 +758,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             $druID = $_SESSION['drucker_id'] ?? null;
             foreach ($drucker as $d) {
                 if ($d['id'] == $druID) {
-                    $druName = $d['modell']; // Modell als Druckername
+                    $druName = $d['name']; // Modell als Druckername
                     $druIP = $d['ip']; // Drucker-IP
                     break;
                 }
@@ -796,48 +769,63 @@ if (auth($conn) && ($_SESSION['valid'])) {
             if (!empty($uploadedFileNames)) {
                 $printJobTitle = implode(" + ", $uploadedFileNames);
             } else {
-                echo "<p>Keine Dateien hochgeladen.</p>";
+                echo "<p style='color:white; background-color:black;'>Keine Dateien hochgeladen.</p>";
             }
 
-            echo "<p><strong>Printjob Titel:</strong> $printJobTitle</p>";
-            echo "Papierformat: $papierformat<br>";
-            echo "Druckmodus: $druckmodus<br>";
-            echo "Anzahl Kopien: $anzahl_kopien<br>";
-            echo "Anzahl Seiten: $anzahl_seiten<br>";
+            echo "<p style='color:white; background-color:black;'><strong>Printjob Titel:</strong> $printJobTitle</p>";
+            echo "<p style='color:white; background-color:black;'>Papierformat: $papierformat</p>";
+            echo "<p style='color:white; background-color:black;'>Druckmodus: $druckmodus</p>";
+            echo "<p style='color:white; background-color:black;'>Anzahl Kopien: $anzahl_kopien</p>";
+            echo "<p style='color:white; background-color:black;'>Anzahl Seiten: $anzahl_seiten</p>";
+            
             $gesamtseiten = $anzahl_kopien * $anzahl_seiten;
-            echo "Gesamtseiten: $gesamtseiten<br>";
-            echo "Graustufen: " . ($graustufen ? 'Ja' : 'Nein') . "<br>";
-            echo "PDF-Pfad: $merged_pdf_path<br>";
-            echo "Gesamtpreis: $gesamtpreis<br>";
+            echo "<p style='color:white; background-color:black;'>Gesamtseiten: $gesamtseiten</p>";
+            echo "<p style='color:white; background-color:black;'>Graustufen: " . ($graustufen ? 'Ja' : 'Nein') . "</p>";
+            echo "<p style='color:white; background-color:black;'>PDF-Pfad: $merged_pdf_path</p>";
+            echo "<p style='color:white; background-color:black;'>Gesamtpreis: $gesamtpreis</p>";
 
-
+            // Debugging: Überprüfung der Drucker-Variablen
+            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Druckername: $druName</p>";
+            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Drucker-IP: $druIP</p>";
 
             // CUPS Druckbefehl
-            $print_command = "lp -d $druName -h $druIP -n $anzahl_kopien -o media=$papierformat -o sides=" . 
-                ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') . " " . escapeshellarg($merged_pdf_path);
+            $print_command = "/usr/bin/lp -d $druName -n $anzahl_kopien -o media=$papierformat -o sides=" .
+            ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') . " -- " . escapeshellarg($merged_pdf_path);
+        
+
+            // Debugging: Ausgabe des Druckbefehls
+            echo "<p style='color:white; background-color:blue;'><strong>DEBUG:</strong> Print Command: $print_command</p>";
 
             // Druckauftrag an CUPS senden
             exec($print_command . " 2>&1", $output, $return_var);
 
-            if ($return_var === 0) {
-                // Job-ID aus der CUPS Queue holen
-                exec("lpstat -o $druName | awk '{print $1}' | head -n 1", $job_output);
-                $cups_id = isset($job_output[0]) ? intval($job_output[0]) : null;
+            // Debugging: CUPS Rückgabe überprüfen
+            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Return Code: $return_var</p>";
+            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Output: " . implode("<br>", $output) . "</p>";
 
-                if (!$cups_id) {
-                    echo "Fehler: Konnte keine CUPS Job-ID erhalten!";
-                    exit;
-                }
+            if ($return_var === 0) {
+                $tries = 5;
+                while ($tries-- > 0) {
+                    exec("lpstat -o $druName 2>/dev/null", $job_output);
+                    if (!empty($job_output)) {
+                        $first_line = explode(" ", trim($job_output[0]));
+                        $cups_id = isset($first_line[0]) ? intval(preg_replace('/[^0-9]/', '', $first_line[0])) : null;
+                        if ($cups_id) break;
+                    }
+                    sleep(1); // Warte 1 Sekunde
+                }                
             } else {
-                echo "Druckauftrag fehlgeschlagen: " . implode("\n", $output);
+                echo "<p style='color:white; background-color:red;'>Druckauftrag fehlgeschlagen: " . implode("<br>", $output) . "</p>";
                 exit;
             }
+
+
         
 
 
 
             $insert_sql = "INSERT INTO weh.printjobs 
-            (uid, tstamp, status, title, pages, duplex, grey, din, cups_id, drucker) 
+            (uid, tstamp, status, title, planned_pages, duplex, grey, din, cups_id, drucker) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
             $insert_var = array(

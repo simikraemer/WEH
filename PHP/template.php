@@ -1566,5 +1566,42 @@ function shortenFileName($fileName, $maxLength = 20) {
 
     return $name . $extension; // Zusammenfügen von gekürztem Namen und Endung
 }
+
+function berechne_gesamtpreis($gesamtseiten, $druckmodus, $graustufen) {
+    // Preisdefinitionen für verschiedene Modi
+    $preise = [
+        'sw' => [
+            'simplex' => 0.02,    // SW Simplex [2 Cent pro Blatt]
+            'duplex'  => 0.015,   // SW Duplex [1.5 Cent pro Blatt]
+        ],
+        'farbe' => [
+            'simplex' => 0.08,    // Farbe Simplex [8 Cent pro Blatt]
+            'duplex'  => 0.06,    // Farbe Duplex [6 Cent pro Blatt]
+        ]
+    ];
+
+    // Farbmodus bestimmen
+    $modus = $graustufen ? 'sw' : 'farbe';
+
+    // Druckmodus-Preise aus Array holen
+    $preis_simplex = $preise[$modus]['simplex'];
+    $preis_duplex  = $preise[$modus]['duplex'];
+
+    // Seitenberechnung je nach Druckmodus
+    if ($druckmodus === "duplex") {
+        $duplex_seiten  = floor($gesamtseiten / 2) * 2; // Ganze Duplex-Blätter
+        $simplex_seiten = $gesamtseiten % 2; // Falls ungerade, bleibt 1 Simplex-Seite übrig
+    } else {
+        $duplex_seiten  = 0;
+        $simplex_seiten = $gesamtseiten; // Alle Seiten als Simplex
+    }
+
+    // Gesamtpreis berechnen
+    $gesamtpreis = (($duplex_seiten / 2) * $preis_duplex) + ($simplex_seiten * $preis_simplex);
+
+    return round($gesamtpreis, 2); // Dezimalwert für MySQL
+}
+
+
   
 ?>
