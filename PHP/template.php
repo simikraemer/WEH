@@ -1555,6 +1555,16 @@ function is_valid_pdf($filePath) {
     return $returnVar === 0; // Wenn Ghostscript keinen Fehler gibt, ist das PDF gültig
 }
 
+function shortenFileName($fileName, $maxLength = 20) {
+    $fileInfo = pathinfo($fileName);
+    $name = $fileInfo['filename']; // Dateiname ohne Endung
+    $extension = isset($fileInfo['extension']) ? '.' . $fileInfo['extension'] : ''; // Dateiendung
 
+    if (strlen($name) > $maxLength) {
+        $name = substr($name, 0, $maxLength) . "[...]"; // Kürzen und "..." hinzufügen
+    }
+
+    return $name . $extension; // Zusammenfügen von gekürztem Namen und Endung
+}
   
 ?>

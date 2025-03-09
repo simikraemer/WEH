@@ -16,7 +16,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
         'drucker_waehlen' => ['next' => 'dokument_upload', 'previous' => 'drucker_waehlen'],
         'dokument_upload' => ['next' => 'druckoptionen', 'previous' => 'drucker_waehlen'],
         'druckoptionen' => ['next' => 'vorschau', 'previous' => 'dokument_upload'],
-        'vorschau' => ['next' => null, 'previous' => 'druckoptionen']
+        'vorschau' => ['next' => 'drucken', 'previous' => 'druckoptionen'],
+        #'drucken' => ['next' => null, 'previous' => null],
+        'drucken' => ['next' => null, 'previous' => 'vorschau'],
     ];        
     
     $drucker = [
@@ -292,9 +294,10 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
                     // Dateinamen formatieren
                     $formattedFileName = sanitizeFileName($fileName);
+                    $shortFileName = shortenFileName($formattedFileName, 20);
 
                     // Neue Datei speichern
-                    $newPath = $uploadsDir . uniqid() . "_" . $formattedFileName;
+                    $newPath = $uploadsDir . uniqid() . "_" . $shortFileName;
                     if (move_uploaded_file($tmp_name, $newPath)) {
                         $_SESSION['uploaded_files'][] = [
                             'name' => $formattedFileName,
@@ -338,10 +341,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
             // HTML als echo ausgeben
             echo '<!DOCTYPE html>
-            <html lang="de">
             <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Dateien verwalten</title>
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
                 <link rel="stylesheet" href="styles.css"> <!-- Hier wird dein vorhandenes CSS eingebunden -->
@@ -751,24 +751,121 @@ if (auth($conn) && ($_SESSION['valid'])) {
         
             // Weiter- und Zurück-Buttons
             echo "<form method='POST'>";
+            echo "<input type='hidden' name='papierformat' value='" . htmlspecialchars($papierformat, ENT_QUOTES, 'UTF-8') . "'>";
+            echo "<input type='hidden' name='druckmodus' value='" . htmlspecialchars($druckmodus, ENT_QUOTES, 'UTF-8') . "'>";
+            echo "<input type='hidden' name='anzahl' value='" . (int)$anzahl_kopien . "'>";
+            echo "<input type='hidden' name='seiten' value='" . (int)$gesamtseiten . "'>";
+            echo "<input type='hidden' name='graustufen' value='" . ($graustufen ? '1' : '0') . "'>";
+            echo "<input type='hidden' name='merged_pdf_path' value='" . htmlspecialchars($merged_pdf_path, ENT_QUOTES, 'UTF-8') . "'>";
+            echo "<input type='hidden' name='gesamtpreis' value='" . htmlspecialchars($gesamtpreis, ENT_QUOTES, 'UTF-8') . "'>";
             echo "<button type='submit' name='next_step' value='true' class='printer_button'>Druckauftrag senden ➡</button>";
             echo "</form>";
         
             echo "</div>";
             break;
+
             
+        case 'drucken':
+            echo "<div class='printer_container'>";
+
+            $output = '<div class="printer_back_container">';
+            $output .= '<form method="POST" action="">';
+            $output .= '<button type="submit" name="previous_step" class="printer_button">⬅ Zurück</button>';
+            $output .= '</form>';
+            $output .= '</div>';
+            echo $output;        
+        
+            $papierformat = $_POST['papierformat'] ?? 'A4';
+            $druckmodus = $_POST['druckmodus'] ?? 'simplex';
+            $anzahl_kopien = $_POST['anzahl'] ?? 1;
+            $anzahl_seiten = $_POST['seiten'] ?? 1;
+            $graustufen = isset($_POST['graustufen']) && $_POST['graustufen'] == '1';
+            $merged_pdf_path = $_POST['merged_pdf_path'] ?? '';
+            $gesamtpreis = $_POST['gesamtpreis'] ?? '';
+            $druID = $_SESSION['drucker_id'] ?? null;
+            foreach ($drucker as $d) {
+                if ($d['id'] == $druID) {
+                    $druName = $d['modell']; // Modell als Druckername
+                    $druIP = $d['ip']; // Drucker-IP
+                    break;
+                }
+            }
+
+            $uploadedFileNames = array_column($_SESSION['uploaded_files'], 'name');
+
+            if (!empty($uploadedFileNames)) {
+                $printJobTitle = implode(" + ", $uploadedFileNames);
+            } else {
+                echo "<p>Keine Dateien hochgeladen.</p>";
+            }
+
+            echo "<p><strong>Printjob Titel:</strong> $printJobTitle</p>";
+            echo "Papierformat: $papierformat<br>";
+            echo "Druckmodus: $druckmodus<br>";
+            echo "Anzahl Kopien: $anzahl_kopien<br>";
+            echo "Anzahl Seiten: $anzahl_seiten<br>";
+            $gesamtseiten = $anzahl_kopien * $anzahl_seiten;
+            echo "Gesamtseiten: $gesamtseiten<br>";
+            echo "Graustufen: " . ($graustufen ? 'Ja' : 'Nein') . "<br>";
+            echo "PDF-Pfad: $merged_pdf_path<br>";
+            echo "Gesamtpreis: $gesamtpreis<br>";
+
+
+
+            // CUPS Druckbefehl
+            $print_command = "lp -d $druName -h $druIP -n $anzahl_kopien -o media=$papierformat -o sides=" . 
+                ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') . " " . escapeshellarg($merged_pdf_path);
+
+            // Druckauftrag an CUPS senden
+            exec($print_command . " 2>&1", $output, $return_var);
+
+            if ($return_var === 0) {
+                // Job-ID aus der CUPS Queue holen
+                exec("lpstat -o $druName | awk '{print $1}' | head -n 1", $job_output);
+                $cups_id = isset($job_output[0]) ? intval($job_output[0]) : null;
+
+                if (!$cups_id) {
+                    echo "Fehler: Konnte keine CUPS Job-ID erhalten!";
+                    exit;
+                }
+            } else {
+                echo "Druckauftrag fehlgeschlagen: " . implode("\n", $output);
+                exit;
+            }
+        
+
+
+
+            $insert_sql = "INSERT INTO weh.printjobs 
+            (uid, tstamp, status, title, pages, duplex, grey, din, cups_id, drucker) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+            $insert_var = array(
+                $_SESSION["uid"],                 // Benutzer-ID
+                time(),                            // Timestamp (aktuelle Zeit)
+                0,                                 // Status (default auf 0)
+                $printJobTitle,                    // Printjob Titel (Dateinamen kombiniert)
+                $gesamtseiten,                     // Gesamtseitenzahl (Anzahl Kopien * Seitenanzahl)
+                ($druckmodus === "duplex") ? 1 : 0, // Duplex (1 = Ja, 0 = Nein)
+                $graustufen ? 1 : 0,               // Graustufen (1 = Ja, 0 = Nein)
+                $papierformat,                     // Papierformat (z. B. A4)
+                $cups_id,                          // CUPS Job-ID
+                $druName                           // Druckermodell speichern
+            );
             
+            // Prepared Statement ausführen
+            $stmt = mysqli_prepare($conn, $insert_sql);
+            mysqli_stmt_bind_param($stmt, "iiisiiisis", ...$insert_var);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+            
+            echo "<p>Printjob erfolgreich an '$druName' gesendet und in die DB eingetragen! (CUPS-ID: $cups_id)</p>";
+        
+
+
                 
-
-
-
-
-
-
-
-
-
-
+            echo "</div>";
+            break;
     }
 
     
