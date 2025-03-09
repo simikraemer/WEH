@@ -17,7 +17,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         'dokument_upload' => ['next' => 'druckoptionen', 'previous' => 'drucker_waehlen'],
         'druckoptionen' => ['next' => 'vorschau', 'previous' => 'dokument_upload'],
         'vorschau' => ['next' => 'drucken', 'previous' => 'druckoptionen'],
-        'drucken' => ['next' => 'drucker_wahlen', 'previous' => null],
+        'drucken' => ['next' => 'drucker_waehlen', 'previous' => null],
     ];        
     
     $drucker = [
@@ -51,11 +51,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
             
             $nutzerTurm = strtolower($_SESSION["turm"] ?? "");
             $community = "public";
-
-            function get_snmp_value($ip, $oid) {
-                $value = snmpget($ip, "public", $oid);
-                return preg_replace('/[^0-9]/', '', $value); // Entfernt alles außer Zahlen
-            }
 
             // Drucker nach Türmen sortieren
             $turmGruppen = ["WEH" => [], "TvK" => []];
@@ -117,6 +112,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         case 3:
                             $status_message = "✅ Drucker ist bereit";
                             $printer_ready = true;
+                            break;
+                        case 4:
+                            $status_message = "⏳ Drucker druckt...";
                             break;
                         case 5:
                             $status_message = "🛑 Kein Papier!";
@@ -541,10 +539,12 @@ if (auth($conn) && ($_SESSION['valid'])) {
             $output .= '</form>';
             $output .= '</div>';
             echo $output;        
+
+            
+            echo "<h2 class='printer_h2'>Vorschau 1. Blatt</h2>";
         
             if (!isset($_SESSION['uploaded_files']) || empty($_SESSION['uploaded_files'])) {
                 echo "<p class='printer_error-message'>⚠️ Keine Dateien zum Drucken hochgeladen!</p>";
-                echo "<button onclick='window.history.back()' class='printer_button'>Zurück</button>";
                 echo "</div>";
                 break;
             }  
@@ -693,8 +693,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
             }
 
             echo "</div>";
-
-
             
             // **Seitenanzahl aus PDF holen**
             $seiten = get_pdf_page_count($merged_pdf_path);
@@ -717,9 +715,20 @@ if (auth($conn) && ($_SESSION['valid'])) {
             } else {
                 echo "<h3 class='printer_h3'>$seiten_string</h3>";
             }
+            
+            $blätter = berechneBlaetterausSeiten($gesamtseiten, $druckmodus);
+            $printjobcheck = checkifprintjobispossible($conn, $_SESSION["uid"], $_SESSION['drucker_id'], $drucker, $blätter, $gesamtpreis);
+            $possible = False;
 
             echo "<h2 class='printer_h2'>$gesamtpreis €</h2>";
 
+            if ($printjobcheck === 1) {
+                $possible = True;
+            } elseif ($printjobcheck === 2) {
+                echo "<h3 class='printer_h3'>❌ Nicht genug Geld auf dem Konto!</h3>";
+            } elseif ($printjobcheck === 3) {
+                echo "<h3 class='printer_h3'>❌ Nicht genug Papier im Drucker!</h3>";
+            }
         
             // Weiter- und Zurück-Buttons
             echo "<form method='POST'>";
@@ -730,31 +739,35 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo "<input type='hidden' name='graustufen' value='" . ($graustufen ? '1' : '0') . "'>";
             echo "<input type='hidden' name='merged_pdf_path' value='" . htmlspecialchars($merged_pdf_path, ENT_QUOTES, 'UTF-8') . "'>";
             echo "<input type='hidden' name='gesamtpreis' value='" . htmlspecialchars($gesamtpreis, ENT_QUOTES, 'UTF-8') . "'>";
-            echo "<button type='submit' name='next_step' value='true' class='printer_button'>Druckauftrag senden ➡</button>";
+            
+            // Button deaktivieren oder entfernen
+            if ($possible) {
+                echo "<button type='submit' name='next_step' value='true' class='printer_button' style='margin-bottom: 30px;'>Druckauftrag senden ➡</button>";
+            }
+            
             echo "</form>";
         
             echo "</div>";
             break;
 
-            
+    
         case 'drucken':
+            
+            // Hauptcontainer für Inhalte
             echo "<div class='printer_container'>";
-
-            $output = '<div class="printer_back_container">';
-            $output .= '<form method="POST" action="">';
-            $output .= '<button type="submit" name="previous_step" class="printer_button">⬅ Zurück</button>';
-            $output .= '</form>';
-            $output .= '</div>';
-            echo $output;        
-
+            echo "<div class='printer_body'>"; // Gesamtes Druck-Frontend in 'printer_body' für zentrierte Ansicht
+        
+            // Druckdetails aus dem Formular holen
             $papierformat = $_POST['papierformat'] ?? 'A4';
             $druckmodus = $_POST['druckmodus'] ?? 'simplex';
             $anzahl_kopien = $_POST['anzahl'] ?? 1;
             $anzahl_seiten = $_POST['seiten'] ?? 1;
+            $gesamtseiten = $anzahl_seiten * $anzahl_kopien;
             $graustufen = isset($_POST['graustufen']) && $_POST['graustufen'] == '1';
             $merged_pdf_path = $_POST['merged_pdf_path'] ?? '';
             $gesamtpreis = $_POST['gesamtpreis'] ?? '';
             $druID = $_SESSION['drucker_id'] ?? null;
+        
             foreach ($drucker as $d) {
                 if ($d['id'] == $druID) {
                     $druName = $d['name']; // Modell als Druckername
@@ -762,45 +775,16 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     break;
                 }
             }
-
+        
             $uploadedFileNames = array_column($_SESSION['uploaded_files'], 'name');
-
-            if (!empty($uploadedFileNames)) {
-                $printJobTitle = implode(" + ", $uploadedFileNames);
-            } else {
-                echo "<p style='color:white; background-color:black;'>Keine Dateien hochgeladen.</p>";
-            }
-
-            echo "<p style='color:white; background-color:black;'><strong>Printjob Titel:</strong> $printJobTitle</p>";
-            echo "<p style='color:white; background-color:black;'>Papierformat: $papierformat</p>";
-            echo "<p style='color:white; background-color:black;'>Druckmodus: $druckmodus</p>";
-            echo "<p style='color:white; background-color:black;'>Anzahl Kopien: $anzahl_kopien</p>";
-            echo "<p style='color:white; background-color:black;'>Anzahl Seiten: $anzahl_seiten</p>";
-            
-            $gesamtseiten = $anzahl_kopien * $anzahl_seiten;
-            echo "<p style='color:white; background-color:black;'>Gesamtseiten: $gesamtseiten</p>";
-            echo "<p style='color:white; background-color:black;'>Graustufen: " . ($graustufen ? 'Ja' : 'Nein') . "</p>";
-            echo "<p style='color:white; background-color:black;'>PDF-Pfad: $merged_pdf_path</p>";
-            echo "<p style='color:white; background-color:black;'>Gesamtpreis: $gesamtpreis</p>";
-
-            // Debugging: Überprüfung der Drucker-Variablen
-            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Druckername: $druName</p>";
-            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Drucker-IP: $druIP</p>";
-
+            $printJobTitle = !empty($uploadedFileNames) ? implode(" + ", $uploadedFileNames) : "Unbenannter Druckauftrag";
+        
             // CUPS Druckbefehl
             $print_command = "/usr/bin/lp -d $druName -n $anzahl_kopien -o media=$papierformat -o sides=" .
             ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') . " -- " . escapeshellarg($merged_pdf_path);
         
-
-            // Debugging: Ausgabe des Druckbefehls
-            echo "<p style='color:white; background-color:blue;'><strong>DEBUG:</strong> Print Command: $print_command</p>";
-
             // Druckauftrag an CUPS senden
             exec($print_command . " 2>&1", $output, $return_var);
-
-            // Debugging: CUPS Rückgabe überprüfen
-            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Return Code: $return_var</p>";
-            echo "<p style='color:white; background-color:red;'><strong>DEBUG:</strong> Output: " . implode("<br>", $output) . "</p>";
 
             if ($return_var === 0) {
                 $tries = 5;
@@ -813,18 +797,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     }
                     sleep(1); // Warte 1 Sekunde
                 }                
-            } else {
-                echo "<p style='color:white; background-color:red;'>Druckauftrag fehlgeschlagen: " . implode("<br>", $output) . "</p>";
-                exit;
             }
-
-
-        
-            echo '<form method="POST">';
-            echo '<button type="submit" name="next_step" value="true" class="printer_button">Weiter ➡</button>';
-            echo '</form>';
-
-
 
             $insert_sql = "INSERT INTO weh.printjobs 
             (uid, tstamp, status, title, planned_pages, duplex, grey, din, cups_id, drucker) 
@@ -848,11 +821,65 @@ if (auth($conn) && ($_SESSION['valid'])) {
             mysqli_stmt_bind_param($stmt, "iiisiiisis", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
-            
-            echo "<p>Printjob erfolgreich an '$druName' gesendet und in die DB eingetragen! (CUPS-ID: $cups_id)</p>";
+
+            unset($_SESSION['printer_step'], $_SESSION['drucker_id'], $_SESSION['uploaded_files']);
         
+            // Falls das Drucken erfolgreich gestartet wurde
+            if ($return_var === 0) {
+                echo "<h3>✅ Ihr Druckauftrag wurde erfolgreich angenommen!</h3>";
+                echo "<p>Ihr Dokument wird nun gedruckt.</p>";
+            } else {
+                echo "<h3 style='color: red;'>❌ Fehler beim Drucken!</h3>";
+                echo "<p>Leider konnte der Druckauftrag nicht gesendet werden.</p>";
+            }  
+            
+            // Ladeanimation
+            echo "<div class='printer_loading'>
+                <p>Sie werden weitergeleitet...</p>
+                <div class='spinner'></div>
+            </div>";
 
+            // JavaScript für den automatischen Weiterleitungs-POST nach 2 Sekunden
+            echo "<script>
+                setTimeout(function() {
+                    let form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = window.location.href; // Auf gleiche Seite zurück
+                    let input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'reset';
+                    input.value = 'true';
+                    form.appendChild(input);
+                    document.body.appendChild(form);
+                    form.submit();
+                }, 3000);
+            </script>";
 
+            echo "</div>"; // Schließt printer_container
+            echo "</div>"; // Schließt printer_body
+
+            echo "<style>
+                .printer_loading {
+                    margin-top: 20px;
+                    text-align: center;
+                    font-size: 18px;
+                }
+        
+                .spinner {
+                    margin: 10px auto;
+                    width: 40px;
+                    height: 40px;
+                    border: 5px solid rgba(255, 255, 255, 0.3);
+                    border-top: 5px solid white;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+        
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>";
                 
             echo "</div>";
             break;

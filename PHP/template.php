@@ -1584,18 +1584,86 @@ function berechne_gesamtpreis($gesamtseiten, $druckmodus, $graustufen) {
 
     // Seitenberechnung je nach Druckmodus
     if ($druckmodus === "duplex") {
-        $duplex_seiten  = floor($gesamtseiten / 2) * 2; // Ganze Duplex-Blätter
+        $duplex_seiten = floor($gesamtseiten / 2) * 2;
         $simplex_seiten = $gesamtseiten % 2; // Falls ungerade, bleibt 1 Simplex-Seite übrig
     } else {
-        $duplex_seiten  = 0;
+        $duplex_seiten = 0;
         $simplex_seiten = $gesamtseiten; // Alle Seiten als Simplex
     }
 
     // Gesamtpreis berechnen
-    $gesamtpreis = (($duplex_seiten / 2) * $preis_duplex) + ($simplex_seiten * $preis_simplex);
+    $gesamtpreis = (($duplex_seiten) * $preis_duplex) + ($simplex_seiten * $preis_simplex);
 
     return round($gesamtpreis, 2); // Dezimalwert für MySQL
 }
+
+
+function get_snmp_value($ip, $oid) {
+    $value = snmpget($ip, "public", $oid);
+    return preg_replace('/[^0-9]/', '', $value); // Entfernt alles außer Zahlen
+}
+
+function checkifprintjobispossible($conn, $uid, $drucker_id, $drucker, $blätter, $gesamtpreis) {
+    // 🔹 **1️⃣ User-Guthaben abrufen**
+    $sql = "SELECT SUM(betrag) FROM transfers WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $uid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $accountbalance);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_free_result($stmt);
+    
+    if (is_null($accountbalance)) {
+        $accountbalance = 0.00;
+    }
+
+    // 🔹 **2️⃣ Drucker-IP abrufen**
+    $drucker_ip = null;
+    foreach ($drucker as $d) {
+        if ($d["id"] == $drucker_id) {
+            $drucker_ip = $d["ip"];
+            break;
+        }
+    }
+
+    if (!$drucker_ip) {
+        return 3; // Drucker nicht gefunden = sicherheitshalber "nicht genug Papier"
+    }
+
+    // 🔹 **3️⃣ Papierkapazität abfragen (SNMP)**
+    $papier_A4_aktuell = 0;
+
+    if ($drucker_ip === "137.226.141.5") { // SW Drucker (5x A4)
+        for ($i = 2; $i <= 6; $i++) {
+            $papier_A4_aktuell += get_snmp_value($drucker_ip, "1.3.6.1.2.1.43.8.2.1.10.1.$i"); 
+        }
+    } elseif ($drucker_ip === "137.226.141.193") { // Farb-Drucker (2x A4, 1x A3)
+        $papier_A4_aktuell = get_snmp_value($drucker_ip, "1.3.6.1.2.1.43.8.2.1.10.1.2") + 
+                             get_snmp_value($drucker_ip, "1.3.6.1.2.1.43.8.2.1.10.1.3") + 
+                             get_snmp_value($drucker_ip, "1.3.6.1.2.1.43.8.2.1.10.1.4");
+    }
+
+    // 🔹 **4️⃣ Überprüfen, ob genug Geld auf dem Konto ist**
+    if ($accountbalance < $gesamtpreis) {
+        return 2; // ❌ Nicht genug Geld
+    }
+
+    // 🔹 **5️⃣ Überprüfen, ob genug Papier vorhanden ist**
+    if ($papier_A4_aktuell < $blätter) { 
+        return 3; // ❌ Nicht genug Papier
+    }
+
+    return 1; // ✅ Alles gut, Druck ist möglich!
+}
+
+function berechneBlaetterausSeiten($gesamtseiten, $druckmodus) {
+    if ($druckmodus === "duplex") {
+        return ceil($gesamtseiten / 2); // Duplex: 2 Seiten pro Blatt
+    } else {
+        return $gesamtseiten; // Simplex: 1 Seite pro Blatt
+    }
+}
+
 
 
   

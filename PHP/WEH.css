@@ -1264,7 +1264,6 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
 /* Allgemeine Stile für Druckbereich */
 .printer_body {
-  background-color: black;
   color: white;
   font-family: Arial, sans-serif;
   text-align: center;
