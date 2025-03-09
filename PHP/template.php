@@ -1497,6 +1497,7 @@ function sanitizeFileName($filename) {
     // Ersetzungen für Umlaute & Sonderzeichen
     $replacements = [
         'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss',
+        'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue',
         'é' => 'e', 'è' => 'e', 'à' => 'a', 'á' => 'a', 'ç' => 'c',
         ' ' => '_', '!' => '', '@' => '', '#' => '', '$' => '', '%' => '', '^' => '', '&' => '', '*' => '',
         '(' => '', ')' => '', '{' => '', '}' => '', '[' => '', ']' => '', ':' => '', ';' => '', '"' => '',
@@ -1515,17 +1516,11 @@ function sanitizeFileName($filename) {
         $name = 'file_' . $name;
     }
 
+    // **Alle Unterstriche entfernen**
+    $name = str_replace('_', '', $name);
+
     // Sicherstellen, dass die Erweiterung erhalten bleibt
     return $name . '.' . strtolower($ext);
-}
-
-if (move_uploaded_file($tmp_name, $uploadsDir . sanitizeFileName($fileName))) {
-    $_SESSION['uploaded_files'][] = [
-        'name' => $fileName,
-        'path' => $uploadsDir . sanitizeFileName($fileName),
-        'type' => $fileType,
-        'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
-    ];
 }
 
 function is_valid_pdf($filePath) {

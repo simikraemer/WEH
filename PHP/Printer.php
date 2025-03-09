@@ -17,8 +17,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         'dokument_upload' => ['next' => 'druckoptionen', 'previous' => 'drucker_waehlen'],
         'druckoptionen' => ['next' => 'vorschau', 'previous' => 'dokument_upload'],
         'vorschau' => ['next' => 'drucken', 'previous' => 'druckoptionen'],
-        #'drucken' => ['next' => null, 'previous' => null],
-        'drucken' => ['next' => null, 'previous' => 'vorschau'],
+        'drucken' => ['next' => 'drucker_wahlen', 'previous' => null],
     ];        
     
     $drucker = [
@@ -821,6 +820,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
 
         
+            echo '<form method="POST">';
+            echo '<button type="submit" name="next_step" value="true" class="printer_button">Weiter ➡</button>';
+            echo '</form>';
 
 
 

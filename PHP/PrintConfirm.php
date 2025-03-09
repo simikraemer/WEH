@@ -3,30 +3,57 @@ require('template.php'); // hieraus kommt $conn
 mysqli_set_charset($conn, "utf8");
 
 // **1️⃣ Sicherheit: Prüfen, ob die Anfrage vom Server kommt**
-if ($_SERVER['REMOTE_ADDR'] !== $_SERVER['SERVER_ADDR']) {
-    header("Location: denied.php");
-    exit;
+if (php_sapi_name() !== 'cli') { // Falls NICHT CLI, dann Web-Sicherheitsprüfung
+    if ($_SERVER['REMOTE_ADDR'] !== $_SERVER['SERVER_ADDR']) {
+        header("Location: denied.php");
+        exit;
+    }
 }
 
 // **2️⃣ CUPS-Job-ID & Gedruckte Seiten aus GET-Parameter holen**
-if (!isset($_GET['cups_id'])) {
-    die("❌ Fehler: Keine CUPS-ID angegeben.");
+if (isset($argv[1])) {
+    $cups_id = intval($argv[1]);
 }
 
-$cups_id = intval($_GET['cups_id']); // Absicherung gegen Injection
+// Falls keine CUPS-ID übergeben wurde → Fehler
+if (!$cups_id) {
+    die("❌ Fehler: Keine CUPS-ID angegeben.\n");
+}
+
+echo "✅ Verarbeitung für CUPS-Job-ID: $cups_id\n";
 
 // **3️⃣ Gedruckte Seiten aus page_log ermitteln**
 function getPrintedPages($cups_id) {
     $log_file = "/var/log/cups/page_log";
+
     if (!file_exists($log_file)) {
-        return 0; // Falls der Log nicht existiert, 0 zurückgeben
+        return 0; // Falls die Log-Datei nicht existiert, 0 zurückgeben
     }
-    $command = "grep 'job-id=$cups_id' $log_file | awk '{print $5}'";
+
+    // grep-Befehl zum Filtern der richtigen Zeile
+    $command = "grep 'CUPS_ID:$cups_id ' $log_file";
     exec($command, $output);
-    return count($output);
+
+    if (!empty($output)) {
+        // Extrahiere die Seitenzahl aus der gefilterten Zeile
+        foreach ($output as $line) {
+            if (strpos($line, "PAGES:") !== false) {
+                $pages = explode("PAGES:", $line);
+                if (isset($pages[1])) {
+                    return intval(trim($pages[1]));
+                }
+            }
+        }
+    }
+
+    return 0; // Falls keine gültige Seitenzahl gefunden wurde
 }
 
+
+// **Test-Fall mit CUPS-ID**
 $gesamtseiten = getPrintedPages($cups_id);
+echo "📄 Ergebnis: Gedruckte Seiten für CUPS_ID $cups_id = $gesamtseiten\n";
+
 
 // **4️⃣ Status ermitteln (1 = abgeschlossen, 2 = abgebrochen)**
 $status = ($gesamtseiten > 0) ? 1 : 2;
