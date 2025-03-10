@@ -1304,6 +1304,24 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   transform: scale(1.02);
 }
 
+/* Container für Zurück-Button und Druckernamen */
+.printer_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+/* Druckername rechtsbündig */
+.printer_name {
+  font-size: 20px;
+  color: white;
+  font-weight: bold;
+}
+
 /* Fehlernachricht */
 .printer_error-message {
   color: red;
@@ -1355,6 +1373,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 }
 
 .printer_content {
+  width: 85%;
   flex-grow: 1; /* Lässt diesen Bereich den freien Platz nutzen */
 }
 

@@ -49,8 +49,6 @@ function getPrintedPages($cups_id) {
     return 0; // Falls keine gültige Seitenzahl gefunden wurde
 }
 
-
-// **Test-Fall mit CUPS-ID**
 $gesamtseiten = getPrintedPages($cups_id);
 echo "📄 Ergebnis: Gedruckte Seiten für CUPS_ID $cups_id = $gesamtseiten\n";
 
