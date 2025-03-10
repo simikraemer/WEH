@@ -383,11 +383,11 @@ function load_menu() {
 
 
             ## Seiten im Aufbau ##
-            echo '<div class="header-menu">';
-            echo '<div class="header-menu-item">';
-            echo '<button class="center-btn" onclick="window.location.href=\'Printer.php\';" style="white-space: nowrap;">Printer</button>';
-            echo '</div>';
-            echo '</div>';
+            #echo '<div class="header-menu">';
+            #echo '<div class="header-menu-item">';
+            #echo '<button class="center-btn" onclick="window.location.href=\'Printer.php\';" style="white-space: nowrap;">Printer</button>';
+            #echo '</div>';
+            #echo '</div>';
 
 
             echo '<div class="header-menu">';
@@ -542,6 +542,17 @@ function load_menu() {
                 echo '</div>';
                 echo '</div>';
             }
+        }
+
+        ### BETA TEST ###
+        
+        if ($_SESSION['NetzAG'] || $_SESSION['Vorstand']) {
+            echo '<span class="vertical-line"></span>';    
+            echo '<div class="header-menu">';
+            echo '<div class="header-menu-item">';
+            echo '<button class="center-btn" onclick="window.location.href=\'Printer.php\';" style="white-space: nowrap;">Printer</button>';
+            echo '</div>';
+            echo '</div>';
         }
         
         echo '<span class="vertical-line"></span>';    

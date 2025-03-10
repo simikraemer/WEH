@@ -9,7 +9,9 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
-if (auth($conn) && ($_SESSION['valid'])) {
+#Beta Test
+#if (auth($conn) && ($_SESSION['valid'])) {
+if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["TvK-Sprecher"])) {
     load_menu();
 
     $step = isset($_POST['step']) ? $_POST['step'] : 'drucker_waehlen';
