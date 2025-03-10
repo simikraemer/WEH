@@ -428,9 +428,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
         $output = '<div class="printer_back_container">';
         $output .= '<div class="printer_header">';
         $output .= '<form method="POST" action="">';
-        $output .= '<button type="submit" name="step" value="drucker_waehlen" class="printer_button">⬅ Zurück</button>';
+        $output .= '<button type="submit" name="step" value="dokument_upload" class="printer_button">⬅ Zurück</button>';
         $output .= '</form>';
-        $output .= '<span class="printer_name">' . ($aktueller_drucker ? htmlspecialchars($aktueller_drucker) : 'Kein Drucker gewählt') . '</span>';
+        $output .= '<div class="printer_button printer_name">' . ($aktueller_drucker ? htmlspecialchars($aktueller_drucker) : 'Kein Drucker gewählt') . '</div>';
         $output .= '</div>';
         $output .= '</div>';        
         echo $output;            
@@ -449,22 +449,25 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo '<form method="POST" class="printer_form">';
     
         // 1️⃣ Papierformat (Dropdown für alle Drucker)
-        echo '<label for="papierformat" class="printer_h3">Papierformat:</label>';
-        echo '<select name="papierformat" id="papierformat" class="printer_select">';
+        echo '<input type="hidden" name="papierformat" value="A4">';
+######### A3 noch nicht implementiert
+#        echo '<label for="papierformat" class="printer_h3">Papierformat:</label>';
+#        echo '<select name="papierformat" id="papierformat" class="printer_select">';
+#
+#        // A4 (immer vorhanden)
+#        echo '<option value="A4" ' . ($A4empty ? 'disabled class="printer_option_disabled"' : '') . 
+#        ($defaultSelection == "A4" ? ' selected' : '') . '>A4' . ($A4empty ? ' (nicht verfügbar)' : '') . '</option>';
+#
+#        // A3 nur anzeigen, aber deaktivieren für Drucker != 2
+#        if ($drucker_id == 2) {
+#            echo '<option value="A3" ' . ($A3empty ? 'disabled class="printer_option_disabled"' : '') . 
+#                ($defaultSelection == "A3" ? ' selected' : '') . '>A3' . ($A3empty ? ' (nicht verfügbar)' : '') . '</option>';
+#        } else {
+#            echo '<option value="A3" class="printer_option_disabled" disabled>A3 (nicht verfügbar)</option>';
+#        }
+#
+#        echo '</select>';
 
-        // A4 (immer vorhanden)
-        echo '<option value="A4" ' . ($A4empty ? 'disabled class="printer_option_disabled"' : '') . 
-        ($defaultSelection == "A4" ? ' selected' : '') . '>A4' . ($A4empty ? ' (nicht verfügbar)' : '') . '</option>';
-
-        // A3 nur anzeigen, aber deaktivieren für Drucker != 2
-        if ($drucker_id == 2) {
-            echo '<option value="A3" ' . ($A3empty ? 'disabled class="printer_option_disabled"' : '') . 
-                ($defaultSelection == "A3" ? ' selected' : '') . '>A3' . ($A3empty ? ' (nicht verfügbar)' : '') . '</option>';
-        } else {
-            echo '<option value="A3" class="printer_option_disabled" disabled>A3 (nicht verfügbar)</option>';
-        }
-
-        echo '</select>';
 
         $duplexInfo = "Beidseitiger Druck: Kostengünstiger als Simplex und spart Papier.";
         $simplexInfo = "Simplex-Druck: Jede Seite wird auf ein eigenes Blatt gedruckt.";         
@@ -498,7 +501,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '<input type="hidden" name="graustufen" value="true">';
         }
                     
-        echo '<button type="submit" name="step" value="vorschau" class="printer_button">Weiter ➡</button>';
+        echo '<button type="submit" name="step" value="vorschau" class="printer_button" style="margin-bottom: 50px;">Weiter ➡</button>';
     
         echo '</form>';
         echo "</div>";
@@ -530,9 +533,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
         $output = '<div class="printer_back_container">';
         $output .= '<div class="printer_header">';
         $output .= '<form method="POST" action="">';
-        $output .= '<button type="submit" name="step" value="drucker_waehlen" class="printer_button">⬅ Zurück</button>';
+        $output .= '<button type="submit" name="step" value="druckoptionen" class="printer_button">⬅ Zurück</button>';
         $output .= '</form>';
-        $output .= '<span class="printer_name">' . ($aktueller_drucker ? htmlspecialchars($aktueller_drucker) : 'Kein Drucker gewählt') . '</span>';
+        $output .= '<div class="printer_button printer_name">' . ($aktueller_drucker ? htmlspecialchars($aktueller_drucker) : 'Kein Drucker gewählt') . '</div>';
         $output .= '</div>';
         $output .= '</div>';        
         echo $output;                 
@@ -687,6 +690,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
         }
 
         echo "</div>";
+
+        $isVorstand = isset($_SESSION["Vorstand"]) && $_SESSION["Vorstand"] === true;
+        $isNetzAG = isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true;
         
         // **Seitenanzahl aus PDF holen**
         $seiten = get_pdf_page_count($merged_pdf_path);
@@ -724,8 +730,29 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo "<h3 class='printer_h3'>❌ Nicht genug Papier im Drucker!</h3>";
         }
     
-        // Weiter- und Zurück-Buttons
-        echo "<form method='POST'>";
+        echo "<form method='POST' class='printer_form'>";
+
+        echo "<div class='printer_option_container'>";
+        if ($isVorstand || $isNetzAG) {            
+            if ($isVorstand) {
+                echo '<label class="printer_label">
+                        <input type="radio" name="dummyuser" value="492" class="printer_radio">
+                        <span class="printer_h1">Abrechnen über Vorstand</span>
+                    </label>';
+            }
+            if ($isNetzAG) {
+                echo '<label class="printer_label">
+                        <input type="radio" name="dummyuser" value="472" class="printer_radio">
+                        <span class="printer_h1">Abrechnen über NetzAG</span>
+                    </label>';
+            }
+            echo '<label class="printer_label">
+                    <input type="radio" name="dummyuser" value="'.$_SESSION["uid"].'" class="printer_radio" checked>
+                    <span class="printer_h1">Abrechnen über deinen User</span>
+                </label>';
+        }
+        echo "</div>"; // Ende printer_option_container
+
         echo "<input type='hidden' name='papierformat' value='" . htmlspecialchars($papierformat, ENT_QUOTES, 'UTF-8') . "'>";
         echo "<input type='hidden' name='druckmodus' value='" . htmlspecialchars($druckmodus, ENT_QUOTES, 'UTF-8') . "'>";
         echo "<input type='hidden' name='anzahl' value='" . (int)$anzahl_kopien . "'>";
@@ -736,7 +763,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         
         // Button deaktivieren oder entfernen
         if ($possible) {
-            echo "<button type='submit' name='step' value='drucken' class='printer_button' style='margin-bottom: 30px;'>Druckauftrag senden ➡</button>";
+            echo "<button type='submit' name='step' value='drucken' class='printer_button' style='margin-bottom: 50px;'>Druckauftrag senden ➡</button>";
         }
         
         echo "</form>";
@@ -759,6 +786,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         $merged_pdf_path = $_POST['merged_pdf_path'] ?? '';
         $gesamtpreis = $_POST['gesamtpreis'] ?? '';
         $druID = $_SESSION['drucker_id'] ?? null;
+        $printjob_uid = $_POST['dummyuser'] ?? $_SESSION['uid'];
     
         foreach ($drucker as $d) {
             if ($d['id'] == $druID) {
@@ -770,12 +798,12 @@ if (auth($conn) && ($_SESSION['valid'])) {
     
         $uploadedFileNames = array_column($_SESSION['uploaded_files'], 'name');
         $printJobTitle = !empty($uploadedFileNames) ? implode(" + ", $uploadedFileNames) : "Unbenannter Druckauftrag";
-        $username = escapeshellarg($_SESSION["username"] ?? "Unbekannt"); // Standardwert, falls nicht gesetzt
+        $printjobUser = "UID" . $printjob_uid;
 
         // CUPS Druckbefehl
         $print_command = "/usr/bin/lp -d $druName -n $anzahl_kopien -o media=$papierformat -o sides=" .
             ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') .
-            " -U $username -t $printJobTitle -- " . escapeshellarg($merged_pdf_path);
+            " -U $printjobUser -t $printJobTitle -- " . escapeshellarg($merged_pdf_path);
 
         // Druckauftrag an CUPS senden
         exec($print_command . " 2>&1", $output, $return_var);
@@ -794,11 +822,11 @@ if (auth($conn) && ($_SESSION['valid'])) {
         }
 
         $insert_sql = "INSERT INTO weh.printjobs 
-        (uid, tstamp, status, title, planned_pages, duplex, grey, din, cups_id, drucker) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        (uid, tstamp, status, title, planned_pages, duplex, grey, din, cups_id, drucker, real_uid) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
         $insert_var = array(
-            $_SESSION["uid"],                   
+            $printjob_uid,                   
             time(),                             
             0,                                  
             $printJobTitle,                     
@@ -807,12 +835,13 @@ if (auth($conn) && ($_SESSION['valid'])) {
             $graustufen ? 1 : 0,               
             $papierformat,                     
             $cups_id,                          
-            $druName                            
+            $druName,
+            $_SESSION["uid"]       
         );
         
         // Prepared Statement ausführen
         $stmt = mysqli_prepare($conn, $insert_sql);
-        mysqli_stmt_bind_param($stmt, "iiisiiisis", ...$insert_var);
+        mysqli_stmt_bind_param($stmt, "iiisiiisisi", ...$insert_var);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
 
@@ -830,7 +859,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         // Ladeanimation
         echo "<div class='printer_loading'>
             <p>Sie werden weitergeleitet...</p>
-            <div class='spinner'></div>
+            <div class='printer_spinner'></div>
         </div>";
 
         // JavaScript für den automatischen Weiterleitungs-POST nach 2 Sekunden
@@ -851,29 +880,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
         echo "</div>"; // Schließt printer_container
         echo "</div>"; // Schließt printer_body
-
-        echo "<style>
-            .printer_loading {
-                margin-top: 20px;
-                text-align: center;
-                font-size: 18px;
-            }
-    
-            .spinner {
-                margin: 10px auto;
-                width: 40px;
-                height: 40px;
-                border: 5px solid rgba(255, 255, 255, 0.3);
-                border-top: 5px solid white;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-    
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>";
             
         echo "</div>";
 
