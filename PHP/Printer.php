@@ -19,7 +19,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     $drucker = [
         ["id" => 1, "turm" => "WEH", "farbe" => "Schwarz-Weiß", "modell" => "WEH Schwarz-Weiß", "ip" => "137.226.141.5", "name" => "WEHsw"],
         ["id" => 2, "turm" => "WEH", "farbe" => "Farbe", "modell" => "WEH Farbe", "ip" => "137.226.141.193", "name" => "WEHfarbe"],
-        ["id" => 3, "turm" => "TvK", "farbe" => "Schwarz-Weiß", "modell" => "TvK Schwarz-Weiß", "ip" => "137.226.141.5", "name" => "TvKsw"]
+        ["id" => 3, "turm" => "TvK", "farbe" => "Schwarz-Weiß", "modell" => "TvK Schwarz-Weiß", "ip" => "todo", "name" => "TvKsw"]
     ];
 
     if ($step == 'drucker_waehlen') {
