@@ -342,7 +342,7 @@ if (auth($conn) && $_SESSION['valid']) {
         // Überprüfe, ob der Benutzer bereits abgestimmt hat
         $check_sql = "SELECT kandidat, count FROM bavotes WHERE uid = ? AND pollid = ?";
         $stmt = mysqli_prepare($conn, $check_sql);
-        mysqli_stmt_bind_param($stmt, "ii", $uid, $id);
+        mysqli_stmt_bind_param($stmt, "ii", $_SESSION["uid"], $id);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
     
