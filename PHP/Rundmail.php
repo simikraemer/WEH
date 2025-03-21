@@ -168,19 +168,19 @@ if (auth($conn) && $_SESSION['valid']) {
       echo '<div style="margin: 0 auto; text-align: center;">';
       echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
       $addressOptions = array(
-        'webmaster' => 'Webmaster Test', // Testing
-        'essential' => 'Essential [Türme]',
-        'important' => 'Important [Türme]',
-        'ags' => 'AG Mitglieder [Türme]',
-        'weh-essential' => 'Essential [WEH]',
-        'weh-important' => 'Important [WEH]',
-        'weh-community' => 'Community [WEH]',
-        'weh-ags' => 'AG Mitglieder [WEH]',
-        'tvk-essential' => 'Essential [TvK]',
-        'tvk-important' => 'Important [TvK]',
-        'tvk-community' => 'Community [TvK]',
-        'tvk-ags' => 'AG Mitglieder [TvK]',
-      );
+        'webmaster'       => 'Debug – Webmaster',
+        'essential'       => 'Türme – Essential',
+        'important'       => 'Türme – Important',
+        'ags'             => 'Türme – AG Mitglieder',
+        'weh-essential'   => 'WEH – Essential',
+        'weh-important'   => 'WEH – Important',
+        'weh-community'   => 'WEH – Community',
+        'weh-ags'         => 'WEH – AG Mitglieder',
+        'tvk-essential'   => 'TvK – Essential',
+        'tvk-important'   => 'TvK – Important',
+        'tvk-community'   => 'TvK – Community',
+        'tvk-ags'         => 'TvK – AG Mitglieder',
+      );    
       echo '<form method="post" action="Rundmail.php" id="mail_form" name="mail-form" style="text-align: center;">';
 
       echo '<label for="address" style="color: white; font-size: 25px;">Send to: </label>';
