@@ -226,7 +226,7 @@ function load_menu() {
         $rangestring = 'Eduroam [' . htmlspecialchars($userIP) . ']';
     } elseif (ip_in_range($userIP, $itcIPs)) {
         $ipToHostname = array(
-            '134.130.1.56' => 'ITC20103'
+            '134.130.0.99' => 'ITC20103'
         );
 
         if (array_key_exists($userIP, $ipToHostname)) {
