@@ -138,7 +138,7 @@ function auth($conn) {
         $sql = "SELECT users.uid, users.username, users.groups, users.sprecher, users.firstname, users.room, users.name, users.email, users.turm
         FROM users INNER JOIN macauth
         ON macauth.uid = users.uid 
-        WHERE (macauth.ip = ? and macauth.sublet = 0) OR users.subnet = ? LIMIT 1;";
+        WHERE ((macauth.ip = ? and macauth.sublet = 0) OR users.subnet = ?) AND users.uid IN (11,12,13) LIMIT 1;";
         $stmt = mysqli_prepare($conn, $sql);
         $ip = trim($ip);
         $subnet = trim($subnet);
