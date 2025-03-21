@@ -8,16 +8,7 @@ $conn = mysqli_connect(
     $mysql_config['password'],
     $mysql_config['database']
 );
-#mysqli_set_charset($conn,"utf8");
-
-$mysql_wehconfig = $config['wehphp'];
-$conn = mysqli_connect(
-    $mysql_wehconfig['host'],
-    $mysql_wehconfig['user'],
-    $mysql_wehconfig['password'],
-    $mysql_wehconfig['database']
-);
-#mysqli_set_charset($conn,"utf8");
+mysqli_set_charset($conn,"utf8");
 
 $mysql_waschconfig = $config['mysqlphpwasch'];
 $waschconn = mysqli_connect(
@@ -534,9 +525,10 @@ function load_menu() {
                 }
                 if ($agName === 'PartyAG') {
                     echo '<button onclick="window.location.href=\'AlumniListe.php\';" style="white-space: nowrap;">Alumni Liste</button> ';
-                    #echo '<button onclick="window.location.href=\'PartyNEP.php\';" style="white-space: nowrap;">NEP Orgateam</button> ';
-                    #echo '<button onclick="window.location.href=\'PartyWEHnachten.php\';" style="white-space: nowrap;">WEHnachten Orgateam</button> ';
                     echo '<button onclick="window.location.href=\'NEPmail.php\';">NEP-Mail</button> ';
+                }
+                if ($agName === 'SpieleAG') {
+                    echo '<button onclick="window.location.href=\'SpieleAGCode.php\';" style="white-space: nowrap;">Code setzen</button> ';
                 }
                 echo '</div>';
                 echo '</div>';
