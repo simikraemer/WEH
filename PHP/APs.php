@@ -398,7 +398,7 @@ if (auth($conn) && $_SESSION['NetzAG']) {
         echo '<tr><td>Hostname:</td><td><input type="text" name="hostname" value="' . htmlspecialchars($hostnameValue) . '" required></td></tr>';
         
         // IP
-        echo '<tr><td>IP:</td><td><input type="text" name="ip" value="' . htmlspecialchars($ip) . '" required></td></tr>';
+        echo '<tr><td>IP:</td><td><input type="text" name="ip" value="' . htmlspecialchars($ip) . '"' . ($nagios != 0 ? ' required' : '') . '></td></tr>';
         
         // MAC
         echo '<tr><td>MAC:</td><td><input type="text" name="mac" value="' . htmlspecialchars($mac) . '" required></td></tr>';
