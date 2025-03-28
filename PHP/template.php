@@ -473,6 +473,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'Switches.php\';">Switches</button> ';
                     echo '<button onclick="window.location.href=\'mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
                     echo '<button onclick="window.location.href=\'IPs.php\';" style="white-space: nowrap;">IP Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'IPhistory.php\';" style="white-space: nowrap;">IP Historie</button> ';
                 }
                 if ($agName === 'Vorstand') {                                        
                     echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
