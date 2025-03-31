@@ -1668,7 +1668,25 @@ function berechneBlaetterausSeiten($gesamtseiten, $druckmodus) {
     }
 }
 
+echo '<script>
+function copyToClipboard(btn, text) {
+    const originalText = btn.innerText;
+    const originalBG = btn.style.backgroundColor;
 
+    navigator.clipboard.writeText(text).then(function() {
+        // Visual feedback
+        btn.style.backgroundColor = "#11a50d";
+        btn.innerText = "Kopiert!";
+
+        setTimeout(() => {
+            btn.style.backgroundColor = "transparent";
+            btn.innerText = originalText;
+        }, 700);
+    }, function(err) {
+        console.error("Copy failed", err);
+    });
+}
+    </script>';
 
   
 ?>

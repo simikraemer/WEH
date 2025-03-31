@@ -514,57 +514,57 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   }
 
+  # DATEN EINHOLEN {
   
-  // Neue Anmeldungen
-  $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
-  $stmt = mysqli_prepare($conn, $sql);
-  mysqli_stmt_execute($stmt);
-  $anmeldungen = get_result($stmt);
-  $stmt->close();
-  $anm_box_color = empty($anmeldungen) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
-  $anm_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anmeldungen</p>";
+    // Neue Anmeldungen
+    $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $anmeldungen = get_result($stmt);
+    $stmt->close();
+    $anm_box_color = empty($anmeldungen) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
 
-  // Unklare Überweisungen
-  $sql = "SELECT id, name, betrag FROM unknowntransfers WHERE status = 0";
-  $stmt = mysqli_prepare($conn, $sql);
-  mysqli_stmt_execute($stmt);
-  $kontowecker = get_result($stmt);
-  $stmt->close();
-  $unk_box_color = empty($kontowecker) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
-  $unk_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine unklaren Überweisungen</p>";
+    // Unklare Überweisungen
+    $sql = "SELECT id, name, betrag FROM unknowntransfers WHERE status = 0";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $kontowecker = get_result($stmt);
+    $stmt->close();
+    $unk_box_color = empty($kontowecker) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
 
-  // PSK Only
-  $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
-  $stmt = mysqli_prepare($conn, $sql);
-  mysqli_stmt_execute($stmt);
-  $pskonly = get_result($stmt);
-  $stmt->close();
-  $psk_box_color = empty($pskonly) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
-  $psk_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anfragen</p>";
+    // PSK Only
+    $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $pskonly = get_result($stmt);
+    $stmt->close();
+    $psk_box_color = empty($pskonly) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
 
-  // Abmeldung
-  $sql = "SELECT a.id, u.room, u.turm FROM abmeldungen a JOIN users u ON a.uid=u.uid WHERE a.status = 1";
-  $stmt = mysqli_prepare($conn, $sql);
-  mysqli_stmt_execute($stmt);
-  $abm = get_result($stmt);
-  $stmt->close();
-  $abm_box_color = empty($abm) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
-  $abm_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Abmeldungen</p>";
+    // Abmeldung
+    $sql = "SELECT a.id, u.room, u.turm FROM abmeldungen a JOIN users u ON a.uid=u.uid WHERE a.status = 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $abm = get_result($stmt);
+    $stmt->close();
+    $abm_box_color = empty($abm) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+
+  # }
+
   
-
+  $empty_msg = "<p style='color: white; font-size: 20px; margin-top: 00px;'>✅</p>";
 
 
   #### Start FLEXBOX
-  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 80%; padding: 20px; box-sizing: border-box;">';
+  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
 
   // Anmeldungen-Box
   echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $anm_box_color; margin-bottom: 50px;'>";
-  echo "<span style='color: white; font-size: 30px;'>Neue Anmeldungen:</span><br><br>";
+  echo "<span style='color: white; font-size: 30px;'>Anmeldungen</span><br><br>";
   echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="Anmeldung">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
 
   if (empty($anmeldungen)) {
-      echo $anm_empty_msg;
+      echo $empty_msg;
   } else {
       foreach ($anmeldungen as $entry) {
           $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
@@ -575,12 +575,12 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   // Unknown Transfers BOX
   echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $unk_box_color; margin-bottom: 50px;'>";
-  echo "<span style='color: white; font-size: 30px;'>Unklare Transfers:</span><br><br>";
+  echo "<span style='color: white; font-size: 30px;'>Transfers</span><br><br>";
   echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="UnknownTransfers">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
 
   if (empty($kontowecker)) {
-      echo $unk_empty_msg;
+      echo $empty_msg;
   } else {
       foreach ($kontowecker as $entry) {
           echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color: #11a50d;">' . htmlspecialchars($entry["name"]) . '</button>';
@@ -590,12 +590,12 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   // PSK Bpx
   echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $psk_box_color; margin-bottom: 50px;'>";
-  echo "<span style='color: white; font-size: 30px;'>PSK-Only Anfragen:</span><br><br>";
+  echo "<span style='color: white; font-size: 30px;'>PSK-Only</span><br><br>";
   echo '<form method="post"><input type="hidden" name="wayoflife" value="PSK">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
 
   if (empty($pskonly)) {
-      echo $psk_empty_msg;
+      echo $empty_msg;
   } else {
       foreach ($pskonly as $entry) {
           $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
@@ -606,12 +606,12 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   // ABM Bpx
   echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $abm_box_color; margin-bottom: 50px;'>";
-  echo "<span style='color: white; font-size: 30px;'>Abmeldungen:</span><br><br>";
+  echo "<span style='color: white; font-size: 30px;'>Abmeldungen</span><br><br>";
   echo '<form method="post"><input type="hidden" name="wayoflife" value="Abmeldung">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
 
   if (empty($abm)) {
-      echo $abm_empty_msg;
+      echo $empty_msg;
   } else {
       foreach ($abm as $entry) {
           $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
@@ -621,8 +621,6 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo '</div><br></form></div>';
 
   echo '</div>'; // Flex-Ende
-
-
 
   if (isset($_POST["id"]) && !isset($_POST["decision"]) && !isset($_POST["close"])) {
 
@@ -985,6 +983,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         $interfacename = "bewohnernetz";
         $wlc_url = "http://wlc.tvk.rwth-aachen.de/";
       }
+      $profileName = $pskturm . '-pskonly';
       
       echo '<div class="overlay"></div>
       <div class="anmeldung-form-container form-container">
@@ -993,46 +992,58 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
           </form>
           <br>
           <form method="post" name="formularpsk" id="formularpsk">
-        
+          
           <br><br>
-        <div style="text-align: center;">
-            <img src="'.$user["pfad"].'" alt="Bild" style="max-width: 400px; max-height: 400px; width: auto; height: auto;">
-        </div>
-
-          <br><a href=' . $wlc_url . ' target="_blank" class="white-text" style="font-size: 30px; text-align: center; display: block; margin: 0 auto;">Zum WLC</a>              
-              <br><br>
-              <span style="font-size: 20px; text-align: center; color: white; display: block; margin: 0 auto;">Was ihr im WLC unter Security->MAC Filtering->New eintragen müsst:</span><br>              
-              <input type="hidden" name="id" value="'.htmlspecialchars($id).'">
-              <label class="form-label">MAC Address:</label>
-              <input type="text" name="mac" class="form-input" value="'.htmlspecialchars($user["mac"]).'" readonly>
-              <label class="form-label">Profile Name:</label>
-              <input type="text" name="free" class="form-input" value="'.$pskturm.'-pskonly" readonly>
-              <label class="form-label">Beschreibung:</label>
-              <input type="text" name="beschreibung" class="form-input" value="'.htmlspecialchars($user["beschreibung"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").'" readonly>
-              <label class="form-label">IP Address:</label>
-              <input type="text" name="free" class="form-input" value="" readonly>
-              <label class="form-label">Interface Name:</label>
-              <input type="text" name="free" class="form-input" value="'.$interfacename.'" readonly>
-              <br>
-              <br>
-              <div class="form-group">           
-                  <label>
-                  <input type="radio" name="decision" value="psk">
-                  <span style="color:green; font-weight: bold;">Daten wurden im WLC eingetragen</span>
-                  </label>            
-                  <label>
-                  <input type="radio" name="decision" value="pskdeclined">
-                  <span style="color:red; font-weight: bold;">Abgelehnt</span>
-                  </label>
-                  <input type="hidden" name="reload" value="1">   
-                  <br>
-                  <br>           
-                  <span style="font-size: 15px; text-align: center; color: white; display: block; margin: 0 auto;">Bei Accept erhält der User eine automatisierte Mail mit Credentials und die MAC wird in macauth eingetragen.<br>Bei Decline wird NUR der Status der Anfrage geändert. </span><br>              
-                  <br>
-                  <input type="submit" value="Hau raus!" class="form-submit">
-              </div>
+          <div style="text-align: center;">
+              <img src="'.$user["pfad"].'" alt="Bild" style="max-width: 400px; max-height: 400px; width: auto; height: auto;">
+          </div>
+      
+          <br><a href="' . $wlc_url . '" target="_blank" class="white-text" style="font-size: 30px; text-align: center; display: block; margin: 0 auto;">Zum WLC</a>              
+          <br><br>
+          <span style="font-size: 20px; text-align: center; color: white; display: block; margin: 0 auto;">Was ihr im WLC unter Security->MAC Filtering->New eintragen müsst:</span><br>              
+          <input type="hidden" name="id" value="'.htmlspecialchars($id).'">';
+      
+          // Copy-Felder mit Labels und zentrierten Buttons
+          echo '
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px;">
+              <label class="form-label" style="color: white;">MAC Address:</label>
+              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["mac"]) . '\')">' . htmlspecialchars($user["mac"]) . '</button>
+      
+              <label class="form-label" style="color: white;">Profile Name:</label>
+              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . $profileName . '\')">' . $profileName . '</button>
+      
+              <label class="form-label" style="color: white;">Beschreibung:</label>
+              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["beschreibung"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '\')">' . htmlspecialchars($user["beschreibung"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '</button>
+      
+              <label class="form-label" style="color: white;">IP Address:</label>
+              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'\')"> </button>
+      
+              <label class="form-label" style="color: white;">Interface Name:</label>
+              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . $interfacename . '\')">' . $interfacename . '</button>
+          </div>';
+      
+          // Restliches Formular
+          echo '<br><br>
+          <div class="form-group">           
+              <label>
+              <input type="radio" name="decision" value="psk">
+              <span style="color:green; font-weight: bold;">Daten wurden im WLC eingetragen</span>
+              </label>            
+              <label>
+              <input type="radio" name="decision" value="pskdeclined">
+              <span style="color:red; font-weight: bold;">Abgelehnt</span>
+              </label>
+              <input type="hidden" name="reload" value="1">   
+              <br><br>           
+              <span style="font-size: 15px; text-align: center; color: white; display: block; margin: 0 auto;">
+                  Bei Accept erhält der User eine automatisierte Mail mit Credentials und die MAC wird in macauth eingetragen.<br>
+                  Bei Decline wird NUR der Status der Anfrage geändert.
+              </span><br><br>
+              <input type="submit" value="Hau raus!" class="form-submit">
+          </div>
           </form>
-      </div>';  
+      </div>';
+      
     } elseif ($wayoflife == "Abmeldung") { # Abmeldung
       
     $id = $_POST["id"];
@@ -1055,49 +1066,23 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
             <br><br>
             <div style="font-size: 30px; color: white; margin-bottom: 30px;">Folgende Überweisung tätigen:</div>';
 
-            // Datenzeile: IBAN
-            echo '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
-                    <span style="font-size: 20px; color: white;">IBAN: <strong>' . htmlspecialchars($user["iban"]) . '</strong></span>
-                    <button type="button" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["iban"]) . '\')" style="background: none; border: none; cursor: pointer; font-size: 18px; color: white;">📋</button>
-                  </div>';
+            // IBAN Button
+            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["iban"]) . '\')">' . htmlspecialchars($user["iban"]) . '</button>';
 
-            // Datenzeile: Name
-            echo '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
-                    <span style="font-size: 20px; color: white;">Name: <strong>' . htmlspecialchars($user["name"]) . '</strong></span>
-                    <button type="button" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["name"]) . '\')" style="background: none; border: none; cursor: pointer; font-size: 18px; color: white;">📋</button>
-                  </div>';
+            // Name Button
+            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["name"]) . '\')">' . htmlspecialchars($user["name"]) . '</button>';
 
-            // Datenzeile: Betrag
-            echo '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 40px;">
-                    <span style="font-size: 20px; color: white;">Betrag: <strong>' . htmlspecialchars($user["betrag"]) . ' €</strong></span>
-                    <button type="button" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["betrag"]) . '\')" style="background: none; border: none; cursor: pointer; font-size: 18px; color: white;">📋</button>
-                  </div>';
+            // Betrag Button
+            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["betrag"]) . '\')">' . htmlspecialchars($user["betrag"]) . ' €</button>';
 
             // Hidden Felder + Submit
             echo '<input type="hidden" name="abmeldung_id" value="' . $id . '">
-                  <input type="hidden" name="reload" value="1">
-                  
+                  <input type="hidden" name="reload" value="1">                  
                   <div style="display: flex; justify-content: center; margin-top: 20px;">
                       <button type="submit" name="abmeldung_finish" value="1" class="center-btn">Überwiesen</button>
                   </div>
         </form>
-    </div>
-
-    <script>
-    function copyToClipboard(btn, text) {
-        navigator.clipboard.writeText(text).then(function() {
-            const original = btn.innerHTML;
-            btn.innerHTML = "✅";
-            btn.disabled = true;
-            setTimeout(() => {
-                btn.innerHTML = original;
-                btn.disabled = false;
-            }, 1000);
-        }, function(err) {
-            console.error("Copy failed", err);
-        });
-    }
-    </script>';
+    </div>';
 
 
     }
