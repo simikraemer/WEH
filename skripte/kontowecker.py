@@ -36,12 +36,28 @@ def fetch_inbox_mails():
     except:
         pass  # keine Aktion notwendig
 
+    try:
+        mail.create("Sonstiges")  # wird ignoriert, wenn Ordner schon existiert
+    except:
+        pass  # keine Aktion notwendig
+
     # --- Jede Mail einzeln verarbeiten ---
     for num in mail_ids:
         # --- Mail abrufen & parsen ---
         status, msg_data = mail.fetch(num, '(RFC822)')
         raw_email = msg_data[0][1]
         msg = email.message_from_bytes(raw_email)
+
+        # --- Absender prüfen ---
+        from_address = email.utils.parseaddr(msg.get("From"))[1]
+
+        ### # TODO RICHTIGE KONTOWECKER MAIL ###
+        if from_address.lower() != "sparkasse@sparkasse.de": 
+
+            print(f"⚠️ Absender nicht autorisiert: {from_address} – Mail wird verschoben.")
+            mail.copy(num, "Sonstiges")
+            mail.store(num, '+FLAGS', '\\Deleted')  # markiere zum Löschen
+            continue  # überspringt den Rest dieser Mail
 
         subject, encoding = decode_header(msg["Subject"])[0]
         if isinstance(subject, bytes):
@@ -62,6 +78,8 @@ def fetch_inbox_mails():
         else:
             mail_body = msg.get_payload(decode=True).decode(msg.get_content_charset() or "utf-8", errors="replace")
 
+
+        ### # TODO RICHTIGE ÜBERPRÜFUNG ###
         # --- Daten extrahieren ---
         betreff_match = re.search(r"Überweisungsbetreff:\s*(\S+)", mail_body)
         betrag_match = re.search(r"Betrag:\s*([\d.,]+)", mail_body)
