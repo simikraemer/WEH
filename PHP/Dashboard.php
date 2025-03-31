@@ -548,6 +548,99 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $stmt->close();
     $abm_box_color = empty($abm) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
 
+
+    
+
+    $kassen = [
+      72 => ["name" => "Netzkonto", "typ" => "online"],
+      69 => ["name" => "PayPal", "typ" => "online", "paypal" => true],
+      1  => ["name" => "Netzbarkasse 1", "typ" => "bar", "db_name" => "kasse_netz1"],
+      2  => ["name" => "Netzbarkasse 2", "typ" => "bar", "db_name" => "kasse_netz2"],
+    ];
+    
+    $gesamtsumme = 0;
+    $rücklagen_netz = 30000;
+    
+    // Netzkassen durchgehen
+    foreach ($kassen as $key => &$kasse) {
+        if ($kasse["typ"] === "online") {
+            if (!empty($kasse["paypal"])) {
+                $sql = "SELECT SUM(
+                            CASE
+                                WHEN betrag = 5 THEN 4.92
+                                WHEN betrag = 10 THEN 9.84
+                                WHEN betrag = 20 THEN 19.35
+                                WHEN betrag = 30 THEN 29.20
+                                WHEN betrag = 40 THEN 39.05
+                                WHEN betrag = 50 THEN 48.90
+                                WHEN betrag = 75 THEN 73.53
+                                WHEN betrag = 100 THEN 98.15
+                                ELSE betrag
+                            END
+                        ) FROM weh.transfers WHERE kasse = ?";
+            } else {
+                $sql = "SELECT SUM(betrag) FROM weh.transfers WHERE kasse = ?";
+            }
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "i", $key);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $summe);
+            if (mysqli_stmt_fetch($stmt)) {
+                $kasse["summe"] = $summe;
+                $gesamtsumme += $summe;
+            }
+            $stmt->close();
+        }
+    
+        if ($kasse["typ"] === "bar") {
+            // Benutzername für Barkasse holen
+            $sql = "SELECT u.name FROM weh.constants c JOIN weh.users u ON c.wert = u.uid WHERE c.name = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "s", $kasse["db_name"]);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $username);
+            if (mysqli_stmt_fetch($stmt)) {
+                $kasse["username"] = $username;
+            }
+            $stmt->close();
+    
+            // Betrag holen
+            $sql = "SELECT SUM(betrag) FROM weh.barkasse WHERE kasse = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "i", $key);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $summe);
+            if (mysqli_stmt_fetch($stmt)) {
+                $kasse["summe"] = $summe;
+                $gesamtsumme += $summe;
+            }
+            $stmt->close();
+        }
+    }
+    
+    // Userboundsumme
+    $sql = "
+        SELECT SUM(subquery.gesamtsumme) AS gesamtsumme_aller_benutzer
+        FROM (
+            SELECT SUM(t.betrag) AS gesamtsumme
+            FROM weh.users u
+            JOIN weh.transfers t ON t.uid = u.uid
+            WHERE u.pid IN (11, 12, 13)
+            GROUP BY u.uid
+            HAVING gesamtsumme > 0
+        ) AS subquery;
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $userboundsumme);
+    mysqli_stmt_fetch($stmt);
+    $stmt->close();
+    
+    // Netzbudget berechnen
+    $netzbudget = $kassen[72]["summe"] - $rücklagen_netz - $userboundsumme + $kassen[1]["summe"] + $kassen[2]["summe"] + $kassen[69]["summe"];
+
+    unset($kasse);
+ 
   # }
 
   
@@ -621,6 +714,49 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo '</div><br></form></div>';
 
   echo '</div>'; // Flex-Ende
+
+
+  echo "<hr>";
+
+  echo '<div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">';
+  
+      // 🔹 Linke Spalte: Barkassen
+      echo '<div style="flex: 1; text-align: center;">';
+      foreach ([1,2] as $key) {
+          $kasse = $kassen[$key];
+          echo '<div style="margin-bottom: 30px; color: white;">';
+          echo '<div style="font-size: 30px;">' . $kasse["name"] . '</div>';
+          echo '<div style="font-size: 20px;">' . $kasse["username"] . '</div>';
+          echo '<div style="font-size: 40px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €</div>';
+          echo '</div>';
+      }
+      echo '</div>';
+  
+      // 🔸 Zentrum: Budget
+      echo '<div style="flex: 1; text-align: center; color: white;">';
+      echo '<div style="font-size: 60px; margin-bottom: 10px;">Netzwerk-AG Budget</div>';
+      echo '<div style="font-size: 20px; margin-bottom: 10px;">- (' .
+          number_format($userboundsumme, 2, ',', '.') . ' € Userkonten + ' .
+          number_format($rücklagen_netz, 0, ',', '.') . ' € Rücklagen)' .
+          '</div>';
+      echo '<div style="font-size: 90px;">' . number_format($netzbudget, 2, ',', '.') . ' €</div>';
+      echo '</div>';
+  
+      // 🔹 Rechte Spalte: Onlinekassen
+      echo '<div style="flex: 1; text-align: center;">';
+      foreach ([72, 69] as $key) {
+          $kasse = $kassen[$key];
+          echo '<div style="margin-bottom: 30px; color: white;">';
+          echo '<div style="font-size: 40px;">' . $kasse["name"] . '</div>';
+          echo '<div style="font-size: 50px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €</div>';
+          echo '</div>';
+      }
+      echo '</div>';
+  
+  echo '</div>';
+  
+
+
 
   if (isset($_POST["id"]) && !isset($_POST["decision"]) && !isset($_POST["close"])) {
 
