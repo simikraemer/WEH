@@ -120,11 +120,6 @@ if (auth($conn) && $_SESSION['valid']) {
           <input type="date" name="dod" class="form-input" required>
           <br>
           <br>
-          <input type="checkbox" onclick="ibanFunction()" id="iban-check" name="iban-check">
-          <label for="iban-check" class="form-label" >I want the remaining balance to be paid out in cash and I will visit the next Netzwerk-AG consultation hour to pick it up.</label>
-          <p style="color:red; text-align: center;"><sub>There is a ' . htmlspecialchars($abmeldekosten) . '€ fee for the IBAN method</sub></p>
-          <br>
-          <br>
           <label id="iban-label" class="form-label">IBAN:</label>
           <input type="text" id="iban" name="iban" class="form-input" value="" required>
           <input type="checkbox" name="email_account">
@@ -132,10 +127,10 @@ if (auth($conn) && $_SESSION['valid']) {
           <br>
           <br>
           <input type="checkbox" onclick="alumniFunction()" id="alumni-check" name="alumni">
-          <label for="alumni" id="alumni" class="form-label" >I want to receive the WEH-Alumni-Newsletter (only important mails, dont worry about spam)</label>
+          <label for="alumni" id="alumni" class="form-label" >I want to receive WEH Alumni-Mails (Info/Invitation for Big Events)</label>
           <br>
           <br>
-          <label class="form-label" id="forwardemail-label" hidden>E-Mail for Newsletter:</label>
+          <label class="form-label" id="forwardemail-label" hidden>E-Mail for Alumni-Mails:</label>
           <input type="text" name="forwardemail" id="forwardemail" class="form-input" value="" hidden>
           <label class="form-label">Password:</label>
           <input type="password" name="pwhaus" class="form-input" required>

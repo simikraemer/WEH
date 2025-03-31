@@ -81,9 +81,11 @@ def abmeldung():
         if bezahlart == 1:  # "Abmeldung abgeschlossen"
             if betrag > 0:
                 # Netzsprecher erhält Mail mit Überweisungsaufforderung des Betrags
-                kontomail(betrag, iban, name)
-                print("Kontomail gesendet für Betrag:", betrag)
-            status = 2
+                # 31.03.2025 - Keine Kontomail mehr, sondern Verwaltung über Anmeldung.php
+                #kontomail(betrag, iban, name)
+                #print("Kontomail gesendet für Betrag:", betrag)
+                print("Fiji hat den übelsten Swag!")
+            status = 1
             print("Status gesetzt auf 2 (Abmeldung abgeschlossen) für UID:", uid)
         elif bezahlart == 0:  # "Barzahlung ausstehend"
             status = 1
