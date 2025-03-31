@@ -1,5 +1,43 @@
 <?php
   session_start();
+  require('conn.php');
+
+  $suche = FALSE;
+  
+  if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['search'])) {
+    $searchTerm = trim($_GET['search']);
+    if (!empty($searchTerm)) {
+        $suche = TRUE;
+        $searchTerm = mysqli_real_escape_string($conn, $searchTerm);
+        if (ctype_digit($searchTerm)) {
+          $sql = "SELECT uid, name, username, room, oldroom, turm, groups FROM users WHERE
+                  (pid in (11,64) AND (name LIKE '%$searchTerm%' OR 
+                   (room = '$searchTerm') OR 
+                   (oldroom = '$searchTerm')))
+                   ORDER BY FIELD(turm, 'weh', 'tvk'), room";
+        } else {
+            // Wenn $searchTerm keine gültige Zahl ist, keine Suche in room und oldroom durchführen
+            $sql = "SELECT uid, name, username, room, oldroom, turm, groups FROM users WHERE 
+                    (pid in (11,64) AND (name LIKE '%$searchTerm%'))
+                   ORDER BY FIELD(turm, 'weh', 'tvk'), room";
+        }
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $uid, $name, $username, $room, $oldroom, $turm, $groups);
+        $searchedusers = array();
+        while (mysqli_stmt_fetch($stmt)) {
+            $searchedusers[$uid][] = array("uid" => $uid, "name" => $name, "username" => $username, "room" => $room, "oldroom" => $oldroom, "turm" => $turm, "groups" => $groups);
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode($searchedusers);
+    } else {
+        echo json_encode([]); // Senden einer leeren JSON-Antwort, wenn der Suchbegriff leer ist
+    }
+    exit;
+  }
+
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -40,6 +78,56 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   $mailserverIP = $mailconfig['ip'];
 
   if (isset($_POST["reload"]) && $_POST["reload"] == 1) { // Notwendig, damit Seite aktualisieren nicht den Post erneut schickt
+
+    ### Unbekannten Transfer ausgewählt ###
+    if (isset($_POST["transfer_zuweisen_check"])) {
+      if ($_POST["transfer_zuweisen_check"] == "netz") {
+          $uid = 472;
+      } elseif ($_POST["transfer_zuweisen_check"] == "haus") {
+          $uid = 492;
+      } elseif ($_POST["transfer_zuweisen_check"] == "user") {
+          $uid = intval($_POST["selected_uid"]);
+      } else {
+          // Unbekannter Wert
+          exit("Ungültiger Zuweisungswert.");
+      }
+
+      $transfer_id = intval($_POST["transfer_id"]);
+
+      // Hole ursprüngliche Transferdaten
+      $stmt = mysqli_prepare($conn, "SELECT betrag, netzkonto, betreff FROM unknowntransfers WHERE id = ?");
+      mysqli_stmt_bind_param($stmt, "i", $transfer_id);
+      mysqli_stmt_execute($stmt);
+      mysqli_stmt_bind_result($stmt, $betrag, $netzkonto, $betreff);
+      mysqli_stmt_fetch($stmt);
+      mysqli_stmt_close($stmt);
+
+      // Weiterverarbeitung
+      $betrag = floatval(str_replace(",", ".", $betrag));
+      $konto = 4;
+      $kasse = ($netzkonto == 1) ? 72 : 92;
+      $beschreibung = "Überweisung";
+      $zeit = time();
+      $zeit_formatiert = date("d.m.Y H:i");
+      $changelog = "[" . $zeit_formatiert . "] Insert durch Kontowecker\n";
+      $agent = $_SESSION["uid"]; // Der bearbeitende Admin/User
+
+      // Transfer bestätigen
+      $confirm_sql = "UPDATE unknowntransfers SET status = 1, uid = ?, agent = ? WHERE id = ?";
+      $stmt_confirm = mysqli_prepare($conn, $confirm_sql);
+      mysqli_stmt_bind_param($stmt_confirm, "iii", $uid, $agent, $transfer_id);
+      mysqli_stmt_execute($stmt_confirm);
+      mysqli_stmt_close($stmt_confirm);
+
+      // Transfer in transfers einfügen
+      $insert_sql = "INSERT INTO transfers (uid, tstamp, beschreibung, konto, kasse, betrag, changelog) VALUES (?, ?, ?, ?, ?, ?, ?)";
+      $stmt_insert = mysqli_prepare($conn, $insert_sql);
+      mysqli_stmt_bind_param($stmt_insert, "iisiids", $uid, $zeit, $beschreibung, $konto, $kasse, $betrag, $changelog);
+      mysqli_stmt_execute($stmt_insert);
+      mysqli_stmt_close($stmt_insert);
+    }
+
+
     if (isset($_POST["decision"]) && isset($_POST["id"])) {
       if($_POST["decision"] == "accept") { 
         $kommentar = $_POST["kommentar"];
@@ -424,7 +512,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   }
 
-  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 80%; padding: 20px; box-sizing: border-box;">';
+  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
 
     // Linke Box: Neue Anmeldungen
     $status0 = false; // Initialstatus für neue Anmeldungen
@@ -463,6 +551,44 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       }
       echo '</form>';
     echo '</div>'; // Ende der linken Box
+
+    // Mittlere Box: Neue Anmeldungen
+    $statuskontowecker = false; // Initialstatus für neue Anmeldungen
+    $sql = "SELECT id, name, betrag FROM unknowntransfers WHERE status = 0";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    $result = get_result($stmt);
+    $stmt->close();
+    
+    // Überprüfe, ob die Abfrage Ergebnisse enthält
+    if (empty($result)) {
+        $center_box_color = "rgba(17, 165, 13, 0.7)"; // Grün mit Transparenz, wenn leer
+        $center_no_requests_text = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine unklaren Überweisungen</p>";
+    } else {
+        $center_box_color = "rgba(0, 0, 0, 0.7)"; // Schwarz, wenn Ergebnisse vorhanden
+        $center_no_requests_text = "";
+    }
+    
+    echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $center_box_color; margin-bottom: 50px;'>";
+      echo "<span style='color: white; font-size: 30px;'>Unklare Überweisungen:</span><br><br>";
+      echo '<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="333">';
+      echo '<div style="max-width: 300px; margin: 0 auto;">';     
+        if (empty($result)) {
+          // Zeige den Text, wenn keine Ergebnisse vorhanden sind
+          echo $center_no_requests_text;
+        } else { 
+          while ($entry = array_shift($result)) {
+              $btn_color = '#11a50d';
+              echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["name"], 4, '0', STR_PAD_LEFT)) . '</button>';
+              $statuskontowecker = true;
+          }
+        }
+      echo '</div>';
+      if ($statuskontowecker) {
+          echo "<br>";
+      }
+      echo '</form>';
+    echo '</div>'; // Ende der mittleren Box
     
     // Rechte Box: PSK-Only Anfragen
     $statuspsk = false; // Initialstatus für PSK-Only Anfragen
@@ -685,6 +811,164 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         </form>
         </div>');
   
+    } elseif ($wayoflife == 333) { # PSK
+      $id = $_POST["id"];
+      $sql = "SELECT * FROM unknowntransfers WHERE id = ?";
+      $stmt = mysqli_prepare($conn, $sql);
+      mysqli_stmt_bind_param($stmt, "i", $id);
+      mysqli_stmt_execute($stmt);
+      $result = get_result($stmt);
+      $transfer = array_shift($result);
+      $stmt->close();
+      ?>
+      
+      <div class="overlay"></div>
+      <div class="anmeldung-form-container form-container" style="min-width: 500px;">
+          <form method="post">
+              <button type="submit" name="close" value="close" class="close-btn">X</button>
+          </form>
+          <br>
+
+          <form method="post" name="transferform" id="transferform" style="text-align: center;">
+
+              <br><br>
+              <div style="text-align: center;">
+                  <span style="font-size: 30px; color: white;">Unklare Zahlung</span>
+              </div>
+
+              <br><br>
+              <span style="font-size: 20px; color: white; display: block;">
+                  Name: <strong><?= htmlspecialchars($transfer['name']) ?></strong>
+              </span>
+              <span style="font-size: 20px; color: white; display: block;">
+                  Betreff: <strong><?= htmlspecialchars($transfer['betreff']) ?></strong>
+              </span>
+              <span style="font-size: 20px; color: white; display: block;">
+                 <strong><?= $transfer['netzkonto'] ? "Netzkonto" : "Hauskonto" ?></strong>
+              </span>
+              <span style="font-size: 20px; color: white; display: block;">
+                  Betrag: <strong><?= htmlspecialchars($transfer['betrag']) ?> €</strong>
+              </span>
+
+              <br><hr style="border: 1px solid white; width: 80%;"><br>
+
+              <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 20px;">
+                  <button type="button" class="small-btn" onclick="selectDummy(472, 'Netz')">Netz</button>
+                  <button type="button" class="small-btn" onclick="selectDummy(492, 'Haus')">Haus</button>
+              </div>
+
+              <label for="user-search" class="form-label" style="color: white; font-size: 18px;">Nutzer suchen:</label>
+              <input type="text" id="user-search" placeholder="Name oder Zimmer..." autocomplete="off"
+                    style="padding: 10px; font-size: 16px; width: 80%; text-align: center;">
+
+              <div id="search-results" style="text-align: center; color: white; margin-top: 10px;"></div>
+
+              <input type="hidden" name="selected_uid" id="selected-uid">
+              <input type="hidden" name="transfer_id" value="<?= $id ?>">
+              <input type="hidden" name="reload" value=1>
+
+              <br><br>
+              <div style="display: flex; justify-content: center; gap: 20px;">
+              <button type="submit" name="transfer_zuweisen_check" value="user" class="center-btn"
+                      id="assign-button"
+                      style="background-color: #aaa; cursor: not-allowed;" disabled>
+                  Zuweisen
+              </button>
+              </div>
+          </form>
+      </div>
+
+
+      <style>
+        #search-results {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+      </style>
+
+      <script>
+
+        function enableAssignButton(name) {
+            const assignBtn = document.getElementById("assign-button");
+            assignBtn.disabled = false;
+            assignBtn.style.backgroundColor = "#fff";
+            assignBtn.style.cursor = "pointer";
+            assignBtn.textContent = "Zuweisen an " + name;
+        }
+        
+        function selectDummy(uid, label) {
+            const selectedUidInput = document.getElementById("selected-uid");
+            const searchInput = document.getElementById("user-search");
+
+            selectedUidInput.value = uid;
+
+            let labelText = "";
+            if (uid === 472) {
+                labelText = "Netzwerk-AG Dummy";
+            } else if (uid === 492) {
+                labelText = "Haussprecher Dummy";
+            } else {
+                labelText = `${label} Dummy`;
+            }
+
+            searchInput.value = labelText;
+
+            enableAssignButton(labelText);
+        }
+
+
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.getElementById("user-search");
+            const resultsDiv = document.getElementById("search-results");
+            const selectedUidInput = document.getElementById("selected-uid");
+
+            searchInput.addEventListener("input", function () {
+                const query = searchInput.value.trim();
+                if (query.length < 2) {
+                    resultsDiv.innerHTML = "";
+                    return;
+                }
+
+                fetch(`?search=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        resultsDiv.innerHTML = "";
+
+                        if (Object.keys(data).length === 0) {
+                            resultsDiv.innerHTML = "<p>Keine Treffer</p>";
+                            return;
+                        }
+
+                        for (const uid in data) {
+                            const user = data[uid][0];
+
+                            // Turm-Formatierung
+                            let turm = user.turm.toLowerCase() === "tvk" ? "TvK" : user.turm.toUpperCase();
+
+                            const btn = document.createElement("button");
+                            btn.type = "button";
+                            btn.className = "small-btn";
+                            btn.style.margin = "5px";
+                            btn.textContent = `${user.name} (${turm} ${user.room})`;
+                            btn.addEventListener("click", () => {
+                                selectedUidInput.value = uid;
+                                searchInput.value = `${user.name} (${user.room})`;
+                                searchInput.value = "";
+                                enableAssignButton(user.name);
+                                resultsDiv.innerHTML = "";
+                            });
+                            resultsDiv.appendChild(btn);
+                        }
+                    });
+            });
+        });
+      </script>
+
+      <?php
     } elseif ($wayoflife == 3) { # PSK
       $id = $_POST["id"];
       $sql = "SELECT * FROM pskonly WHERE id = ?";

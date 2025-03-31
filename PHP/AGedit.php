@@ -33,7 +33,7 @@
         echo json_encode([]); // Senden einer leeren JSON-Antwort, wenn der Suchbegriff leer ist
     }
     exit;
-}
+  }
 
 
 ?>
