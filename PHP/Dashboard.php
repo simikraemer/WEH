@@ -125,7 +125,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       // Abmeldung bestätigen
       $confirm_sql = "UPDATE abmeldungen SET status = 2 WHERE id = ?";
       $stmt_confirm = mysqli_prepare($conn, $confirm_sql);
-      mysqli_stmt_bind_param($stmt_confirm, "i", $transfer_id);
+      mysqli_stmt_bind_param($stmt_confirm, "i", $abmeldung_id);
       mysqli_stmt_execute($stmt_confirm);
       mysqli_stmt_close($stmt_confirm);
     }
@@ -1073,7 +1073,10 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
             echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["name"]) . '\')">' . htmlspecialchars($user["name"]) . '</button>';
 
             // Betrag Button
-            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["betrag"]) . '\')">' . htmlspecialchars($user["betrag"]) . ' €</button>';
+            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . number_format((float)$user["betrag"], 2, ',', '.') . '\')">' . htmlspecialchars($user["betrag"]) . ' €</button>';
+
+            // Überweisungsbetreff Button
+            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'Abmeldung WEH e.V.\')">Abmeldung WEH e.V.</button>';
 
             // Hidden Felder + Submit
             echo '<input type="hidden" name="abmeldung_id" value="' . $id . '">
