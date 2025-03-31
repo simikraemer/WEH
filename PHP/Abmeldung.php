@@ -58,11 +58,11 @@ if (auth($conn) && $_SESSION['valid']) {
                   } else {
                       $email = 0;
                   }
-                  if (isset($_POST["alumni"])) {
-                      $alumni = 1;
+                  if (isset($_POST["alumni"]) && trim($_POST["forwardemail"]) !== "") {
+                    $alumni = 1;
                   } else {
                       $alumni = 0;
-                  }
+                  }                
                   if (isset($_POST["iban-check"])) {
                     $bezahlart = 0;
                   } else {
@@ -120,8 +120,15 @@ if (auth($conn) && $_SESSION['valid']) {
           <input type="date" name="dod" class="form-input" required>
           <br>
           <br>
+
           <label id="iban-label" class="form-label">IBAN:</label>
-          <input type="text" id="iban" name="iban" class="form-input" value="" required>
+          <input type="text" id="iban" name="iban" class="form-input" 
+          value="" required maxlength="34" 
+          pattern="[A-Z]{2}[0-9A-Z]{13,32}" 
+          title="Please enter a valid IBAN (e.g. DE89... or FR76...)" 
+          style="text-transform: uppercase;">
+
+
           <input type="checkbox" name="email_account">
           <label for="email_account" class="form-label" >I want to keep my WEH E-Mail account</label>
           <br>
@@ -131,7 +138,7 @@ if (auth($conn) && $_SESSION['valid']) {
           <br>
           <br>
           <label class="form-label" id="forwardemail-label" hidden>E-Mail for Alumni-Mails:</label>
-          <input type="text" name="forwardemail" id="forwardemail" class="form-input" value="" hidden>
+          <input type="email" name="forwardemail" id="forwardemail" class="form-input" value="" hidden>
           <label class="form-label">Password:</label>
           <input type="password" name="pwhaus" class="form-input" required>
           <div class="form-group">
