@@ -18,7 +18,7 @@ from fcol import send_mail
 from fcol import connect_weh
 from fcol import get_constant
 
-DEBUG = True
+DEBUG = False
 
 ## Grundprogramm ##
 
