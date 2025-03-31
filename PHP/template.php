@@ -461,7 +461,7 @@ function load_menu() {
                 echo '<div class="header-submenu">';
                 #echo '<button onclick="window.location.href=\''.$agName.'.php\';" style="white-space: nowrap;">'.$agName.'</button>';
                 if ($agName === 'NetzAG') {
-                    echo '<button onclick="window.location.href=\'Anmeldung.php\';">Anmeldung</button> ';
+                    echo '<button onclick="window.location.href=\'Dashboard.php\';">Dashboard</button> ';
                     echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
                     if ($_SESSION['kasse']) {
                         echo '<button onclick="window.location.href=\'Kasse.php\';">Barkasse</button> ';

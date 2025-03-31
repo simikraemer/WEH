@@ -94,7 +94,7 @@ def newanmeldungmail(zeit, room, firstname, lastname, turm):  # Sendet Mail an u
         f"Neue Anmeldung\nEinzugsdatum: {formatted_date}\n"
         f"Name: {firstname} {lastname}\n"
         f"Turm: {turm}\nRaum: {room}\n\n"
-        "Hier bestätigen: https://backend.weh.rwth-aachen.de/Anmeldung.php"
+        "Hier bestätigen: https://backend.weh.rwth-aachen.de/Dashboard.php"
     )
     to_email = "system@weh.rwth-aachen.de"
     send_mail(subject, message, to_email)

@@ -81,7 +81,7 @@ def abmeldung():
         if bezahlart == 1:  # "Abmeldung abgeschlossen"
             if betrag > 0:
                 # Netzsprecher erhält Mail mit Überweisungsaufforderung des Betrags
-                # 31.03.2025 - Keine Kontomail mehr, sondern Verwaltung über Anmeldung.php
+                # 31.03.2025 - Keine Kontomail mehr, sondern Verwaltung über Dashboard.php
                 #kontomail(betrag, iban, name)
                 #print("Kontomail gesendet für Betrag:", betrag)
                 print("Fiji hat den übelsten Swag!")

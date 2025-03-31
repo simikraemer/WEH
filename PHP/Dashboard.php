@@ -81,17 +81,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
     ### Unbekannten Transfer ausgewählt ###
     if (isset($_POST["transfer_zuweisen_check"])) {
-      if ($_POST["transfer_zuweisen_check"] == "netz") {
-          $uid = 472;
-      } elseif ($_POST["transfer_zuweisen_check"] == "haus") {
-          $uid = 492;
-      } elseif ($_POST["transfer_zuweisen_check"] == "user") {
-          $uid = intval($_POST["selected_uid"]);
-      } else {
-          // Unbekannter Wert
-          exit("Ungültiger Zuweisungswert.");
-      }
-
+      $uid = intval($_POST["selected_uid"]);
       $transfer_id = intval($_POST["transfer_id"]);
 
       // Hole ursprüngliche Transferdaten
@@ -127,6 +117,18 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       mysqli_stmt_close($stmt_insert);
     }
 
+    
+    ### Abmeldung überwiesen ###
+    if (isset($_POST["abmeldung_finish"])) {
+      $abmeldung_id = intval($_POST["abmeldung_id"]);
+
+      // Abmeldung bestätigen
+      $confirm_sql = "UPDATE abmeldungen SET status = 2 WHERE id = ?";
+      $stmt_confirm = mysqli_prepare($conn, $confirm_sql);
+      mysqli_stmt_bind_param($stmt_confirm, "i", $transfer_id);
+      mysqli_stmt_execute($stmt_confirm);
+      mysqli_stmt_close($stmt_confirm);
+    }
 
     if (isset($_POST["decision"]) && isset($_POST["id"])) {
       if($_POST["decision"] == "accept") { 
@@ -512,132 +514,121 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   }
 
-  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
-
-    // Linke Box: Neue Anmeldungen
-    $status0 = false; // Initialstatus für neue Anmeldungen
-    $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_execute($stmt);
-    $result = get_result($stmt);
-    $stmt->close();
-    
-    // Überprüfe, ob die Abfrage Ergebnisse enthält
-    if (empty($result)) {
-        $left_box_color = "rgba(17, 165, 13, 0.7)"; // Grün mit Transparenz, wenn leer
-        $left_no_requests_text = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anmeldungen</p>";
-    } else {
-        $left_box_color = "rgba(0, 0, 0, 0.7)"; // Schwarz, wenn Ergebnisse vorhanden
-        $left_no_requests_text = "";
-    }
-    
-    echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $left_box_color; margin-bottom: 50px;'>";
-      echo "<span style='color: white; font-size: 30px;'>Neue Anmeldungen:</span><br><br>";
-      echo '<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="666">';
-      echo '<div style="max-width: 300px; margin: 0 auto;">';     
-        if (empty($result)) {
-          // Zeige den Text, wenn keine Ergebnisse vorhanden sind
-          echo $left_no_requests_text;
-        } else { 
-          while ($entry = array_shift($result)) {
-              $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-              echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
-              $status0 = true;
-          }
-        }
-      echo '</div>';
-      if ($status0) {
-          echo "<br>";
-      }
-      echo '</form>';
-    echo '</div>'; // Ende der linken Box
-
-    // Mittlere Box: Neue Anmeldungen
-    $statuskontowecker = false; // Initialstatus für neue Anmeldungen
-    $sql = "SELECT id, name, betrag FROM unknowntransfers WHERE status = 0";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_execute($stmt);
-    $result = get_result($stmt);
-    $stmt->close();
-    
-    // Überprüfe, ob die Abfrage Ergebnisse enthält
-    if (empty($result)) {
-        $center_box_color = "rgba(17, 165, 13, 0.7)"; // Grün mit Transparenz, wenn leer
-        $center_no_requests_text = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine unklaren Überweisungen</p>";
-    } else {
-        $center_box_color = "rgba(0, 0, 0, 0.7)"; // Schwarz, wenn Ergebnisse vorhanden
-        $center_no_requests_text = "";
-    }
-    
-    echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $center_box_color; margin-bottom: 50px;'>";
-      echo "<span style='color: white; font-size: 30px;'>Unklare Überweisungen:</span><br><br>";
-      echo '<form method="post" action="Anmeldung.php"><input type="hidden" name="wayoflife" value="333">';
-      echo '<div style="max-width: 300px; margin: 0 auto;">';     
-        if (empty($result)) {
-          // Zeige den Text, wenn keine Ergebnisse vorhanden sind
-          echo $center_no_requests_text;
-        } else { 
-          while ($entry = array_shift($result)) {
-              $btn_color = '#11a50d';
-              echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["name"], 4, '0', STR_PAD_LEFT)) . '</button>';
-              $statuskontowecker = true;
-          }
-        }
-      echo '</div>';
-      if ($statuskontowecker) {
-          echo "<br>";
-      }
-      echo '</form>';
-    echo '</div>'; // Ende der mittleren Box
-    
-    // Rechte Box: PSK-Only Anfragen
-    $statuspsk = false; // Initialstatus für PSK-Only Anfragen
-    $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_execute($stmt);
-    $result = get_result($stmt);
-    $stmt->close();
-    
-    // Überprüfe, ob die Abfrage Ergebnisse enthält
-    if (empty($result)) {
-        $right_box_color = "rgba(17, 165, 13, 0.7)"; // Grün mit Transparenz, wenn leer
-        $right_no_requests_text = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anfragen</p>";
-    } else {
-        $right_box_color = "rgba(0, 0, 0, 0.7)"; // Schwarz, wenn Ergebnisse vorhanden
-        $right_no_requests_text = ""; // Kein Text, wenn es Ergebnisse gibt
-    }
-    
-    echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $right_box_color; margin-bottom: 50px;'>";
-      echo "<span style='color: white; font-size: 30px;'>PSK-Only Anfragen:</span><br><br>";
-      echo '<form method="post"><input type="hidden" name="wayoflife" value=3>';
-      echo '<div style="max-width: 300px; margin: 0 auto;">';      
-        if (empty($result)) {
-          // Zeige den Text, wenn keine Ergebnisse vorhanden sind
-          echo $right_no_requests_text;
-        } else {
-            // Generiere die Buttons, wenn Ergebnisse vorhanden sind
-            while ($entry = array_shift($result)) {
-                $room_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-                echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $room_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
-                $statuspsk = true;
-            }
-        }
-      echo '</div>';
-      if ($statuspsk) {
-          echo "<br>";
-      }
-      echo '</form>';
-    echo '</div>'; // Ende der rechten Box
   
-  echo '</div>'; // Ende des Flexbox-Containers
+  // Neue Anmeldungen
+  $sql = "SELECT id, room, turm FROM registration WHERE status = 0 ORDER BY room ASC";
+  $stmt = mysqli_prepare($conn, $sql);
+  mysqli_stmt_execute($stmt);
+  $anmeldungen = get_result($stmt);
+  $stmt->close();
+  $anm_box_color = empty($anmeldungen) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+  $anm_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anmeldungen</p>";
+
+  // Unklare Überweisungen
+  $sql = "SELECT id, name, betrag FROM unknowntransfers WHERE status = 0";
+  $stmt = mysqli_prepare($conn, $sql);
+  mysqli_stmt_execute($stmt);
+  $kontowecker = get_result($stmt);
+  $stmt->close();
+  $unk_box_color = empty($kontowecker) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+  $unk_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine unklaren Überweisungen</p>";
+
+  // PSK Only
+  $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
+  $stmt = mysqli_prepare($conn, $sql);
+  mysqli_stmt_execute($stmt);
+  $pskonly = get_result($stmt);
+  $stmt->close();
+  $psk_box_color = empty($pskonly) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+  $psk_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Anfragen</p>";
+
+  // Abmeldung
+  $sql = "SELECT a.id, u.room, u.turm FROM abmeldungen a JOIN users u ON a.uid=u.uid WHERE a.status = 1";
+  $stmt = mysqli_prepare($conn, $sql);
+  mysqli_stmt_execute($stmt);
+  $abm = get_result($stmt);
+  $stmt->close();
+  $abm_box_color = empty($abm) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+  $abm_empty_msg = "<p style='color: white; font-size: 20px; margin-top: 50px;'>Keine Abmeldungen</p>";
   
+
+
+
+  #### Start FLEXBOX
+  echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 80%; padding: 20px; box-sizing: border-box;">';
+
+  // Anmeldungen-Box
+  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $anm_box_color; margin-bottom: 50px;'>";
+  echo "<span style='color: white; font-size: 30px;'>Neue Anmeldungen:</span><br><br>";
+  echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="Anmeldung">';
+  echo '<div style="max-width: 300px; margin: 0 auto;">';
+
+  if (empty($anmeldungen)) {
+      echo $anm_empty_msg;
+  } else {
+      foreach ($anmeldungen as $entry) {
+          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+      }
+  }
+  echo '</div><br></form></div>';
+
+  // Unknown Transfers BOX
+  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $unk_box_color; margin-bottom: 50px;'>";
+  echo "<span style='color: white; font-size: 30px;'>Unklare Transfers:</span><br><br>";
+  echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="UnknownTransfers">';
+  echo '<div style="max-width: 300px; margin: 0 auto;">';
+
+  if (empty($kontowecker)) {
+      echo $unk_empty_msg;
+  } else {
+      foreach ($kontowecker as $entry) {
+          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color: #11a50d;">' . htmlspecialchars($entry["name"]) . '</button>';
+      }
+  }
+  echo '</div><br></form></div>';
+
+  // PSK Bpx
+  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $psk_box_color; margin-bottom: 50px;'>";
+  echo "<span style='color: white; font-size: 30px;'>PSK-Only Anfragen:</span><br><br>";
+  echo '<form method="post"><input type="hidden" name="wayoflife" value="PSK">';
+  echo '<div style="max-width: 300px; margin: 0 auto;">';
+
+  if (empty($pskonly)) {
+      echo $psk_empty_msg;
+  } else {
+      foreach ($pskonly as $entry) {
+          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+      }
+  }
+  echo '</div><br></form></div>';
+
+  // ABM Bpx
+  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $abm_box_color; margin-bottom: 50px;'>";
+  echo "<span style='color: white; font-size: 30px;'>Abmeldungen:</span><br><br>";
+  echo '<form method="post"><input type="hidden" name="wayoflife" value="Abmeldung">';
+  echo '<div style="max-width: 300px; margin: 0 auto;">';
+
+  if (empty($abm)) {
+      echo $abm_empty_msg;
+  } else {
+      foreach ($abm as $entry) {
+          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+      }
+  }
+  echo '</div><br></form></div>';
+
+  echo '</div>'; // Flex-Ende
+
 
 
   if (isset($_POST["id"]) && !isset($_POST["decision"]) && !isset($_POST["close"])) {
 
     $zeit = time();
     $wayoflife = $_POST["wayoflife"];
-    if ($wayoflife == 666) { # Anmeldung annehmen
+    if ($wayoflife == "Anmeldung") { # Anmeldung annehmen
         $id = $_POST["id"];
         $sql = "SELECT * FROM registration WHERE id = ?";
         $stmt = mysqli_prepare($conn, $sql);
@@ -694,7 +685,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
             <button type="submit" name="close" value="close" class="close-btn">X</button>
         </form>
         <br>
-        <form action="Anmeldung.php" method="post" name="formular1">');
+        <form action="Dashboard.php" method="post" name="formular1">');
         if ($user["sublet"]) {
           echo('<p style="color:red; font-weight:bold">SUBLET</p>
           <label class="form-label">End of sublet:</label>
@@ -811,7 +802,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         </form>
         </div>');
   
-    } elseif ($wayoflife == 333) { # PSK
+    } elseif ($wayoflife == "UnknownTransfers") { # Unknown Transfers
       $id = $_POST["id"];
       $sql = "SELECT * FROM unknowntransfers WHERE id = ?";
       $stmt = mysqli_prepare($conn, $sql);
@@ -969,7 +960,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       </script>
 
       <?php
-    } elseif ($wayoflife == 3) { # PSK
+    } elseif ($wayoflife == "PSK") { # PSK
       $id = $_POST["id"];
       $sql = "SELECT * FROM pskonly WHERE id = ?";
       $stmt = mysqli_prepare($conn, $sql);
@@ -1042,6 +1033,73 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
               </div>
           </form>
       </div>';  
+    } elseif ($wayoflife == "Abmeldung") { # Abmeldung
+      
+    $id = $_POST["id"];
+    $sql = "SELECT u.name, a.betrag, a.iban FROM abmeldungen a JOIN users u ON a.uid = u.uid WHERE a.id = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $id);
+    mysqli_stmt_execute($stmt);
+    $result = get_result($stmt);
+    $user = array_shift($result);
+    $stmt->close();
+
+    echo '<div class="overlay"></div>
+    <div class="anmeldung-form-container form-container" style="min-width: 500px;">
+        <form method="post">
+            <button type="submit" name="close" value="close" class="close-btn">X</button>
+        </form>
+        <br>
+
+        <form method="post" style="text-align: center;" onsubmit="return true;">
+            <br><br>
+            <div style="font-size: 30px; color: white; margin-bottom: 30px;">Folgende Überweisung tätigen:</div>';
+
+            // Datenzeile: IBAN
+            echo '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 20px; color: white;">IBAN: <strong>' . htmlspecialchars($user["iban"]) . '</strong></span>
+                    <button type="button" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["iban"]) . '\')" style="background: none; border: none; cursor: pointer; font-size: 18px; color: white;">📋</button>
+                  </div>';
+
+            // Datenzeile: Name
+            echo '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 20px; color: white;">Name: <strong>' . htmlspecialchars($user["name"]) . '</strong></span>
+                    <button type="button" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["name"]) . '\')" style="background: none; border: none; cursor: pointer; font-size: 18px; color: white;">📋</button>
+                  </div>';
+
+            // Datenzeile: Betrag
+            echo '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 40px;">
+                    <span style="font-size: 20px; color: white;">Betrag: <strong>' . htmlspecialchars($user["betrag"]) . ' €</strong></span>
+                    <button type="button" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["betrag"]) . '\')" style="background: none; border: none; cursor: pointer; font-size: 18px; color: white;">📋</button>
+                  </div>';
+
+            // Hidden Felder + Submit
+            echo '<input type="hidden" name="abmeldung_id" value="' . $id . '">
+                  <input type="hidden" name="reload" value="1">
+                  
+                  <div style="display: flex; justify-content: center; margin-top: 20px;">
+                      <button type="submit" name="abmeldung_finish" value="1" class="center-btn">Überwiesen</button>
+                  </div>
+        </form>
+    </div>
+
+    <script>
+    function copyToClipboard(btn, text) {
+        navigator.clipboard.writeText(text).then(function() {
+            const original = btn.innerHTML;
+            btn.innerHTML = "✅";
+            btn.disabled = true;
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.disabled = false;
+            }, 1000);
+        }, function(err) {
+            console.error("Copy failed", err);
+        });
+    }
+    </script>';
+
+
     }
   }
 }
