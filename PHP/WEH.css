@@ -1656,3 +1656,12 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   cursor: default;
   opacity: 0.6;
 }
+
+.dashboard-container {
+  flex: 1;
+  text-align: center;
+  border: 2px solid white;
+  border-radius: 30px;
+  padding: 20px;
+  color: white;
+}

@@ -640,18 +640,93 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $netzbudget = $kassen[72]["summe"] - $rücklagen_netz - $userboundsumme + $kassen[1]["summe"] + $kassen[2]["summe"] + $kassen[69]["summe"];
 
     unset($kasse);
+
+    // CertAlert
+    $sql = "SELECT cn, endtime, alert FROM certs WHERE alert >= 0 ORDER BY endtime LIMIT 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $cn, $endtime, $alert);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+    $endtime_formatiert = date("d.m.Y H:i", $endtime);
+    $cert_box_text = "<div>Nächstes Ablaufdatum:</div><div><strong>$endtime_formatiert</strong></div><div>$cn</div>";
+    $cert_box_color = ($alert > 0)
+        ? "rgba(0, 0, 0, 0.7)"
+        : "rgba(17, 165, 13, 0.7)";
+    
+
+    //Anzahl User    
+    $zeit = time();
+    $cutoff = $zeit - (60 * 60 * 24 * 7);     
+
+    #$sql = "SELECT COUNT(*) FROM users WHERE pid in (11,12,13) AND lastradius >= ?";
+    #$stmt = mysqli_prepare($conn, $sql);
+    #mysqli_stmt_bind_param($stmt, "i", $cutoff);
+    #mysqli_stmt_execute($stmt);
+    #mysqli_stmt_bind_result($stmt, $anzahl_user);
+    #mysqli_stmt_fetch($stmt);
+    #mysqli_stmt_close($stmt);
+
+    $sql = "
+        SELECT
+            (SELECT COUNT(*) FROM users WHERE pid IN (11,12)) AS total_user,
+            (SELECT COUNT(*) FROM sperre WHERE endtime >= ? AND starttime <= ? AND internet = 1) AS gebannt_user
+    ";
+    
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "ii", $zeit, $zeit);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $anzahl_user, $anzahl_gebannte_user);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+    
+    $anzahl_aktive_user = $anzahl_user - $anzahl_gebannte_user;
+    
+
  
   # }
 
   
-  $empty_msg = "<p style='color: white; font-size: 20px; margin-top: 00px;'>✅</p>";
+  $empty_msg = "<p style='color: white; font-size: 20px; margin-top: 00px;'>-</p>";
 
 
+  echo '<div style="height: 50px;"></div>';
+
+
+  
+  echo '<div style="display: flex; justify-content: center; align-items: stretch; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
+  
+  // 🔹 Zert
+  echo "<div class='dashboard-container' style='background-color: $cert_box_color;'>";
+  echo "<div style='font-size: 30px;'>Zertifikate</div><br>";
+  echo "<div style='font-size: 21px;'>$cert_box_text</div>";
+  echo "</div>";
+  
+  // 🔸 Budget
+  $budget_box_color = ($netzbudget >= 0) ? "rgba(17, 165, 13, 0.7)" : "rgba(165, 17, 13, 0.7)";
+  echo "<div class='dashboard-container' style='background-color: $budget_box_color;'>";
+  echo "<div style='font-size: 30px; margin-bottom: 20px;'>Budget</div>";
+  echo "<div style='font-size: 60px;'>" . number_format($netzbudget, 2, ',', '.') . " €</div>";
+  echo "</div>";
+  
+  // 🔹 Active User
+  $users_box_color = "rgba(17, 165, 13, 0.7)";
+  echo "<div class='dashboard-container' style='background-color: $users_box_color;'>";
+  echo "<div style='font-size: 30px; margin-bottom: 20px;'>Aktive User</div>";
+  echo "<div style='font-size: 60px;'>" . $anzahl_aktive_user . "</div>";
+  echo "</div>";
+
+  echo '</div>';
+  
+
+  echo '<div style="height: 50px;"></div>';
+
+  
   #### Start FLEXBOX
   echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
 
   // Anmeldungen-Box
-  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $anm_box_color; margin-bottom: 50px;'>";
+  echo "<div class='dashboard-container' style='background-color: $anm_box_color; '>";
   echo "<span style='color: white; font-size: 30px;'>Anmeldungen</span><br><br>";
   echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="Anmeldung">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
@@ -667,7 +742,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo '</div><br></form></div>';
 
   // Unknown Transfers BOX
-  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $unk_box_color; margin-bottom: 50px;'>";
+  echo "<div class='dashboard-container' style='background-color: $unk_box_color; '>";
   echo "<span style='color: white; font-size: 30px;'>Transfers</span><br><br>";
   echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="UnknownTransfers">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
@@ -682,7 +757,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo '</div><br></form></div>';
 
   // PSK Bpx
-  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $psk_box_color; margin-bottom: 50px;'>";
+  echo "<div class='dashboard-container' style='background-color: $psk_box_color; '>";
   echo "<span style='color: white; font-size: 30px;'>PSK-Only</span><br><br>";
   echo '<form method="post"><input type="hidden" name="wayoflife" value="PSK">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
@@ -697,8 +772,8 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   }
   echo '</div><br></form></div>';
 
-  // ABM Bpx
-  echo "<div style='flex: 1; text-align: center; border: 2px solid white; padding: 20px; border-radius: 10px; background-color: $abm_box_color; margin-bottom: 50px;'>";
+  // ABM Box
+  echo "<div class='dashboard-container' style='background-color: $abm_box_color; '>";
   echo "<span style='color: white; font-size: 30px;'>Abmeldungen</span><br><br>";
   echo '<form method="post"><input type="hidden" name="wayoflife" value="Abmeldung">';
   echo '<div style="max-width: 300px; margin: 0 auto;">';
@@ -716,45 +791,6 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo '</div>'; // Flex-Ende
 
 
-  echo "<hr>";
-
-  echo '<div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">';
-  
-      // 🔹 Linke Spalte: Barkassen
-      echo '<div style="flex: 1; text-align: center;">';
-      foreach ([1,2] as $key) {
-          $kasse = $kassen[$key];
-          echo '<div style="margin-bottom: 30px; color: white;">';
-          echo '<div style="font-size: 30px;">' . $kasse["name"] . '</div>';
-          echo '<div style="font-size: 20px;">' . $kasse["username"] . '</div>';
-          echo '<div style="font-size: 40px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €</div>';
-          echo '</div>';
-      }
-      echo '</div>';
-  
-      // 🔸 Zentrum: Budget
-      echo '<div style="flex: 1; text-align: center; color: white;">';
-      echo '<div style="font-size: 60px; margin-bottom: 10px;">Netzwerk-AG Budget</div>';
-      echo '<div style="font-size: 20px; margin-bottom: 10px;">- (' .
-          number_format($userboundsumme, 2, ',', '.') . ' € Userkonten + ' .
-          number_format($rücklagen_netz, 0, ',', '.') . ' € Rücklagen)' .
-          '</div>';
-      echo '<div style="font-size: 90px;">' . number_format($netzbudget, 2, ',', '.') . ' €</div>';
-      echo '</div>';
-  
-      // 🔹 Rechte Spalte: Onlinekassen
-      echo '<div style="flex: 1; text-align: center;">';
-      foreach ([72, 69] as $key) {
-          $kasse = $kassen[$key];
-          echo '<div style="margin-bottom: 30px; color: white;">';
-          echo '<div style="font-size: 40px;">' . $kasse["name"] . '</div>';
-          echo '<div style="font-size: 50px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €</div>';
-          echo '</div>';
-      }
-      echo '</div>';
-  
-  echo '</div>';
-  
 
 
 
