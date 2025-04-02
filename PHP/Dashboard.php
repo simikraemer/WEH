@@ -883,7 +883,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
           <br>
           <label class="form-label">Registration Date:</label>
           <input type="text" name="registration_date" class="form-input" value="'.htmlspecialchars(date("d.m.Y", $user["starttime"])).'" readonly ' . $registrationDateStyle . '>');
-          if (strtotime($user["starttime"]) > $zeit && $raumbelegt) {
+          if ($user["starttime"] > $zeit && $raumbelegt) {
             echo ('<span style="color:red; font-size: larger;">Einzugsdatum noch nicht erreicht!</span>');
           }
         echo('
