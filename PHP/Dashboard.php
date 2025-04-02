@@ -669,7 +669,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
     $sql = "
         SELECT
-            (SELECT COUNT(*) FROM users WHERE pid IN (11,12)) AS total_user,
+            (SELECT COUNT(*) FROM users WHERE pid IN (11)) AS total_user,
             (SELECT COUNT(*) FROM sperre WHERE endtime >= ? AND starttime <= ? AND internet = 1) AS gebannt_user
     ";
     
