@@ -637,7 +637,9 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $stmt->close();
     
     // Netzbudget berechnen
-    $netzbudget = $kassen[72]["summe"] - $rücklagen_netz - $userboundsumme + $kassen[1]["summe"] + $kassen[2]["summe"] + $kassen[69]["summe"];
+    #$netzbudget = $kassen[72]["summe"] - $rücklagen_netz - $userboundsumme + $kassen[1]["summe"] + $kassen[2]["summe"] + $kassen[69]["summe"];
+    $netzbudget = $kassen[72]["summe"] + $kassen[1]["summe"] + $kassen[2]["summe"] + $kassen[69]["summe"]
+                  - $userboundsumme;
 
     unset($kasse);
 
@@ -705,7 +707,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   // 🔸 Budget
   $budget_box_color = ($netzbudget >= 0) ? "#085206" : "rgba(165, 17, 13, 0.7)";
   echo "<div class='dashboard-container' style='background-color: $budget_box_color;'>";
-  echo "<div style='font-size: 30px; margin-bottom: 20px;'>Budget</div>";
+  echo "<div style='font-size: 30px; margin-bottom: 20px;'>Netz-Budget</div>";
   echo "<div style='font-size: 60px;'>" . number_format($netzbudget, 2, ',', '.') . " €</div>";
   echo "</div>";
   
