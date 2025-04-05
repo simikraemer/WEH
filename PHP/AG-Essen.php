@@ -48,10 +48,10 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
             $kasse = intval(trim($x_string));
 
             // In Barkassendokumentation eintragen
-            $insert_sql = "INSERT INTO barkasse (tstamp, uid, beschreibung, betrag, kasse) VALUES (?,?,?,?,?)";
-            $insert_var = array($zeit, $uid, $insert_beschreibung, $insert_betrag, $kasse);
+            $insert_sql = "INSERT INTO barkasse (tstamp, uid, beschreibung, betrag, kasse, pfad) VALUES (?,?,?,?,?,?)";
+            $insert_var = array($zeit, $uid, $insert_beschreibung, $insert_betrag, $kasse, $pfad);
             $stmt = mysqli_prepare($conn, $insert_sql);
-            mysqli_stmt_bind_param($stmt, "iisdi", ...$insert_var);
+            mysqli_stmt_bind_param($stmt, "iisdis", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
         }
