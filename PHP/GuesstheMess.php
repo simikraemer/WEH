@@ -1,6 +1,10 @@
 <?php
 session_start();
 require('template.php');
+if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
+    header("Location: denied.php");
+}
+
     // Standardwerte setzen
     $mode = $_POST['mode'] ?? 'Name the Game';
     switch ($mode) {
@@ -313,7 +317,7 @@ require('template.php');
             isRevealed = true;
             
             timerBar.style.width = "100%";
-            timerText.innerText = "Finito!";
+            timerText.innerText = countdown + " Punkte";
 
             videoBanner.innerText = videoFiles[currentVideoIndex].replace(/\.[^/.]+$/, ""); // Titel anzeigen
             videoBanner.style.display = "block"; // Banner einblenden
