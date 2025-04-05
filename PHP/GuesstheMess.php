@@ -6,8 +6,12 @@ if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
 }
 
     // Standardwerte setzen
-    $mode = $_POST['mode'] ?? 'Name the Game';
+    $mode = $_POST['mode'] ?? 'Beispiel';
     switch ($mode) {
+        case 'Beispiel':
+            $videoDir = "videos/beispiel/";
+            $unmuteTime = 30;
+            break;
         case 'Spot the Shot':
             $videoDir = "videos/spottheshot/";
             $unmuteTime = 30;
@@ -111,7 +115,12 @@ if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
 </head>
 <body>
 
-    <form method="POST" id="gameModeButtons">
+    <form method="POST" id="gameModeButtons">        
+        <button type="submit" name="mode" value="Beispiel" class="weh-btn" 
+            style="<?php echo ($mode == 'Beispiel') ? 'background:green; color:white;' : ''; ?>">
+            Beispiel
+        </button>
+
         <button type="submit" name="mode" value="Name the Game" class="weh-btn" 
             style="<?php echo ($mode == 'Name the Game') ? 'background:green; color:white;' : ''; ?>">
             Name the Game
@@ -306,7 +315,7 @@ if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
             }
         }
 
-        function reveal() {            
+        function reveal() {      
             if (video.paused) {
                 video.play();
             }
@@ -319,7 +328,9 @@ if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
             timerBar.style.width = "100%";
             timerText.innerText = countdown + " Punkte";
 
-            videoBanner.innerText = videoFiles[currentVideoIndex].replace(/\.[^/.]+$/, ""); // Titel anzeigen
+            videoBanner.innerText = videoFiles[currentVideoIndex]
+                .replace(/^\d+\.\s*/, "")         // entfernt Nummerierung zu Beginn
+                .replace(/\.[^/.]+$/, "");        // entfernt Dateiendung wie ".webm"
             videoBanner.style.display = "block"; // Banner einblenden
 
             function drawClearVideoFrame() {
