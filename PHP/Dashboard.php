@@ -522,7 +522,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     mysqli_stmt_execute($stmt);
     $anmeldungen = get_result($stmt);
     $stmt->close();
-    $anm_box_color = empty($anmeldungen) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+    $anm_box_color = empty($anmeldungen) ? "#085206" : "rgba(0, 0, 0, 0.7)";
 
     // Unklare Überweisungen
     $sql = "SELECT id, name, betrag FROM unknowntransfers WHERE status = 0";
@@ -530,7 +530,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     mysqli_stmt_execute($stmt);
     $kontowecker = get_result($stmt);
     $stmt->close();
-    $unk_box_color = empty($kontowecker) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+    $unk_box_color = empty($kontowecker) ? "#085206" : "rgba(0, 0, 0, 0.7)";
 
     // PSK Only
     $sql = "SELECT pskonly.id, users.room, users.turm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.status = 0 ORDER BY users.room ASC";
@@ -538,7 +538,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     mysqli_stmt_execute($stmt);
     $pskonly = get_result($stmt);
     $stmt->close();
-    $psk_box_color = empty($pskonly) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+    $psk_box_color = empty($pskonly) ? "#085206" : "rgba(0, 0, 0, 0.7)";
 
     // Abmeldung
     $sql = "SELECT a.id, u.room, u.turm FROM abmeldungen a JOIN users u ON a.uid=u.uid WHERE a.status = 1";
@@ -546,7 +546,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     mysqli_stmt_execute($stmt);
     $abm = get_result($stmt);
     $stmt->close();
-    $abm_box_color = empty($abm) ? "rgba(17, 165, 13, 0.7)" : "rgba(0, 0, 0, 0.7)";
+    $abm_box_color = empty($abm) ? "#085206" : "rgba(0, 0, 0, 0.7)";
 
 
     
@@ -652,7 +652,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $cert_box_text = "<div>Nächstes Ablaufdatum:</div><div><strong>$endtime_formatiert</strong></div><div>$cn</div>";
     $cert_box_color = ($alert > 0)
         ? "rgba(0, 0, 0, 0.7)"
-        : "rgba(17, 165, 13, 0.7)";
+        : "#085206";
     
 
     //Anzahl User    
@@ -703,14 +703,14 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   echo "</div>";
   
   // 🔸 Budget
-  $budget_box_color = ($netzbudget >= 0) ? "rgba(17, 165, 13, 0.7)" : "rgba(165, 17, 13, 0.7)";
+  $budget_box_color = ($netzbudget >= 0) ? "#085206" : "rgba(165, 17, 13, 0.7)";
   echo "<div class='dashboard-container' style='background-color: $budget_box_color;'>";
   echo "<div style='font-size: 30px; margin-bottom: 20px;'>Budget</div>";
   echo "<div style='font-size: 60px;'>" . number_format($netzbudget, 2, ',', '.') . " €</div>";
   echo "</div>";
   
   // 🔹 Active User
-  $users_box_color = "rgba(17, 165, 13, 0.7)";
+  $users_box_color = "#085206";
   echo "<div class='dashboard-container' style='background-color: $users_box_color;'>";
   echo "<div style='font-size: 30px; margin-bottom: 20px;'>Aktive User</div>";
   echo "<div style='font-size: 60px;'>" . $anzahl_aktive_user . "</div>";
