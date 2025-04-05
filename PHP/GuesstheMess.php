@@ -6,7 +6,7 @@ require('template.php');
     switch ($mode) {
         case 'Spot the Shot':
             $videoDir = "videos/spottheshot/";
-            $unmuteTime = 59;
+            $unmuteTime = 30;
             break;
         case 'Pick the Hit':
             $videoDir = "videos/pickthehit/";
@@ -14,7 +14,7 @@ require('template.php');
             break;
         default:
             $videoDir = "videos/namethegame/";
-            $unmuteTime = 45;
+            $unmuteTime = 30;
     }
 
 
@@ -234,7 +234,7 @@ require('template.php');
             clearInterval(interval);
             interval = setInterval(() => {
                 if (!video.paused && !video.ended && pixelSize > 1) {
-                    pixelSize -= 10;
+                    pixelSize -= 15;
                 } else {
                     clearInterval(interval);
                 }
