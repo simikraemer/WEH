@@ -36,7 +36,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         // Eigener Turm kommt zuerst
         $turmReihenfolge = ($nutzerTurm === "weh") ? ["WEH", "TvK"] : ["TvK", "WEH"];
 
-        $output .= '<div class="printer_container">';
+        $output = '<div class="printer_container">';
 
         foreach ($turmReihenfolge as $turm) {
             if (empty($turmGruppen[$turm])) continue;
@@ -261,50 +261,126 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
         }
     
 
-        // Falls eine neue Datei hochgeladen wird
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
-            $uploadsDir = "printuploads/";
-            $allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+// Falls eine neue Datei hochgeladen wird
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
+    echo "<!-- DEBUG: Upload-Handler aktiviert -->";
 
-            foreach ($_FILES['dokumente']['tmp_name'] as $key => $tmp_name) {
-                $fileName = $_FILES['dokumente']['name'][$key];
-                $fileType = mime_content_type($tmp_name);
+    $uploadsDir = "printuploads/";
+    $allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 
-                if (!in_array($fileType, $allowedTypes)) {
-                    echo "<p class='printer_error-message'>Fehler: '$fileName' hat ein ungültiges Format!</p>";
-                    continue;
-                }
+    foreach ($_FILES['dokumente']['tmp_name'] as $key => $tmp_name) {
+        $fileName = $_FILES['dokumente']['name'][$key];
+        $fileType = mime_content_type($tmp_name);
 
-                // Prüfen, ob die PDF beschädigt ist und ob es verschlüsselt ist
-                if ($fileType === "application/pdf") {
-                    if (is_pdf_encrypted($tmp_name)) {
-                        echo "<p class='printer_error-message'>Fehler: '$fileName' ist verschlüsselt und wird nicht akzeptiert!</p>";
-                        continue;
-                    }
+        echo "<!-- DEBUG: Datei erkannt: $fileName ($fileType) -->";
 
-                    // Prüfen, ob das PDF korrekt formatiert ist
-                    if (!is_valid_pdf($tmp_name)) {
-                        echo "<p class='printer_error-message'>Fehler: '$fileName' ist beschädigt oder falsch formatiert!</p>";
-                        continue;
-                    }
-                }
+        if (!in_array($fileType, $allowedTypes)) {
+            echo "<p class='printer_error-message'>Fehler: '$fileName' hat ein ungültiges Format!</p>";
+            continue;
+        }
 
-                // Dateinamen formatieren
-                $formattedFileName = sanitizeFileName($fileName);
-                $shortFileName = shortenFileName($formattedFileName, 20);
+        if ($fileType === "application/pdf") {
+            echo "<!-- DEBUG: PDF-Verarbeitung gestartet für $fileName -->";
 
-                // Neue Datei speichern
-                $newPath = $uploadsDir . uniqid() . "_" . $shortFileName;
-                if (move_uploaded_file($tmp_name, $newPath)) {
-                    $_SESSION['uploaded_files'][] = [
-                        'name' => $formattedFileName,
-                        'path' => $newPath,
-                        'type' => $fileType,
-                        'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
-                    ];
+            if (is_pdf_encrypted($tmp_name)) {
+                echo "<p class='printer_error-message'>Fehler: '$fileName' ist verschlüsselt und wird nicht akzeptiert!</p>";
+                continue;
+            }
+
+            if (!is_valid_pdf($tmp_name)) {
+                echo "<p class='printer_error-message'>Fehler: '$fileName' ist beschädigt oder falsch formatiert!</p>";
+                continue;
+            }
+
+            foreach ($drucker as $d) {
+                if ($d['id'] == $druID) {
+                    $druName = $d['name'];
+                    $druIP = $d['ip'];
+                    break;
                 }
             }
-        }        
+
+            echo "<!-- DEBUG: Druckername ermittelt: $druName -->";
+
+            // 1. Flatten PDF via Ghostscript
+            $flattenedPath = $tmp_name . "_flattened.pdf";
+            $gsCmd = "gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite " .
+                     "-dPrinted=false -dNoOutputFonts " .
+                     "-sOutputFile=" . escapeshellarg($flattenedPath) . " " .
+                     escapeshellarg($tmp_name);
+            shell_exec($gsCmd);
+
+            echo "<!-- DEBUG: Ghostscript-Befehl: $gsCmd -->";
+
+            if (!file_exists($flattenedPath)) {
+                echo "<p class='printer_error-message'>Fehler: '$fileName' konnte nicht in druckbare Form umgewandelt werden (Ghostscript-Fehler).</p>";
+                continue;
+            }
+
+            // 2. CUPS-Test
+            $lpCmd = "/usr/bin/lp -d " . escapeshellarg($druName) .
+                     " -o job-hold-until=indefinite " .
+                     escapeshellarg($flattenedPath) . " 2>&1";
+            exec($lpCmd, $lpOutput, $returnCode);
+
+            echo "<!-- DEBUG: CUPS-Befehl: $lpCmd -->";
+            echo "<!-- DEBUG: CUPS-Rückgabe ($returnCode): " . htmlentities(implode("\n", $lpOutput)) . " -->";
+
+            if ($returnCode !== 0) {
+                echo "<p class='printer_error-message'>Fehler: '$fileName' konnte vom Drucker nicht verarbeitet werden.<br><small>" .
+                     htmlentities(implode("<br>", $lpOutput)) . "</small></p>";
+                unlink($flattenedPath);
+                continue;
+            }
+
+            // 3. Job löschen
+            exec("lpstat -o " . escapeshellarg($druName) . " 2>/dev/null", $job_output);
+            echo "<!-- DEBUG: lpstat Ausgabe: " . htmlentities(implode("\n", $job_output)) . " -->";
+
+            if (!empty($job_output)) {
+                foreach ($job_output as $line) {
+                    if (strpos($line, $druName) !== false) {
+                        $parts = explode(" ", trim($line));
+                        $job_id = $parts[0] ?? null;
+                        if ($job_id) {
+                            exec("cancel " . escapeshellarg($job_id));
+                            echo "<!-- DEBUG: Druckjob $job_id gelöscht -->";
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $tmp_name = $flattenedPath;
+        }
+
+        // Dateinamen formatieren
+        $formattedFileName = sanitizeFileName($fileName);
+        $shortFileName = shortenFileName($formattedFileName, 20);
+        $newPath = $uploadsDir . uniqid() . "_" . $shortFileName;
+
+        if (is_uploaded_file($tmp_name)) {
+            $moveSuccess = move_uploaded_file($tmp_name, $newPath);
+            echo "<!-- DEBUG: move_uploaded_file verwendet -->";
+        } else {
+            $moveSuccess = rename($tmp_name, $newPath);
+            echo "<!-- DEBUG: rename verwendet -->";
+        }
+
+        if ($moveSuccess) {
+            $_SESSION['uploaded_files'][] = [
+                'name' => $formattedFileName,
+                'path' => $newPath,
+                'type' => $fileType,
+                'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
+            ];
+            echo "<!-- DEBUG: Datei erfolgreich gespeichert unter $newPath -->";
+        } else {
+            echo "<p class='printer_error-message'>Fehler beim Speichern der Datei '$fileName'.</p>";
+        }
+    }
+}
+       
 
         // Falls eine neue Reihenfolge gespeichert wurde
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order'])) {
@@ -452,23 +528,24 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     
         // 1️⃣ Papierformat (Dropdown für alle Drucker)
         echo '<input type="hidden" name="papierformat" value="A4">';
-######### A3 noch nicht implementiert
-#        echo '<label for="papierformat" class="printer_h3">Papierformat:</label>';
-#        echo '<select name="papierformat" id="papierformat" class="printer_select">';
-#
-#        // A4 (immer vorhanden)
-#        echo '<option value="A4" ' . ($A4empty ? 'disabled class="printer_option_disabled"' : '') . 
-#        ($defaultSelection == "A4" ? ' selected' : '') . '>A4' . ($A4empty ? ' (nicht verfügbar)' : '') . '</option>';
-#
-#        // A3 nur anzeigen, aber deaktivieren für Drucker != 2
-#        if ($drucker_id == 2) {
-#            echo '<option value="A3" ' . ($A3empty ? 'disabled class="printer_option_disabled"' : '') . 
-#                ($defaultSelection == "A3" ? ' selected' : '') . '>A3' . ($A3empty ? ' (nicht verfügbar)' : '') . '</option>';
-#        } else {
-#            echo '<option value="A3" class="printer_option_disabled" disabled>A3 (nicht verfügbar)</option>';
-#        }
-#
-#        echo '</select>';
+        
+        // // A3 noch nicht implementiert
+        // echo '<label for="papierformat" class="printer_h3">Papierformat:</label>';
+        // echo '<select name="papierformat" id="papierformat" class="printer_select">';
+
+        // // A4 (immer vorhanden)
+        // echo '<option value="A4" ' . ($A4empty ? 'disabled class="printer_option_disabled"' : '') . 
+        // ($defaultSelection == "A4" ? ' selected' : '') . '>A4' . ($A4empty ? ' (nicht verfügbar)' : '') . '</option>';
+
+        // // A3 nur anzeigen, aber deaktivieren für Drucker != 2
+        // if ($drucker_id == 2) {
+        //     echo '<option value="A3" ' . ($A3empty ? 'disabled class="printer_option_disabled"' : '') . 
+        //         ($defaultSelection == "A3" ? ' selected' : '') . '>A3' . ($A3empty ? ' (nicht verfügbar)' : '') . '</option>';
+        // } else {
+        //     echo '<option value="A3" class="printer_option_disabled" disabled>A3 (nicht verfügbar)</option>';
+        // }
+
+        // echo '</select>';
 
 
         $duplexInfo = "Beidseitiger Druck: Kostengünstiger als Simplex und spart Papier.";
