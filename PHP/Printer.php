@@ -11,7 +11,7 @@ require('template.php');
 mysqli_set_charset($conn, "utf8");
 #Beta Test
 #if (auth($conn) && ($_SESSION['valid'])) {
-if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["TvK-Sprecher"])) {
+if (auth($conn) && ($_SESSION["valid"])) {
     load_menu();
 
     $step = isset($_POST['step']) ? $_POST['step'] : 'drucker_waehlen';
@@ -800,6 +800,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
         $possible = False;
 
         echo "<h2 class='printer_h2'>$gesamtpreis €</h2>";
+        echo "<h2 class='printer_h2'>$blätter</h2>";
 
         if ($printjobcheck === 1) {
             $possible = True;
@@ -874,66 +875,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
                 break;
             }
         }
-    
-        $uploadedFileNames = array_column($_SESSION['uploaded_files'], 'name');
-        $printJobTitle = !empty($uploadedFileNames) ? implode(" + ", $uploadedFileNames) : "Unbenannter Druckauftrag";
-        $printjobUser = "UID" . $printjob_uid;
+        
+        $blätter = berechneBlaetterausSeiten($gesamtseiten, $druckmodus);
+        $printjobcheck = checkifprintjobispossible($conn, $_SESSION["uid"], $_SESSION['drucker_id'], $drucker, $blätter, $gesamtpreis);
+        $possible = False;
+        $statusMessage = "";
 
-        // CUPS Druckbefehl
-        $print_command = "/usr/bin/lp -d $druName -n $anzahl_kopien -o media=$papierformat -o sides=" .
-            ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') .
-            " -U $printjobUser -t $printJobTitle -- " . escapeshellarg($merged_pdf_path);
+        echo "<h2 class='printer_h2'>$gesamtpreis €</h2>";
+        echo "<h2 class='printer_h2'>$blätter</h2>";
 
-        // Druckauftrag an CUPS senden
-        exec($print_command . " 2>&1", $output, $return_var);
-
-        if ($return_var === 0) {
-            $tries = 5;
-            while ($tries-- > 0) {
-                exec("lpstat -o $druName 2>/dev/null", $job_output);
-                if (!empty($job_output)) {
-                    $first_line = explode(" ", trim($job_output[0]));
-                    $cups_id = isset($first_line[0]) ? intval(preg_replace('/[^0-9]/', '', $first_line[0])) : null;
-                    if ($cups_id) break;
-                }
-                sleep(1); // Warte 1 Sekunde
-            }                
+        if ($printjobcheck === 1) {
+            $possible = true;
+        } elseif ($printjobcheck === 2) {
+            $statusMessage = "<h3 class='printer_h3'>❌ Nicht genug Geld auf dem Konto!</h3>";
+        } elseif ($printjobcheck === 3) {
+            $statusMessage = "<h3 class='printer_h3'>❌ Nicht genug Papier im Drucker!</h3>";
         }
 
-        $insert_sql = "INSERT INTO weh.printjobs 
-        (uid, tstamp, status, title, planned_pages, duplex, grey, din, cups_id, drucker, real_uid) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    
-        $insert_var = array(
-            $printjob_uid,                   
-            time(),                             
-            0,                                  
-            $printJobTitle,                     
-            $gesamtseiten,                      
-            ($druckmodus === "duplex") ? 1 : 0,
-            $graustufen ? 1 : 0,               
-            $papierformat,                     
-            $cups_id,                          
-            $druName,
-            $_SESSION["uid"]       
-        );
-        
-        // Prepared Statement ausführen
-        $stmt = mysqli_prepare($conn, $insert_sql);
-        mysqli_stmt_bind_param($stmt, "iiisiiisisi", ...$insert_var);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_close($stmt);
+        if ($possible) {    
+            $uploadedFileNames = array_column($_SESSION['uploaded_files'], 'name');
+            $printJobTitle = !empty($uploadedFileNames) ? implode("__", $uploadedFileNames) : "Unbenannter Druckauftrag";
+            $printjobUser = "UID" . $printjob_uid;
+            
+            // CUPS Druckbefehl aufbauen
+            $print_command = "/usr/bin/lp -d " . escapeshellarg($druName) .
+                " -n $anzahl_kopien -o media=$papierformat -o sides=" .
+                ($druckmodus === 'duplex' ? 'two-sided-long-edge' : 'one-sided') .
+                " -U " . escapeshellarg($printjobUser) .
+                " -t " . escapeshellarg($printJobTitle) .
+                " -- " . escapeshellarg($merged_pdf_path);
+            
+            // Druckauftrag an CUPS senden
+            exec($print_command . " 2>&1", $output, $return_var);
+            
+            // cups_id initialisieren
+            $cups_id = null;
+            
+            // Wenn erfolgreich → Job-ID aus der Ausgabe holen
+            if ($return_var === 0 && !empty($output)) {
+                foreach ($output as $line) {
+                    if (preg_match('/request id is .*?-(\d+)/i', $line, $matches)) {
+                        $cups_id = intval($matches[1]);
+                        break;
+                    }
+                }
+            }
+            
 
-        unset($_SESSION['drucker_id'], $_SESSION['uploaded_files']);
+            $insert_sql = "INSERT INTO weh.printjobs 
+            (uid, tstamp, status, title, planned_pages, duplex, grey, din, cups_id, drucker, real_uid) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+            $insert_var = array(
+                $printjob_uid,                   
+                time(),                             
+                0,                                  
+                $printJobTitle,                     
+                $gesamtseiten,                      
+                ($druckmodus === "duplex") ? 1 : 0,
+                $graustufen ? 1 : 0,               
+                $papierformat,                     
+                $cups_id,                          
+                $druName,
+                $_SESSION["uid"]       
+            );
+            
+            // Prepared Statement ausführen
+            $stmt = mysqli_prepare($conn, $insert_sql);
+            mysqli_stmt_bind_param($stmt, "iiisiiisisi", ...$insert_var);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+
+            unset($_SESSION['drucker_id'], $_SESSION['uploaded_files']);
+        }
     
-        // Falls das Drucken erfolgreich gestartet wurde
-        if ($return_var === 0) {
+        // Alles am Ende, übersichtlich zusammen
+        if ($possible && $return_var === 0) {
             echo "<h3>✅ Ihr Druckauftrag wurde erfolgreich angenommen!</h3>";
             echo "<p>Ihr Dokument wird nun gedruckt.</p>";
         } else {
-            echo "<h3 style='color: red;'>❌ Fehler beim Drucken!</h3>";
-            echo "<p>Leider konnte der Druckauftrag nicht gesendet werden.</p>";
-        }  
+            // Falls vorher schon eine Message gesetzt wurde (Papier/Geld)
+            if (!empty($statusMessage)) {
+                echo $statusMessage;
+            } else {
+                echo "<h3 style='color: red;'>❌ Fehler beim Drucken!</h3>";
+                echo "<p>Leider konnte der Druckauftrag nicht gesendet werden.</p>";
+            }
+
+            // Optional: Debug-Ausgabe
+            // echo "<pre style='background:#fdd; padding:1em; border:1px solid #f99;'>
+            // <b>🔧 Druckbefehl:</b>\n" . htmlentities($print_command) . "
+            // <b>🔧 Rückgabecode:</b> $return_var
+            // <b>🔧 CUPS-Ausgabe:</b>\n" . htmlentities(implode("\n", $output)) . "</pre>";
+        }
+    
         
         // Ladeanimation
         echo "<div class='printer_loading'>
