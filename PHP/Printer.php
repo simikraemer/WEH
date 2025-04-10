@@ -260,125 +260,164 @@ if (auth($conn) && ($_SESSION['valid'])) {
         }
     
 
-// Falls eine neue Datei hochgeladen wird
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
-    echo "<!-- DEBUG: Upload-Handler aktiviert -->";
+        // Falls eine neue Datei hochgeladen wird
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
+            echo "<!-- DEBUG: Upload-Handler aktiviert -->";
 
-    $uploadsDir = "printuploads/";
-    $allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+            $uploadsDir = "printuploads/";
+            $allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 
-    foreach ($_FILES['dokumente']['tmp_name'] as $key => $tmp_name) {
-        $fileName = $_FILES['dokumente']['name'][$key];
-        $fileType = mime_content_type($tmp_name);
+            foreach ($_FILES['dokumente']['tmp_name'] as $key => $tmp_name) {
+                $fileName = $_FILES['dokumente']['name'][$key];
+                $fileType = mime_content_type($tmp_name);
 
-        echo "<!-- DEBUG: Datei erkannt: $fileName ($fileType) -->";
+                echo "<!-- DEBUG: Datei erkannt: $fileName ($fileType) -->";
 
-        if (!in_array($fileType, $allowedTypes)) {
-            echo "<p class='printer_error-message'>Fehler: '$fileName' hat ein ungültiges Format!</p>";
-            continue;
-        }
-
-        if ($fileType === "application/pdf") {
-            echo "<!-- DEBUG: PDF-Verarbeitung gestartet für $fileName -->";
-
-            if (is_pdf_encrypted($tmp_name)) {
-                echo "<p class='printer_error-message'>Fehler: '$fileName' ist verschlüsselt und wird nicht akzeptiert!</p>";
-                continue;
-            }
-
-            if (!is_valid_pdf($tmp_name)) {
-                echo "<p class='printer_error-message'>Fehler: '$fileName' ist beschädigt oder falsch formatiert!</p>";
-                continue;
-            }
-
-            foreach ($drucker as $d) {
-                if ($d['id'] == $druID) {
-                    $druName = $d['name'];
-                    $druIP = $d['ip'];
-                    break;
+                if (!in_array($fileType, $allowedTypes)) {
+                    echo "<p class='printer_error-message'>Fehler: '$fileName' hat ein ungültiges Format!</p>";
+                    continue;
                 }
-            }
 
-            echo "<!-- DEBUG: Druckername ermittelt: $druName -->";
+                if ($fileType === "application/pdf") {
+                    echo "<!-- DEBUG: PDF-Verarbeitung gestartet für $fileName -->";
 
-            // 1. Flatten PDF via Ghostscript
-            $flattenedPath = $tmp_name . "_flattened.pdf";
-            $gsCmd = "gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite " .
-                     "-dPrinted=false -dNoOutputFonts " .
-                     "-sOutputFile=" . escapeshellarg($flattenedPath) . " " .
-                     escapeshellarg($tmp_name);
-            shell_exec($gsCmd);
+                    if (is_pdf_encrypted($tmp_name)) {
+                        echo "<p class='printer_error-message'>Fehler: '$fileName' ist verschlüsselt und wird nicht akzeptiert!</p>";
+                        continue;
+                    }
 
-            echo "<!-- DEBUG: Ghostscript-Befehl: $gsCmd -->";
+                    if (!is_valid_pdf($tmp_name)) {
+                        echo "<p class='printer_error-message'>Fehler: '$fileName' ist beschädigt oder falsch formatiert!</p>";
+                        continue;
+                    }
 
-            if (!file_exists($flattenedPath)) {
-                echo "<p class='printer_error-message'>Fehler: '$fileName' konnte nicht in druckbare Form umgewandelt werden (Ghostscript-Fehler).</p>";
-                continue;
-            }
-
-            // 2. CUPS-Test
-            $lpCmd = "/usr/bin/lp -d " . escapeshellarg($druName) .
-                     " -o job-hold-until=indefinite " .
-                     escapeshellarg($flattenedPath) . " 2>&1";
-            exec($lpCmd, $lpOutput, $returnCode);
-
-            echo "<!-- DEBUG: CUPS-Befehl: $lpCmd -->";
-            echo "<!-- DEBUG: CUPS-Rückgabe ($returnCode): " . htmlentities(implode("\n", $lpOutput)) . " -->";
-
-            if ($returnCode !== 0) {
-                echo "<p class='printer_error-message'>Fehler: '$fileName' konnte vom Drucker nicht verarbeitet werden.<br><small>" .
-                     htmlentities(implode("<br>", $lpOutput)) . "</small></p>";
-                unlink($flattenedPath);
-                continue;
-            }
-
-            // 3. Job löschen
-            exec("lpstat -o " . escapeshellarg($druName) . " 2>/dev/null", $job_output);
-            echo "<!-- DEBUG: lpstat Ausgabe: " . htmlentities(implode("\n", $job_output)) . " -->";
-
-            if (!empty($job_output)) {
-                foreach ($job_output as $line) {
-                    if (strpos($line, $druName) !== false) {
-                        $parts = explode(" ", trim($line));
-                        $job_id = $parts[0] ?? null;
-                        if ($job_id) {
-                            exec("cancel " . escapeshellarg($job_id));
-                            echo "<!-- DEBUG: Druckjob $job_id gelöscht -->";
+                    foreach ($drucker as $d) {
+                        if ($d['id'] == $druID) {
+                            $druName = $d['name'];
+                            $druIP = $d['ip'];
                             break;
                         }
                     }
+
+                    // 1. Prüfen ob PDF potenziell druckbar ist
+                    $infoCmd = "pdfinfo " . escapeshellarg($tmp_name) . " 2>&1";
+                    $pdfInfo = shell_exec($infoCmd);
+                    echo "<!-- DEBUG: pdfinfo-Ausgabe:\n" . htmlentities($pdfInfo) . " -->";
+
+                    // Seitenanzahl prüfen
+                    $pageCount = get_pdf_page_count($tmp_name);
+                    $maxPages = 500;
+
+                    if ($pageCount === false) {
+                        echo "<p class='printer_error-message'>Fehler: Die Seitenanzahl von '$fileName' konnte nicht ermittelt werden – ungültiges oder beschädigtes PDF?</p>";
+                        continue;
+                    }
+
+                    if ($pageCount > $maxPages) {
+                        echo "<p class='printer_error-message'>Fehler: '$fileName' hat zu viele Seiten ($pageCount) – maximal erlaubt: $maxPages.</p>";
+                        continue;
+                    }
+
+                    echo "<!-- DEBUG: PDF hat $pageCount Seiten und gilt als druckbar -->";
+
+                    /* === AUSGEHÄNGT: Ghostscript Flattening ===
+                    $needsFlatten = false;
+                    if (preg_match('/Tagged:\s+yes/i', $pdfInfo) ||
+                        preg_match('/Encrypted:\s+yes/i', $pdfInfo) ||
+                        preg_match('/Form:/i', $pdfInfo) ||
+                        preg_match('/PDF version:\s+(1\.[5-9])/', $pdfInfo)) {
+                        $needsFlatten = true;
+                        echo "<!-- DEBUG: Flattening erforderlich -->";
+                    } else {
+                        echo "<!-- DEBUG: Flattening nicht erforderlich -->";
+                    }
+
+                    if ($needsFlatten) {
+                        $flattenedPath = $tmp_name . "_flattened.pdf";
+                        $gsCmd = "gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite " .
+                                "-dPrinted=false -dNoOutputFonts " .
+                                "-sOutputFile=" . escapeshellarg($flattenedPath) . " " .
+                                escapeshellarg($tmp_name);
+                        shell_exec($gsCmd);
+
+                        echo "<!-- DEBUG: Ghostscript-Befehl: $gsCmd -->";
+
+                        if (!file_exists($flattenedPath)) {
+                            echo "<p class='printer_error-message'>Fehler: '$fileName' konnte nicht in druckbare Form umgewandelt werden (Ghostscript-Fehler).</p>";
+                            continue;
+                        }
+
+                        $tmp_name = $flattenedPath;
+                    }
+                    */
+
+                    /* === AUSGEHÄNGT: CUPS-Testdruck ===
+                    $lpCmd = "/usr/bin/lp -d " . escapeshellarg($druName) .
+                            " -o job-hold-until=indefinite " .
+                            escapeshellarg($tmp_name) . " 2>&1";
+                    exec($lpCmd, $lpOutput, $returnCode);
+
+                    echo "<!-- DEBUG: CUPS-Befehl: $lpCmd -->";
+                    echo "<!-- DEBUG: CUPS-Rückgabe ($returnCode): " . htmlentities(implode("\n", $lpOutput)) . " -->";
+
+                    if ($returnCode !== 0) {
+                        echo "<p class='printer_error-message'>Fehler: '$fileName' konnte vom Drucker nicht verarbeitet werden.<br><small>" .
+                            htmlentities(implode("<br>", $lpOutput)) . "</small></p>";
+
+                        if ($needsFlatten && file_exists($tmp_name)) {
+                            unlink($tmp_name);
+                        }
+                        continue;
+                    }
+
+                    exec("lpstat -o " . escapeshellarg($druName) . " 2>/dev/null", $job_output);
+                    echo "<!-- DEBUG: lpstat Ausgabe: " . htmlentities(implode("\n", $job_output)) . " -->";
+
+                    if (!empty($job_output)) {
+                        foreach ($job_output as $line) {
+                            if (strpos($line, $druName) !== false) {
+                                $parts = explode(" ", trim($line));
+                                $job_id = $parts[0] ?? null;
+                                if ($job_id) {
+                                    exec("cancel " . escapeshellarg($job_id));
+                                    echo "<!-- DEBUG: Druckjob $job_id gelöscht -->";
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    */
+
+                    
+
+                }
+
+                // Dateinamen formatieren
+                $formattedFileName = sanitizeFileName($fileName);
+                $shortFileName = shortenFileName($formattedFileName, 20);
+                $newPath = $uploadsDir . uniqid() . "_" . $shortFileName;
+
+                if (is_uploaded_file($tmp_name)) {
+                    $moveSuccess = move_uploaded_file($tmp_name, $newPath);
+                    echo "<!-- DEBUG: move_uploaded_file verwendet -->";
+                } else {
+                    $moveSuccess = rename($tmp_name, $newPath);
+                    echo "<!-- DEBUG: rename verwendet -->";
+                }
+
+                if ($moveSuccess) {
+                    $_SESSION['uploaded_files'][] = [
+                        'name' => $formattedFileName,
+                        'path' => $newPath,
+                        'type' => $fileType,
+                        'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
+                    ];
+                    echo "<!-- DEBUG: Datei erfolgreich gespeichert unter $newPath -->";
+                } else {
+                    echo "<p class='printer_error-message'>Fehler beim Speichern der Datei '$fileName'.</p>";
                 }
             }
-
-            $tmp_name = $flattenedPath;
         }
-
-        // Dateinamen formatieren
-        $formattedFileName = sanitizeFileName($fileName);
-        $shortFileName = shortenFileName($formattedFileName, 20);
-        $newPath = $uploadsDir . uniqid() . "_" . $shortFileName;
-
-        if (is_uploaded_file($tmp_name)) {
-            $moveSuccess = move_uploaded_file($tmp_name, $newPath);
-            echo "<!-- DEBUG: move_uploaded_file verwendet -->";
-        } else {
-            $moveSuccess = rename($tmp_name, $newPath);
-            echo "<!-- DEBUG: rename verwendet -->";
-        }
-
-        if ($moveSuccess) {
-            $_SESSION['uploaded_files'][] = [
-                'name' => $formattedFileName,
-                'path' => $newPath,
-                'type' => $fileType,
-                'pages' => ($fileType === "application/pdf") ? get_pdf_page_count($newPath) : 1
-            ];
-            echo "<!-- DEBUG: Datei erfolgreich gespeichert unter $newPath -->";
-        } else {
-            echo "<p class='printer_error-message'>Fehler beim Speichern der Datei '$fileName'.</p>";
-        }
-    }
-}
        
 
         // Falls eine neue Reihenfolge gespeichert wurde
@@ -799,7 +838,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
         $possible = False;
 
         echo "<h2 class='printer_h2'>$gesamtpreis €</h2>";
-        echo "<h2 class='printer_h2'>$blätter</h2>";
 
         if ($printjobcheck === 1) {
             $possible = True;
@@ -881,7 +919,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dokumente'])) {
         $statusMessage = "";
 
         echo "<h2 class='printer_h2'>$gesamtpreis €</h2>";
-        echo "<h2 class='printer_h2'>$blätter</h2>";
 
         if ($printjobcheck === 1) {
             $possible = true;

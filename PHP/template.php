@@ -1667,53 +1667,6 @@ function berechneBlaetterausSeiten($gesamtseiten, $druckmodus) {
         return $gesamtseiten; // Simplex: 1 Seite pro Blatt
     }
 }
-
-function make_file_printable($originalPath, $druckerName, &$errorMessage = null) {
-    $outputPath = $originalPath . "_flattened.pdf";
-
-    // 1. PDF flatten mit Ghostscript
-    $gsCmd = "gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite " .
-             "-dPrinted=false -dNoOutputFonts " .
-             "-sOutputFile=" . escapeshellarg($outputPath) . " " .
-             escapeshellarg($originalPath);
-    shell_exec($gsCmd);
-
-    if (!file_exists($outputPath)) {
-        $errorMessage = "Flattening fehlgeschlagen (Ghostscript)";
-        return false;
-    }
-
-    // 2. Druckbarkeits-Check via CUPS (ohne echten Druck)
-    $lpCmd = "/usr/bin/lp -d " . escapeshellarg($druckerName) .
-             " -o job-hold-until=indefinite " .
-             escapeshellarg($outputPath) . " 2>&1";
-    exec($lpCmd, $lpOutput, $return_var);
-
-    if ($return_var !== 0) {
-        $errorMessage = "CUPS-Drucker akzeptiert die Datei nicht:\n" . implode("\n", $lpOutput);
-        unlink($outputPath); // temporäre Datei wieder entfernen
-        return false;
-    }
-
-    // 3. Job-ID extrahieren und sofort wieder löschen
-    exec("lpstat -o " . escapeshellarg($druckerName) . " 2>/dev/null", $job_output);
-    if (!empty($job_output)) {
-        foreach ($job_output as $line) {
-            if (strpos($line, $druckerName) !== false) {
-                $job_parts = explode(" ", trim($line));
-                $job_id = $job_parts[0] ?? null;
-                if ($job_id) {
-                    exec("cancel " . escapeshellarg($job_id));
-                    break;
-                }
-            }
-        }
-    }
-
-    // 4. Rückgabe des druckbaren Pfads
-    return $outputPath;
-}
-
     
     
 
