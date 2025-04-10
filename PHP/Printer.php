@@ -10,8 +10,7 @@
 require('template.php');
 mysqli_set_charset($conn, "utf8");
 #Beta Test
-#if (auth($conn) && ($_SESSION['valid'])) {
-if (auth($conn) && ($_SESSION["valid"])) {
+if (auth($conn) && ($_SESSION['valid'])) {
     load_menu();
 
     $step = isset($_POST['step']) ? $_POST['step'] : 'drucker_waehlen';
