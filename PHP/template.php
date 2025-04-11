@@ -1621,6 +1621,9 @@ function checkifprintjobispossible($conn, $uid, $drucker_id, $drucker, $blätter
         $accountbalance = 0.00;
     }
 
+    $gesamtpreis = str_replace(',', '.', $gesamtpreis);
+    $gesamtpreis = floatval($gesamtpreis);
+
     // 🔹 **2️⃣ Drucker-IP abrufen**
     $drucker_ip = null;
     foreach ($drucker as $d) {

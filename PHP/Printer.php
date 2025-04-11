@@ -320,6 +320,32 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
                     echo "<!-- DEBUG: PDF hat $pageCount Seiten und gilt als druckbar -->";
 
+                    
+                    // 2. Prüfen ob Format A4 ist → sonst konvertieren!
+                    if (preg_match('/Page size:\s+([\d.]+)\s+x\s+([\d.]+)/', $pdfInfo, $matches)) {
+                        $width = floatval($matches[1]);
+                        $height = floatval($matches[2]);
+                        $isA4 = abs($width - 595) < 5 && abs($height - 842) < 5;
+
+                        if (!$isA4) {
+                            $a4FixedPath = $uploadsDir . uniqid("a4_") . ".pdf";
+
+                            $convertToA4Cmd = "gs -sDEVICE=pdfwrite -dPDFFitPage -dCompatibilityLevel=1.4 " .
+                                "-dNOPAUSE -dQUIET -dBATCH -sPAPERSIZE=a4 " .
+                                "-sOutputFile=" . escapeshellarg($a4FixedPath) . " " . escapeshellarg($tmp_name);
+
+                            shell_exec($convertToA4Cmd);
+                            echo "<!-- DEBUG: PDF war nicht A4 – wurde konvertiert nach $a4FixedPath -->";
+
+                            // tmp_name durch neues File ersetzen
+                            $tmp_name = $a4FixedPath;
+                        } else {
+                            echo "<!-- DEBUG: PDF ist A4 – keine Konvertierung nötig -->";
+                        }
+                    } else {
+                        echo "<!-- WARNUNG: Page size konnte nicht erkannt werden – keine Formatprüfung durchgeführt -->";
+                    }
+
                     /* === AUSGEHÄNGT: Ghostscript Flattening ===
                     $needsFlatten = false;
                     if (preg_match('/Tagged:\s+yes/i', $pdfInfo) ||
