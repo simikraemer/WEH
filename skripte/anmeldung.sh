@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Erst das Python-Skript ausführen
+/usr/bin/python3 /WEH/skripte/anmeldung.py
+
 # Konfigurationsdatei
 CONFIG_FILE="/etc/credentials/config.json"
 

@@ -1,6 +1,9 @@
 <?php
   session_start();
   require('conn.php');
+  date_default_timezone_set('Europe/Berlin'); // Stelle sicher, dass die Zeitzone stimmt
+  require_once 'vendor/autoload.php';
+  use Cron\CronExpression;
 
   $suche = FALSE;
   
@@ -694,29 +697,28 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
   echo '<div style="height: 50px;"></div>';
 
-
-  
+    
   echo '<div style="display: flex; justify-content: center; align-items: stretch; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
   
-  // 🔹 Zert
-  echo "<div class='dashboard-container' style='background-color: $cert_box_color;'>";
-  echo "<div style='font-size: 30px;'>Zertifikate</div><br>";
-  echo "<div style='font-size: 21px;'>$cert_box_text</div>";
-  echo "</div>";
+    // 🔹 Zert
+    echo "<div class='dashboard-container' style='background-color: $cert_box_color;'>";
+    echo "<div style='font-size: 30px;'>Zertifikate</div><br>";
+    echo "<div style='font-size: 21px;'>$cert_box_text</div>";
+    echo "</div>";
   
-  // 🔸 Budget
-  $budget_box_color = ($netzbudget >= 0) ? "#085206" : "rgba(165, 17, 13, 0.7)";
-  echo "<div class='dashboard-container' style='background-color: $budget_box_color;'>";
-  echo "<div style='font-size: 30px; margin-bottom: 20px;'>Netz-Budget</div>";
-  echo "<div style='font-size: 60px;'>" . number_format($netzbudget, 2, ',', '.') . " €</div>";
-  echo "</div>";
+    // 🔸 Budget
+    $budget_box_color = ($netzbudget >= 0) ? "#085206" : "rgba(165, 17, 13, 0.7)";
+    echo "<div class='dashboard-container' style='background-color: $budget_box_color;'>";
+    echo "<div style='font-size: 30px; margin-bottom: 20px;'>Netz-Budget</div>";
+    echo "<div style='font-size: 60px;'>" . number_format($netzbudget, 2, ',', '.') . " €</div>";
+    echo "</div>";
   
-  // 🔹 Active User
-  $users_box_color = "#085206";
-  echo "<div class='dashboard-container' style='background-color: $users_box_color;'>";
-  echo "<div style='font-size: 30px; margin-bottom: 20px;'>Aktive User</div>";
-  echo "<div style='font-size: 60px;'>" . $anzahl_aktive_user . "</div>";
-  echo "</div>";
+    // 🔹 Active User
+    $users_box_color = "#085206";
+    echo "<div class='dashboard-container' style='background-color: $users_box_color;'>";
+    echo "<div style='font-size: 30px; margin-bottom: 20px;'>Aktive User</div>";
+    echo "<div style='font-size: 60px;'>" . $anzahl_aktive_user . "</div>";
+    echo "</div>";
 
   echo '</div>';
   
@@ -727,71 +729,251 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   #### Start FLEXBOX
   echo '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 50px; margin: 0 auto; max-width: 90%; padding: 20px; box-sizing: border-box;">';
 
-  // Anmeldungen-Box
-  echo "<div class='dashboard-container' style='background-color: $anm_box_color; '>";
-  echo "<span style='color: white; font-size: 30px;'>Anmeldungen</span><br><br>";
-  echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="Anmeldung">';
-  echo '<div style="max-width: 300px; margin: 0 auto;">';
+    // Anmeldungen-Box
+    echo "<div class='dashboard-container' style='background-color: $anm_box_color; '>";
+    echo "<span style='color: white; font-size: 30px;'>Anmeldungen</span><br><br>";
+    echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="Anmeldung">';
+    echo '<div style="max-width: 300px; margin: 0 auto;">';
 
-  if (empty($anmeldungen)) {
-      echo $empty_msg;
-  } else {
-      foreach ($anmeldungen as $entry) {
-          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
-      }
-  }
-  echo '</div><br></form></div>';
+    if (empty($anmeldungen)) {
+        echo $empty_msg;
+    } else {
+        foreach ($anmeldungen as $entry) {
+            $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+            echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+        }
+    }
+    echo '</div><br></form></div>';
 
-  // Unknown Transfers BOX
-  echo "<div class='dashboard-container' style='background-color: $unk_box_color; '>";
-  echo "<span style='color: white; font-size: 30px;'>Transfers</span><br><br>";
-  echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="UnknownTransfers">';
-  echo '<div style="max-width: 300px; margin: 0 auto;">';
+    // Unknown Transfers BOX
+    echo "<div class='dashboard-container' style='background-color: $unk_box_color; '>";
+    echo "<span style='color: white; font-size: 30px;'>Transfers</span><br><br>";
+    echo '<form method="post" action="Dashboard.php"><input type="hidden" name="wayoflife" value="UnknownTransfers">';
+    echo '<div style="max-width: 300px; margin: 0 auto;">';
 
-  if (empty($kontowecker)) {
-      echo $empty_msg;
-  } else {
-      foreach ($kontowecker as $entry) {
-          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color: #11a50d;">' . htmlspecialchars($entry["name"]) . '</button>';
-      }
-  }
-  echo '</div><br></form></div>';
+    if (empty($kontowecker)) {
+        echo $empty_msg;
+    } else {
+        foreach ($kontowecker as $entry) {
+            echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color: #11a50d;">' . htmlspecialchars($entry["name"]) . '</button>';
+        }
+    }
+    echo '</div><br></form></div>';
 
-  // PSK Bpx
-  echo "<div class='dashboard-container' style='background-color: $psk_box_color; '>";
-  echo "<span style='color: white; font-size: 30px;'>PSK-Only</span><br><br>";
-  echo '<form method="post"><input type="hidden" name="wayoflife" value="PSK">';
-  echo '<div style="max-width: 300px; margin: 0 auto;">';
+    // PSK Bpx
+    echo "<div class='dashboard-container' style='background-color: $psk_box_color; '>";
+    echo "<span style='color: white; font-size: 30px;'>PSK-Only</span><br><br>";
+    echo '<form method="post"><input type="hidden" name="wayoflife" value="PSK">';
+    echo '<div style="max-width: 300px; margin: 0 auto;">';
 
-  if (empty($pskonly)) {
-      echo $empty_msg;
-  } else {
-      foreach ($pskonly as $entry) {
-          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
-      }
-  }
-  echo '</div><br></form></div>';
+    if (empty($pskonly)) {
+        echo $empty_msg;
+    } else {
+        foreach ($pskonly as $entry) {
+            $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+            echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+        }
+    }
+    echo '</div><br></form></div>';
 
-  // ABM Box
-  echo "<div class='dashboard-container' style='background-color: $abm_box_color; '>";
-  echo "<span style='color: white; font-size: 30px;'>Abmeldungen</span><br><br>";
-  echo '<form method="post"><input type="hidden" name="wayoflife" value="Abmeldung">';
-  echo '<div style="max-width: 300px; margin: 0 auto;">';
+    // ABM Box
+    echo "<div class='dashboard-container' style='background-color: $abm_box_color; '>";
+    echo "<span style='color: white; font-size: 30px;'>Abmeldungen</span><br><br>";
+    echo '<form method="post"><input type="hidden" name="wayoflife" value="Abmeldung">';
+    echo '<div style="max-width: 300px; margin: 0 auto;">';
 
-  if (empty($abm)) {
-      echo $empty_msg;
-  } else {
-      foreach ($abm as $entry) {
-          $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-          echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
-      }
-  }
-  echo '</div><br></form></div>';
+    if (empty($abm)) {
+        echo $empty_msg;
+    } else {
+        foreach ($abm as $entry) {
+            $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
+            echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+        }
+    }
+    echo '</div><br></form></div>';
 
   echo '</div>'; // Flex-Ende
 
+
+
+  echo '<div style="height: 25px;"></div><hr><div style="height: 25px;"></div>';
+
+
+  function getCronTimes($crontabPath, $scriptName) {
+      $lines = file($crontabPath);
+      foreach ($lines as $line) {
+          if (strpos($line, $scriptName) !== false) {
+              $parts = preg_split('/\s+/', trim($line), 7);
+              if (count($parts) >= 7) {
+                  $schedule = implode(' ', array_slice($parts, 0, 5));
+                  $cron = CronExpression::factory($schedule);
+                  $now = new DateTime();
+                  return [
+                      'prev' => $cron->getPreviousRunDate($now),
+                      'next' => $cron->getNextRunDate($now)
+                  ];
+              }
+          }
+      }
+      return null;
+  }
+
+  $cronjobs = [
+      'anmeldung'   => 'anmeldung.sh',
+      'entsperren' => 'payment_entsperren.py',
+      'cleanup'     => 'user_cleanup.py',
+      'abmeldung'   => 'abmeldung.py',
+  ];
+
+  $now = new DateTime();
+  $cronData = [];
+
+  foreach ($cronjobs as $key => $script) {
+    $times = getCronTimes('/etc/crontab', $script);
+    if ($times) {
+        $diffSeconds = $times['next']->getTimestamp() - $now->getTimestamp();
+        $cronData[$key] = [
+            'key'         => $key,
+            'secondsLeft' => $diffSeconds,
+            'prevRun'     => $times['prev']->format(DateTime::ATOM),
+            'nextRun'     => $times['next']->format(DateTime::ATOM),
+        ];
+    }
+}
+  ?>
+
+  <!DOCTYPE html>
+  <html lang="de">
+  <head>
+      <meta charset="UTF-8">
+      <style>
+          .dashboard-container {
+              transition: background-color 0.5s ease;
+              background-color: rgba(0, 0, 0, 0.7);
+              color: white;
+              font-size: 30px;
+              padding: 20px;
+              border-radius: 10px;
+              text-align: center;
+              min-width: 200px;
+          }
+          .dashboard-wrapper {
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              gap: 50px;
+              margin: 0 auto;
+              max-width: 90%;
+              padding: 20px;
+              box-sizing: border-box;
+          }
+      </style>
+  </head>
+  <body>
+
+  
+<div class="dashboard-wrapper">
+<?php foreach ($cronData as $cron): ?>
+    <div class="dashboard-container"
+         id="cron_<?php echo $cron['key']; ?>"
+         data-seconds-left="<?php echo $cron['secondsLeft']; ?>"
+         data-prev-run="<?php echo $cron['prevRun']; ?>"
+         data-next-run="<?php echo $cron['nextRun']; ?>">
+        <strong><?php echo ucfirst($cron['key']); ?></strong><br>
+        <span class="countdown" id="countdown_<?php echo $cron['key']; ?>"></span>
+    </div>
+<?php endforeach; ?>
+</div>
+
+<script>
+function interpolateColor(color1, color2, factor) {
+    const c1 = color1.match(/\d+/g).map(Number);
+    const c2 = color2.match(/\d+/g).map(Number);
+    const result = c1.map((c, i) => Math.round(c + factor * (c2[i] - c)));
+    return `rgb(${result.join(",")})`;
+}
+
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h}h ${m}m ${s}s`;
+}
+
+function initializeCountdowns() {
+    document.querySelectorAll('.dashboard-container').forEach(container => {
+        const now = Date.now();
+        const prevRun = new Date(container.getAttribute("data-prev-run")).getTime();
+        const nextRun = new Date(container.getAttribute("data-next-run")).getTime();
+
+        container._prevRun = prevRun;
+        container._nextRun = nextRun;
+        container._totalDuration = nextRun - prevRun;
+
+        console.log("[INIT]", container.id, {
+            prevRun: new Date(prevRun).toISOString(),
+            nextRun: new Date(nextRun).toISOString(),
+            totalDuration: container._totalDuration
+        });
+    });
+}
+
+function updateCountdowns() {
+    document.querySelectorAll('.dashboard-container').forEach(container => {
+        const countdownElem = container.querySelector(".countdown");
+        if (!countdownElem) return;
+
+        let now = Date.now();
+        let prevRun = container._prevRun;
+        let nextRun = container._nextRun;
+        const total = container._totalDuration;
+
+        // Wenn ausgeführt wurde: Zeit resetten
+        if (now > nextRun) {
+            // Setze den Zyklus neu (immer gleich lang)
+            const cyclesPassed = Math.floor((now - prevRun) / total);
+            prevRun = prevRun + cyclesPassed * total;
+            nextRun = prevRun + total;
+
+            // Update interne Werte
+            container._prevRun = prevRun;
+            container._nextRun = nextRun;
+
+            console.log("🔁 Reset für", container.id, {
+                newPrev: new Date(prevRun).toISOString(),
+                newNext: new Date(nextRun).toISOString()
+            });
+        }
+
+        let secondsLeft = Math.floor((nextRun - now) / 1000);
+        if (secondsLeft < 0) secondsLeft = 0;
+
+        countdownElem.textContent = formatTime(secondsLeft);
+
+        const elapsed = now - prevRun;
+        const factor = Math.min(1, Math.max(0, elapsed / total));
+        const newColor = interpolateColor("rgb(0,0,0)", "rgb(8,82,6)", factor);
+        container.style.backgroundColor = newColor;
+
+        console.log("[UPDATE]", container.id, {
+            secondsLeft,
+            factor,
+            newColor
+        });
+    });
+}
+
+
+initializeCountdowns();
+setInterval(updateCountdowns, 1000);
+updateCountdowns();
+</script>
+
+
+
+
+
+  <?php
 
 
 
