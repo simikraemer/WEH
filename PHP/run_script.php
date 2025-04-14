@@ -6,8 +6,8 @@ $allowedScripts = [
     'entsperren'  => 'python3 /WEH/skripte/payment_entsperren.py',
     'cleanup'     => 'python3 /WEH/skripte/user_cleanup.py',
     'abmeldung'   => 'python3 /WEH/skripte/abmeldung.py',
-    'tvk'         => 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de "bash /usr/local/sbin/update_dhcpd.sh 2>&1"' ,
-    'weh'         => 'ssh -i /etc/credentials/fijinotausprivatekey -p 22022 fijinotaus@dns2.weh.rwth-aachen.de "bash /usr/local/sbin/update_dhcpd.sh 2>&1"' ,
+    'tvkdhcp'         => 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de "bash /usr/local/sbin/update_dhcpd.sh 2>&1"' ,
+    'wehdhcp'         => 'ssh -i /etc/credentials/fijinotausprivatekey -p 22022 fijinotaus@dns2.weh.rwth-aachen.de "bash /usr/local/sbin/update_dhcpd.sh 2>&1"' ,
 ];
 
 header('Content-Type: text/plain');

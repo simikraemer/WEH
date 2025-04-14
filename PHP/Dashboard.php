@@ -857,11 +857,11 @@ function getSimulatedCronTimes($expression) {
 
   // ➕ Simulierte externe Cronjobs (z. B. Remote DHCP-Skripte)
   $simulatedCronjobs = [
-    'weh' => [
+    'wehdhcp' => [
         'label' => 'WEH DHCP',
         'expression' => '*/5 * * * *'
     ],
-    'tvk' => [
+    'tvkdhcp' => [
         'label' => 'TvK DHCP',
         'expression' => '*/5 * * * *'
     ]
@@ -896,6 +896,16 @@ function getSimulatedCronTimes($expression) {
       </div>
   <?php endforeach; ?>
 </div>
+
+
+<div id="script-output"
+     style="margin: 30px auto 0 auto; background-color: black; color: white; font-family: monospace; text-align: left; overflow-y: auto; min-width: 600px; max-width: 80%;">
+  <!-- JS wird Inhalt hier einfügen -->
+</div>
+
+
+
+
 
 <script>
 function interpolateColor(color1, color2, factor) {
@@ -974,32 +984,61 @@ function updateCountdowns() {
     });
 }
 
-
-
 document.querySelectorAll('.cronjob-container').forEach(container => {
   container.addEventListener('click', () => {
     const key = container.id.replace("cron_", "");
     const countdownElem = container.querySelector(".countdown");
+    const outputBox = document.querySelector("#script-output");
 
-    // Feedback anzeigen
-    countdownElem.textContent = "Ausgeführt";
+    countdownElem.textContent = "Running...";
     container.style.backgroundColor = "rgb(8,82,6)";
+    container._manualOverrideUntil = Infinity;
 
-    // Override für 3 Sekunden setzen
-    container._manualOverrideUntil = Date.now() + 3000;
-
-    // AJAX: Skript starten
     fetch("run_script.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "script=" + encodeURIComponent(key)
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "script=" + encodeURIComponent(key)
     })
     .then(response => response.text())
-    .then(data => console.log("✅ Server antwortet:", data))
-    .catch(err => console.error("❌ Fehler:", err));
-  });
+    .then(data => {
+      countdownElem.textContent = "Done";
+      container.style.backgroundColor = "rgb(8,82,6)";
+      container._manualOverrideUntil = Date.now() + 2000;
 
+      setTimeout(() => {
+        container._manualOverrideUntil = 0;
+      }, 2100);
+
+      if (outputBox) {
+        const timestamp = new Date().toLocaleTimeString();
+        const escaped = data
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br>");
+        const log = `<div>[${timestamp}] <b>${key}</b>:<br>${escaped}</div><br>`;
+        outputBox.innerHTML = log + outputBox.innerHTML;
+      }
+    })
+    .catch(err => {
+      countdownElem.textContent = "Fehler";
+      container.style.backgroundColor = "rgb(100,0,0)";
+      container._manualOverrideUntil = Date.now() + 3000;
+
+      setTimeout(() => {
+        container._manualOverrideUntil = 0;
+      }, 3100);
+
+      if (outputBox) {
+        const timestamp = new Date().toLocaleTimeString();
+        const log = `<div>[${timestamp}] <b>${key}</b>:<br><span style="color:red;">❌ Fehler: ${err.message}</span></div><br>`;
+        outputBox.innerHTML = log + outputBox.innerHTML;
+      }
+    });
+  });
 });
+
+
 
 
 
