@@ -760,9 +760,9 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     }
     echo '</div><br></form></div>';
 
-    // PSK Bpx
+    // PSK Box
     echo "<div class='dashboard-container' style='background-color: $psk_box_color; '>";
-    echo "<span style='color: white; font-size: 30px;'>PSK-Only</span><br><br>";
+    echo "<span style='color: white; font-size: 30px;'>PSK</span><br><br>";
     echo '<form method="post"><input type="hidden" name="wayoflife" value="PSK">';
     echo '<div style="max-width: 300px; margin: 0 auto;">';
 

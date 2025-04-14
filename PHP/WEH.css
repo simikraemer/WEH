@@ -1682,15 +1682,21 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   cursor: pointer;
 }
 .dashboard-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 50px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
   margin: 0 auto;
   max-width: 90%;
   padding: 20px;
   box-sizing: border-box;
 }
+
+@media (max-width: 600px) {
+  .dashboard-wrapper {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 
 .lds-dual-ring {
   display: inline-block;
