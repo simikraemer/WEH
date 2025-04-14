@@ -800,89 +800,101 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
 
   function getCronTimes($crontabPath, $scriptName) {
-      $lines = file($crontabPath);
-      foreach ($lines as $line) {
-          if (strpos($line, $scriptName) !== false) {
-              $parts = preg_split('/\s+/', trim($line), 7);
-              if (count($parts) >= 7) {
-                  $schedule = implode(' ', array_slice($parts, 0, 5));
-                  $cron = CronExpression::factory($schedule);
-                  $now = new DateTime();
-                  return [
-                      'prev' => $cron->getPreviousRunDate($now),
-                      'next' => $cron->getNextRunDate($now)
-                  ];
-              }
-          }
-      }
-      return null;
-  }
+    $lines = file($crontabPath);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line) || $line[0] === '#') continue; // ← Kommentar oder Leerzeile überspringen
 
-  $cronjobs = [
-      'anmeldung'   => 'anmeldung.sh',
-      'entsperren' => 'payment_entsperren.py',
-      'cleanup'     => 'user_cleanup.py',
-      'abmeldung'   => 'abmeldung.py',
+        if (strpos($line, $scriptName) !== false) {
+            $parts = preg_split('/\s+/', $line, 7);
+            if (count($parts) >= 7) {
+                $schedule = implode(' ', array_slice($parts, 0, 5));
+                $cron = CronExpression::factory($schedule);
+                $now = new DateTime();
+                return [
+                    'prev' => $cron->getPreviousRunDate($now),
+                    'next' => $cron->getNextRunDate($now)
+                ];
+            }
+        }
+    }
+    return null;
+}
+
+function getSimulatedCronTimes($expression) {
+  $cron = CronExpression::factory($expression);
+  $now = new DateTime();
+  return [
+      'prev' => $cron->getPreviousRunDate($now),
+      'next' => $cron->getNextRunDate($now)
   ];
+}
+
 
   $now = new DateTime();
-  $cronData = [];
+  $allCrons = [];
+
+  // Haupt-Cronjobs
+  $cronjobs = [
+    'anmeldung'   => 'anmeldung.sh',
+    'entsperren'  => 'payment_entsperren.py',
+    'cleanup'     => 'user_cleanup.py',
+    'abmeldung'   => 'abmeldung.py',
+  ];
 
   foreach ($cronjobs as $key => $script) {
     $times = getCronTimes('/etc/crontab', $script);
     if ($times) {
-        $diffSeconds = $times['next']->getTimestamp() - $now->getTimestamp();
-        $cronData[$key] = [
+        $allCrons[] = [
             'key'         => $key,
-            'secondsLeft' => $diffSeconds,
+            'label'       => ucfirst($key),
+            'secondsLeft' => $times['next']->getTimestamp() - $now->getTimestamp(),
             'prevRun'     => $times['prev']->format(DateTime::ATOM),
-            'nextRun'     => $times['next']->format(DateTime::ATOM),
+            'nextRun'     => $times['next']->format(DateTime::ATOM)
         ];
     }
-}
+  }
+
+  // ➕ Simulierte externe Cronjobs (z. B. Remote DHCP-Skripte)
+  $simulatedCronjobs = [
+    'weh' => [
+        'label' => 'WEH DHCP',
+        'expression' => '*/5 * * * *'
+    ],
+    'tvk' => [
+        'label' => 'TvK DHCP',
+        'expression' => '*/5 * * * *'
+    ]
+  ];
+
+  foreach ($simulatedCronjobs as $key => $entry) {
+    $times = getSimulatedCronTimes($entry['expression']);
+    $allCrons[] = [
+        'key'         => $key,
+        'label'       => $entry['label'],
+        'secondsLeft' => $times['next']->getTimestamp() - $now->getTimestamp(),
+        'prevRun'     => $times['prev']->format(DateTime::ATOM),
+        'nextRun'     => $times['next']->format(DateTime::ATOM)
+    ];
+  }
   ?>
 
   <!DOCTYPE html>
-  <html lang="de">
-  <head>
-      <meta charset="UTF-8">
-      <style>
-          .dashboard-container {
-              transition: background-color 0.5s ease;
-              background-color: rgba(0, 0, 0, 0.7);
-              color: white;
-              font-size: 30px;
-              padding: 20px;
-              border-radius: 10px;
-              text-align: center;
-              min-width: 200px;
-          }
-          .dashboard-wrapper {
-              display: flex;
-              justify-content: center;
-              align-items: flex-start;
-              gap: 50px;
-              margin: 0 auto;
-              max-width: 90%;
-              padding: 20px;
-              box-sizing: border-box;
-          }
-      </style>
-  </head>
   <body>
 
   
-<div class="dashboard-wrapper">
-<?php foreach ($cronData as $cron): ?>
-    <div class="dashboard-container"
-         id="cron_<?php echo $cron['key']; ?>"
-         data-seconds-left="<?php echo $cron['secondsLeft']; ?>"
-         data-prev-run="<?php echo $cron['prevRun']; ?>"
-         data-next-run="<?php echo $cron['nextRun']; ?>">
-        <strong><?php echo ucfirst($cron['key']); ?></strong><br>
-        <span class="countdown" id="countdown_<?php echo $cron['key']; ?>"></span>
-    </div>
-<?php endforeach; ?>
+
+  <div class="dashboard-wrapper">
+  <?php foreach ($allCrons as $cron): ?>
+      <div class="cronjob-container"
+           id="cron_<?php echo $cron['key']; ?>"
+           data-seconds-left="<?php echo $cron['secondsLeft']; ?>"
+           data-prev-run="<?php echo $cron['prevRun']; ?>"
+           data-next-run="<?php echo $cron['nextRun']; ?>">
+          <strong><?php echo $cron['label']; ?></strong><br>
+          <span class="countdown" id="countdown_<?php echo $cron['key']; ?>"></span>
+      </div>
+  <?php endforeach; ?>
 </div>
 
 <script>
@@ -901,7 +913,7 @@ function formatTime(seconds) {
 }
 
 function initializeCountdowns() {
-    document.querySelectorAll('.dashboard-container').forEach(container => {
+    document.querySelectorAll('.cronjob-container').forEach(container => {
         const now = Date.now();
         const prevRun = new Date(container.getAttribute("data-prev-run")).getTime();
         const nextRun = new Date(container.getAttribute("data-next-run")).getTime();
@@ -919,49 +931,76 @@ function initializeCountdowns() {
 }
 
 function updateCountdowns() {
-    document.querySelectorAll('.dashboard-container').forEach(container => {
+    const now = Date.now();
+
+    document.querySelectorAll('.dashboard-container, .cronjob-container').forEach(container => {
         const countdownElem = container.querySelector(".countdown");
         if (!countdownElem) return;
 
-        let now = Date.now();
+        // Manuelles Override: Blockiere automatisches Update
+        if (container._manualOverrideUntil && now < container._manualOverrideUntil) {
+            return;
+        }
+
         let prevRun = container._prevRun;
         let nextRun = container._nextRun;
-        const total = container._totalDuration;
+        let total = container._totalDuration;
 
-        // Wenn ausgeführt wurde: Zeit resetten
+        // Falls vergangen: Zyklus neu berechnen
         if (now > nextRun) {
-            // Setze den Zyklus neu (immer gleich lang)
             const cyclesPassed = Math.floor((now - prevRun) / total);
             prevRun = prevRun + cyclesPassed * total;
             nextRun = prevRun + total;
 
-            // Update interne Werte
+            // Update Werte inkl. totalDuration
             container._prevRun = prevRun;
             container._nextRun = nextRun;
-
-            console.log("🔁 Reset für", container.id, {
-                newPrev: new Date(prevRun).toISOString(),
-                newNext: new Date(nextRun).toISOString()
-            });
+            container._totalDuration = nextRun - prevRun;
+            total = container._totalDuration;
         }
 
-        let secondsLeft = Math.floor((nextRun - now) / 1000);
-        if (secondsLeft < 0) secondsLeft = 0;
+        if (total <= 0) return;
 
+        // Countdown-Anzeige
+        const remaining = nextRun - now;
+        let secondsLeft = Math.floor(remaining / 1000);
+        if (secondsLeft < 0) secondsLeft = 0;
         countdownElem.textContent = formatTime(secondsLeft);
 
-        const elapsed = now - prevRun;
-        const factor = Math.min(1, Math.max(0, elapsed / total));
+        // ✅ Verfärbung basierend auf verbleibender Zeit
+        const factor = Math.min(1, Math.max(0, 1 - (remaining / total)));
         const newColor = interpolateColor("rgb(0,0,0)", "rgb(8,82,6)", factor);
         container.style.backgroundColor = newColor;
-
-        console.log("[UPDATE]", container.id, {
-            secondsLeft,
-            factor,
-            newColor
-        });
     });
 }
+
+
+
+document.querySelectorAll('.cronjob-container').forEach(container => {
+  container.addEventListener('click', () => {
+    const key = container.id.replace("cron_", "");
+    const countdownElem = container.querySelector(".countdown");
+
+    // Feedback anzeigen
+    countdownElem.textContent = "Ausgeführt";
+    container.style.backgroundColor = "rgb(8,82,6)";
+
+    // Override für 3 Sekunden setzen
+    container._manualOverrideUntil = Date.now() + 3000;
+
+    // AJAX: Skript starten
+    fetch("run_script.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "script=" + encodeURIComponent(key)
+    })
+    .then(response => response.text())
+    .then(data => console.log("✅ Server antwortet:", data))
+    .catch(err => console.error("❌ Fehler:", err));
+  });
+
+});
+
 
 
 initializeCountdowns();
