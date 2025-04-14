@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['script'])) {
         $baseCmd = $allowedScripts[$key];
         $cmd = 'sudo -u www-data ' . escapeshellcmd($baseCmd) . ' 2>&1';
         $output = shell_exec($cmd);
-        echo "Skript $key ausgeführt.\n\n$output";
+        echo "$output";
     } else {
         http_response_code(403);
         echo "Unbekanntes Skript.";

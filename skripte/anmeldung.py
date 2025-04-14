@@ -15,32 +15,25 @@ from fcol import connect_anmeldung
 ## Grundfunktion
 
 def anmeldung_übertragen():  # Überträgt neue Anmeldungen von WordPress in anmeldungen
-    print("Starte WordPress-Formular")
+    print("[INFO] Starte Übertragung von Anmeldungen...")
 
     # Verbindung zu den Datenbanken herstellen
     www2db = connect_anmeldung()
-    print("Verbindung zu WordPress-Datenbank hergestellt:", www2db)
     wpcursor = www2db.cursor()
-    print("WordPress-Datenbankcursor erstellt")
-
     wehdb = connect_weh()
-    print("Verbindung zur WEH-Datenbank hergestellt:", wehdb)
     wehcursor = wehdb.cursor()
-    print("WEH-Datenbankcursor erstellt")
 
     try:
         # Alle Einträge aus der WordPress-Tabelle 'anmeldungen' abrufen
         wpcursor.execute("SELECT tstamp, starttime, sublet, subletterend, username, room, turm, firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail FROM anmeldungen")
-        anmeldungen = wpcursor.fetchall()
-        print(f"{len(anmeldungen)} Anmeldungen aus WordPress-Datenbank abgerufen.")
+        anmeldungen = wpcursor.fetchall()        
+        print(f"[INFO] {len(anmeldungen)} neue Anmeldungen gefunden.")
 
         for anmeldung in anmeldungen:
             (
                 tstamp, starttime, sublet, subletterend, username, room, turm,
                 firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail
             ) = anmeldung
-
-            print(f"Übertrage Anmeldung für {firstname} {lastname}, Raum {room} ({turm})")
 
             # Eintrag in die WEH-Datenbank einfügen
             try:
@@ -51,23 +44,21 @@ def anmeldung_übertragen():  # Überträgt neue Anmeldungen von WordPress in an
                     tstamp, starttime, sublet, subletterend, username, room, turm,
                     firstname, lastname, geburtstag, geburtsort, telefon, email, forwardemail
                 ))
-                wehdb.commit()
-                print(f"Anmeldung erfolgreich übertragen: {firstname} {lastname}, Raum {room}")
+                wehdb.commit()                
+                print(f"[✓] Anmeldung übertragen: {firstname} {lastname}, Raum {room} ({turm})")
 
                 # Benachrichtigungsmail senden
                 newanmeldungmail(
                     zeit=starttime, room=room, firstname=firstname,
                     lastname=lastname, turm=turm
                 )
-                print(f"Benachrichtigung gesendet für {firstname} {lastname}.")
 
                 # Eintrag aus WordPress-Tabelle löschen
                 wpcursor.execute("DELETE FROM anmeldungen WHERE tstamp = %s", (tstamp,))
                 www2db.commit()
-                print(f"Eintrag aus WordPress-Datenbank gelöscht: {firstname} {lastname}, Raum {room}")
 
             except Exception as e:
-                print(f"Fehler beim Übertragen oder Löschen der Anmeldung: {e}")
+                print(f"[FEHLER] Übertragung fehlgeschlagen für {firstname} {lastname}: {e}")
                 wehdb.rollback()
 
             # Wartezeit zwischen den Iterationen
@@ -75,15 +66,13 @@ def anmeldung_übertragen():  # Überträgt neue Anmeldungen von WordPress in an
             time.sleep(1)
 
     except Exception as e:
-        print(f"Fehler beim Abrufen der Anmeldungen: {e}")
+        print(f"[FEHLER] Fehler beim Abrufen der Anmeldungen: {e}")
 
     finally:
         # Verbindungen schließen
         www2db.close()
-        print("Verbindung zur WordPress-Datenbank geschlossen")
-
         wehdb.close()
-        print("Verbindung zur WEH-Datenbank geschlossen")
+        print("[INFO] Übertragung abgeschlossen, Datenbankverbindungen geschlossen.")
 
 ## Funktionen für Mails ##
 
@@ -98,6 +87,5 @@ def newanmeldungmail(zeit, room, firstname, lastname, turm):  # Sendet Mail an u
     )
     to_email = "system@weh.rwth-aachen.de"
     send_mail(subject, message, to_email)
-    print(f"Benachrichtigungsmail gesendet: {subject} an {to_email}")
 
 anmeldung_übertragen()

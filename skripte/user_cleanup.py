@@ -10,6 +10,8 @@ from fcol import send_mail
 from fcol import connect_weh
 
 def clean_user(ends):
+    print("[INFO] Cleanup gestartet...")
+    
     sendto = "netag@weh.rwth-aachen.de"
     subject = "User Cleanup"
     
@@ -41,6 +43,7 @@ def clean_user(ends):
         cursor.execute(delete_sql, delete_var)
 
         changes = True   
+        print(f"[✓] {name} abgemeldet – kein Raum & Endzeit erreicht")
           
     # Fall 2: Abgemeldet
     sql = "SELECT name, uid, room FROM users WHERE pid=11 AND room>0 AND endtime<UNIX_TIMESTAMP() - 86400 AND endtime>0"
@@ -63,6 +66,7 @@ def clean_user(ends):
         cursor.execute(delete_sql, delete_var)
         
         changes = True
+        print(f"[✓] {name} abgemeldet – Endzeit erreicht, Raum war: {room}")
      
     # Fall 3: Ausgezogen (room=0, endtime=0)
     sql = "SELECT name, uid FROM users WHERE pid=11 AND room=0 AND (endtime=0 OR endtime IS NULL)"
@@ -82,6 +86,7 @@ def clean_user(ends):
         cursor.execute(delete_sql, delete_var)
         
         changes = True
+        print(f"[✓] {name} ist ausgezogen")
         
     # Fall 4: Remove IPs
     sql = "SELECT users.name, users.uid FROM users WHERE users.pid in (13,14) AND (users.subnet > 0 OR users.uid IN (SELECT macauth.uid FROM macauth))"
@@ -101,6 +106,7 @@ def clean_user(ends):
         cursor.execute(delete_sql, delete_var)
         
         changes = True
+        print(f"[✓] {name} – Subnetz & IPs entfernt")
         
     # Fall 5: Subletter IPs
     sql = "SELECT users.name, users.uid FROM users WHERE users.pid = 12 AND EXISTS (SELECT 1 FROM macauth WHERE macauth.uid = users.uid AND macauth.sublet = 0)"
@@ -116,6 +122,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True    
+        print(f"[✓] {name} – IPs eingefroren (Subletter)")
         
     # Fall 6: Sublet IPs
     sql = "SELECT users.name, users.uid FROM users WHERE users.pid = 11 AND EXISTS (SELECT 1 FROM macauth WHERE macauth.uid = users.uid AND macauth.sublet = 1)"
@@ -131,6 +138,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – IPs wieder freigegeben (kein Subletter mehr)")
         
     # Fall 7: User mindestens 5 IPs
     select_sql = "SELECT wert FROM constants WHERE name = 'standard_ips'"
@@ -189,6 +197,7 @@ def clean_user(ends):
         
         text += "\n"
         changes = True
+        print(f"[✓] {name} – zusätzliche IPs generiert")
         
     # Fall 8: Abgemeldeter hat noch aktiven Mailaccount
     sql = "SELECT users.name, abmeldungen.uid FROM weh.abmeldungen JOIN weh.users ON users.uid = abmeldungen.uid WHERE users.pid = 14 AND abmeldungen.keepemail = 0 AND users.mailisactive = 1"
@@ -204,6 +213,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Postfach deaktiviert nach Abmeldung")
         
     # Fall 9: Bewohner hat Mail deaktiviert
     sql = "SELECT users.name, users.uid FROM users WHERE users.pid IN (11,12) AND users.mailisactive = 0"
@@ -219,6 +229,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Mailaccount reaktiviert")
         
     # Fall 10: Bewohner oder Subletter haben einen Wert in ausgezogen
     sql = "SELECT name, uid FROM weh.users WHERE (ausgezogen > 0) AND pid IN (11,12)"
@@ -234,6 +245,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Feld 'ausgezogen' wurde entfernt")
         
     # Fall 11: Raum falsch
     sql = "SELECT name, uid, room FROM users WHERE pid IN (13,14) AND room>0"
@@ -250,6 +262,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Raum {room} wurde entfernt")
         
     # Fall 12: Abgemeldet, aber nicht ausgezogen
     sql = "SELECT name, uid, endtime FROM users WHERE pid IN (14) AND endtime > 0 AND ausgezogen = 0"
@@ -266,6 +279,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Auszugsdatum nachgetragen")
         
     # Fall 13: Nicht zugeordnete IPs löschen
     sql = """
@@ -287,6 +301,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] IP {ip} gelöscht – keine gültige UID")
     
     # Fall 14: Sperren von Ausgezogenen
     sql = "SELECT u.name, u.uid FROM users u JOIN sperre s ON u.uid = s.uid WHERE u.pid IN (13,14,64) AND s.starttime <= %s AND s.endtime >= %s"
@@ -302,6 +317,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] Sperren auf {name} beendet (ausgezogen)")
         
     # Fall 15: Ausgezogen - Auszugsdatum nicht gesetzt
     sql = "SELECT name, uid, endtime FROM users WHERE pid IN (13) AND ausgezogen = 0"
@@ -317,6 +333,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Auszugsdatum nachgetragen")
                 
     # Fall 16: Abgemeldet - Enddatum nicht gesetzt
     sql = "SELECT name, uid, endtime FROM users WHERE pid IN (14) AND endtime = 0"
@@ -332,6 +349,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Enddatum nachgetragen")
                 
     # Fall 17: Raus, aber noch Etagensprecher
     sql = "SELECT name, uid FROM users WHERE pid IN (13,14) AND etagensprecher <> 0"
@@ -347,6 +365,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Rolle als Etagensprecher entfernt")
         
     # Fall 18: Falsches Subnetz (IP in natmapping über das Subnetz auf den Raum gemappt)
     sql = "SELECT u.name, u.uid, n.subnet, u.subnet FROM weh.users u LEFT JOIN weh.natmapping n ON (u.room = n.room and u.turm = n.turm) WHERE u.pid = 11 AND (u.subnet != n.subnet OR u.subnet IS NULL)"
@@ -364,6 +383,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – Subnetz korrigiert: {falschessubnet} → {subnet}")
         
     # Fall 19: Falsche private IP
     sql = """
@@ -402,6 +422,7 @@ def clean_user(ends):
         cursor.execute(update_sql, update_var)
         
         changes = True
+        print(f"[✓] {name} – private IP ersetzt: {ip} → {newip}")
         
         
     # Fall 20: User ist ausgezogen, hat aber noch Keyzuordnung
@@ -439,7 +460,8 @@ def clean_user(ends):
         update_var = (zeit, id,)
         cursor.execute(update_sql, update_var)
         
-        changes = True
+        changes = True       
+        print(f"[✓] {name} – Schlüssel '{schlüsselarray.get(key, 'Unbekannt')}' ausgetragen")
              
     # Beenden
     text += "\n"
@@ -449,7 +471,10 @@ def clean_user(ends):
 
     if changes:
         send_mail(subject, text, sendto)
-        
+        print("[INFO] Cleanup abgeschlossen, Zusammenfassungsmail gesendet.")
+    else:
+        print("[INFO] Keine Änderung notwendig, Abgeschlossen.")
+                
     conn.commit()
 
 # Verbindung zur Datenbank herstellen

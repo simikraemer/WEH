@@ -14,17 +14,15 @@ from fcol import unix_to_date
 ## Grundprogramm ##
 
 def abmeldung(): 
-    print("Starte Abmeldung")
+    print("[INFO] Starte Verarbeitung von Abmeldungen...")
 
     wehdb = connect_weh()
-    print("Datenbankverbindung hergestellt:", wehdb)
     wehcursor = wehdb.cursor()
-    print("Datenbankcursor erstellt")
 
     # Check ob neue Abmeldung vorliegt
     wehcursor.execute("SELECT * FROM abmeldungen WHERE status = 0")
     abgemeldete_bewohner = wehcursor.fetchall()
-    print("Abgemeldete Bewohner gefunden:", abgemeldete_bewohner)
+    print(f"[INFO] {len(abgemeldete_bewohner)} neue Abmeldungen gefunden.")
 
     for row in abgemeldete_bewohner:
         uid = row[1]  # aus IP des users gezogen
@@ -50,7 +48,6 @@ def abmeldung():
         abmeldekosten = get_constant("abmeldekosten")
         print("Abmeldekosten:", abmeldekosten)
         zeit = int(time.time())  # UNIX Time
-        print("Aktuelle UNIX-Zeit:", zeit)
         
         summe = get_betrag(uid)
         print("Summe auf dem Konto des Benutzers:", summe)
@@ -75,8 +72,6 @@ def abmeldung():
         auszugsart = users_rauswurf(endtime, uid)  # 0=User lebt noch hier, 1=User lebt nicht mehr hier
         print("Auszugsart für UID:", uid, "ist:", auszugsart)
         
-        # Druckersperre ist nicht notwendig, da User kein Geld mehr auf Mitgliedskonto hat
-        
         # Statuswechsel
         if bezahlart == 1:  # "Abmeldung abgeschlossen"
             if betrag > 0:
@@ -87,7 +82,7 @@ def abmeldung():
                 print("Fiji hat den übelsten Swag!")
             status = 1
             print("Status gesetzt auf 2 (Abmeldung abgeschlossen) für UID:", uid)
-        elif bezahlart == 0:  # "Barzahlung ausstehend"
+        elif bezahlart == 0:  # "Barzahlung ausstehend" #OUTDATED
             status = 1
             print("Status gesetzt auf 1 (Barzahlung ausstehend) für UID:", uid)
         else:
@@ -104,10 +99,9 @@ def abmeldung():
             
         # Status und Betrag in abmeldungen eintragen
         statuswechsel(status, betrag, uid)
-        print("Statuswechsel durchgeführt für UID:", uid)
+        print(f"[✓] Abmeldung abgeschlossen für UID: {uid}, Betrag: {betrag}€")
     
     wehdb.close()
-    print("Datenbankverbindung geschlossen")
 
 
 ## Funktionen für Mails ##

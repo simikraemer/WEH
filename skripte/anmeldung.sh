@@ -1,7 +1,12 @@
 #!/bin/bash
 
+echo "[INFO] Starte anmeldung.sh"
+
 # Erst das Python-Skript ausführen
-/usr/bin/python3 /WEH/skripte/anmeldung.py
+echo "[INFO] Starte Python-Skript..."
+/usr/bin/python3 /WEH/skripte/anmeldung.py && \
+    echo "[✓] Python-Skript erfolgreich" || \
+    echo "[✗] Python-Skript fehlgeschlagen"
 
 # Konfigurationsdatei
 CONFIG_FILE="/etc/credentials/config.json"
@@ -18,39 +23,48 @@ LOCAL_DIR="/WEH/PHP/anmeldung/"
 
 # Überprüfung, ob das lokale Verzeichnis existiert
 if [ ! -d "$LOCAL_DIR" ]; then
-    echo "Lokales Verzeichnis $LOCAL_DIR existiert nicht. Erstelle es..."
+    echo "[INFO] Lokales Verzeichnis $LOCAL_DIR existiert nicht – wird erstellt..."
     mkdir -p "$LOCAL_DIR"
 fi
 
+# Prüfen ob Dateien vorhanden sind
+echo "[INFO] Überprüfe, ob Dateien vorhanden sind auf $HOST..."
+SSH_CHECK=$(ssh -i "$KEYFILE" -p "$PORT" "$USERNAME@$HOST" "ls -1 $REMOTE_DIR 2>/dev/null | wc -l")
+
+if [ "$SSH_CHECK" -eq 0 ]; then
+    echo "[✓] Keine neuen Dateien zum Übertragen – Skript beendet."
+    exit 0
+fi
+
 # Dateien vom Remote-Server herunterladen
-echo "Übertrage Dateien von $REMOTE_DIR nach $LOCAL_DIR ..."
+echo "[INFO] Übertrage Anmeldungs-Dateien von $HOST:$REMOTE_DIR nach $LOCAL_DIR ..."
 scp -i "$KEYFILE" -P "$PORT" "$USERNAME@$HOST:$REMOTE_DIR*" "$LOCAL_DIR"
 
 if [ $? -eq 0 ]; then
-    echo "Dateiübertragung erfolgreich abgeschlossen."
+    echo "[✓] Dateiübertragung erfolgreich"
 
     # Dateien auf dem Remote-Server löschen
-    echo "Lösche Dateien auf dem Remote-Server..."
+    echo "[INFO] Lösche Dateien auf dem Remote-Server..."
     ssh -i "$KEYFILE" -p "$PORT" "$USERNAME@$HOST" "rm -f $REMOTE_DIR*"
 
     if [ $? -eq 0 ]; then
-        echo "Quell-Dateien erfolgreich gelöscht."
+        echo "[✓] Quell-Dateien erfolgreich gelöscht"
     else
-        echo "Fehler beim Löschen der Quell-Dateien!"
+        echo "[✗] Fehler beim Löschen der Quell-Dateien"
         exit 1
     fi
 
     # Besitzrechte im lokalen Verzeichnis setzen
-    echo "Setze Besitzrechte im Zielverzeichnis..."
+    echo "[INFO] Setze Besitzrechte im Zielverzeichnis..."
     chown -R www-data:www-data "$LOCAL_DIR"
 
     if [ $? -eq 0 ]; then
-        echo "Besitzrechte erfolgreich gesetzt."
+        echo "[✓] Besitzrechte erfolgreich gesetzt"
     else
-        echo "Fehler beim Setzen der Besitzrechte!"
+        echo "[✗] Fehler beim Setzen der Besitzrechte"
         exit 1
     fi
 else
-    echo "Fehler bei der Dateiübertragung!"
+    echo "[✗] Keine neuen Anmeldungen oder Fehler beim Kopieren"
     exit 1
 fi
