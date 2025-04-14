@@ -5,6 +5,16 @@
 <html>
     <head>
     <link rel="stylesheet" href="WEH.css" media="screen">
+    
+    <script>
+    function handleFileUpload() {
+        document.getElementById("loader").style.display = "block";
+        // Kurze Verzögerung, damit der Loader sichtbar wird
+        setTimeout(function () {
+            document.getElementById("uploadForm").submit();
+        }, 100);
+    }
+    </script>
     </head>
 <?php
 require('template.php');
@@ -345,77 +355,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     } else {
                         echo "<!-- WARNUNG: Page size konnte nicht erkannt werden – keine Formatprüfung durchgeführt -->";
                     }
-
-                    /* === AUSGEHÄNGT: Ghostscript Flattening ===
-                    $needsFlatten = false;
-                    if (preg_match('/Tagged:\s+yes/i', $pdfInfo) ||
-                        preg_match('/Encrypted:\s+yes/i', $pdfInfo) ||
-                        preg_match('/Form:/i', $pdfInfo) ||
-                        preg_match('/PDF version:\s+(1\.[5-9])/', $pdfInfo)) {
-                        $needsFlatten = true;
-                        echo "<!-- DEBUG: Flattening erforderlich -->";
-                    } else {
-                        echo "<!-- DEBUG: Flattening nicht erforderlich -->";
-                    }
-
-                    if ($needsFlatten) {
-                        $flattenedPath = $tmp_name . "_flattened.pdf";
-                        $gsCmd = "gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite " .
-                                "-dPrinted=false -dNoOutputFonts " .
-                                "-sOutputFile=" . escapeshellarg($flattenedPath) . " " .
-                                escapeshellarg($tmp_name);
-                        shell_exec($gsCmd);
-
-                        echo "<!-- DEBUG: Ghostscript-Befehl: $gsCmd -->";
-
-                        if (!file_exists($flattenedPath)) {
-                            echo "<p class='printer_error-message'>Fehler: '$fileName' konnte nicht in druckbare Form umgewandelt werden (Ghostscript-Fehler).</p>";
-                            continue;
-                        }
-
-                        $tmp_name = $flattenedPath;
-                    }
-                    */
-
-                    /* === AUSGEHÄNGT: CUPS-Testdruck ===
-                    $lpCmd = "/usr/bin/lp -d " . escapeshellarg($druName) .
-                            " -o job-hold-until=indefinite " .
-                            escapeshellarg($tmp_name) . " 2>&1";
-                    exec($lpCmd, $lpOutput, $returnCode);
-
-                    echo "<!-- DEBUG: CUPS-Befehl: $lpCmd -->";
-                    echo "<!-- DEBUG: CUPS-Rückgabe ($returnCode): " . htmlentities(implode("\n", $lpOutput)) . " -->";
-
-                    if ($returnCode !== 0) {
-                        echo "<p class='printer_error-message'>Fehler: '$fileName' konnte vom Drucker nicht verarbeitet werden.<br><small>" .
-                            htmlentities(implode("<br>", $lpOutput)) . "</small></p>";
-
-                        if ($needsFlatten && file_exists($tmp_name)) {
-                            unlink($tmp_name);
-                        }
-                        continue;
-                    }
-
-                    exec("lpstat -o " . escapeshellarg($druName) . " 2>/dev/null", $job_output);
-                    echo "<!-- DEBUG: lpstat Ausgabe: " . htmlentities(implode("\n", $job_output)) . " -->";
-
-                    if (!empty($job_output)) {
-                        foreach ($job_output as $line) {
-                            if (strpos($line, $druName) !== false) {
-                                $parts = explode(" ", trim($line));
-                                $job_id = $parts[0] ?? null;
-                                if ($job_id) {
-                                    exec("cancel " . escapeshellarg($job_id));
-                                    echo "<!-- DEBUG: Druckjob $job_id gelöscht -->";
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    */
-
-                    
-
                 }
 
                 // Dateinamen formatieren
@@ -538,11 +477,20 @@ if (auth($conn) && ($_SESSION['valid'])) {
         </html>';            
     
         // Upload-Formular (kompletter Bereich ist klickbar)
-        echo '<form method="POST" enctype="multipart/form-data" id="uploadForm" class="printer_upload_button">';
-        echo '<input type="hidden" name="step" value="dokument_upload">';  
-        echo '<input type="file" name="dokumente[]" multiple accept=".jpg,.jpeg,.png,.pdf" required class="printer_file-input" onchange="this.form.submit()">';
+        echo '<form method="POST" enctype="multipart/form-data" id="uploadForm" class="printer_upload_button" onsubmit="showLoader()">';
+        echo '<input type="hidden" name="step" value="dokument_upload">';
+        echo '<input type="file" name="dokumente[]" multiple accept=".jpg,.jpeg,.png,.pdf" required class="printer_file-input" onchange="handleFileUpload()">';
         echo '<span>Klicke hier oder ziehe eine Datei hinein</span>';
         echo '</form>';
+
+        // Lade-Overlay
+        echo '
+        <div id="loader" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(255,255,255,0.8); z-index:1000; text-align:center; padding-top:20%;">
+            <div style="font-size:1.5em;">Dateien werden hochgeladen...</div>
+            <div class=\"lds-dual-ring\" style=\"margin-top:20px;\"></div>
+        </div>';
+
 
         
         // Weiter-Button (nur wenn Dateien vorhanden sind)
