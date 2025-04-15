@@ -565,11 +565,10 @@ if (auth($conn) && ($_SESSION['valid'])) {
     
         // 2️⃣ Simplex / Duplex Auswahl mit Erklärung
         echo '<label for="druckmodus" class="printer_h3">Druckmodus:</label>';
-        echo '<select name="druckmodus" id="druckmodus" class="printer_select" onchange="updateDuplexInfo()">';
+        echo '<select name="druckmodus" id="druckmodus" class="printer_select"">';
         echo '<option value="duplex">Duplex</option>';
         echo '<option value="simplex">Simplex</option>';
         echo '</select>';
-        #echo '<p id="duplexInfo" class="printer_duplex_info">'.$duplexInfo.'</p>';
     
         // 3️⃣ Blattaufteilung (Dropdown)
         echo '<label for="seiten_pro_blatt" class="printer_h3">Seiten pro Blatt:</label>';
@@ -596,17 +595,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
     
         echo '</form>';
         echo "</div>";
-    
-        // JavaScript zur Aktualisierung der Duplex-Erklärung            
-        echo '<script>
-            function updateDuplexInfo() {
-                var mode = document.getElementById("druckmodus").value;
-                var infoText = mode === "duplex" 
-                    ? "' . addslashes($duplexInfo) . '" 
-                    : "' . addslashes($simplexInfo) . '";
-                document.getElementById("duplexInfo").innerText = infoText;
-            }
-        </script>';
 
     } elseif ($step == 'vorschau') {
 
