@@ -77,7 +77,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 if (strpos($snmp_error_message, "Load paper") !== false) {
                     $status_message = "🛑 Kein Papier!";
                 }
-                if (strpos($snmp_error_message, "Check waste toner") !== false) {
+                if (strpos($snmp_error_message, "Waste toner") !== false) {
                     $status_message = "🔥 Waste toner voll!";
                 }
                 if (strpos($snmp_error_message, "Paper jammed") !== false) {
