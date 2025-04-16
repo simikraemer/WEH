@@ -11,7 +11,7 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
-if (auth($conn) && ($_SESSION["PartyAG"] || $_SESSION["Webmaster"])) {
+if (auth($conn) && ($_SESSION["PartyAG"] || $_SESSION["TvK-Sprecher"] || $_SESSION["Webmaster"])) {
   load_menu();
 
   $debug = false;
@@ -54,9 +54,12 @@ if (auth($conn) && ($_SESSION["PartyAG"] || $_SESSION["Webmaster"])) {
     );
   }
 
+    if ($_SESSION["TvK-Sprecher"]) {
+        $address = "sprecher@tvk.rwth-aachen.de";
+    } else {
+        $address = "party@weh.rwth-aachen.de";
+    }
 
-    $address = "party@weh.rwth-aachen.de";
-    
     if (isset($_POST["sendmail"])) {
         $cutofftime = strtotime($_POST["cutofftime"]); 
         $message = $_POST["nachricht"];
@@ -148,6 +151,12 @@ if (auth($conn) && ($_SESSION["PartyAG"] || $_SESSION["Webmaster"])) {
       $cutofftime = strtotime($_POST["cutofftime"]);
       $message = $_POST["nachricht"];
       $turmpost = $_POST["turmpost"];
+      
+        if ($_SESSION["TvK-Sprecher"]) {
+            $address = "sprecher@tvk.rwth-aachen.de";
+        } else {
+            $address = "party@weh.rwth-aachen.de";
+        }
   
       // Start des Formulars und der Overlay-Box
       echo ('<div class="overlay"></div>
@@ -158,6 +167,9 @@ if (auth($conn) && ($_SESSION["PartyAG"] || $_SESSION["Webmaster"])) {
           <br>');
   
       echo '<div style="display: flex; flex-direction: column; align-items: center; text-align: center;">';
+      echo "<div style='color: white; font-size: 25px; margin-bottom: 10px;'>
+        <strong>Absenderadresse:</strong> {$address}<br>
+      </div>";
       echo "<div style='color: white; font-size: 30px;'>Folgender Text wird an folgende User gesendet:</div>";
   
       // Zentrierte Ausgabe in weißem Text von $message mit Zeilenumbrüchen in einem abgerundeten Feld

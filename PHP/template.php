@@ -344,6 +344,7 @@ function load_menu() {
         echo '<div class="header-submenu">'; 
         echo '<button onclick="window.location.href=\'IPverwaltung.php\';" style="white-space: nowrap;">IP-Verwaltung</button>'; 
         echo '<button onclick="window.location.href=\'Troubleshoot.php\';"style="white-space: nowrap;">Troubleshoot</button> ';
+        echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'PSK.php\';"style="white-space: nowrap;">PSK Netz</button> ';
         echo '<button onclick="window.location.href=\'Minecraft.php\';"style="white-space: nowrap;">Minecraft Server</button> ';
         echo '</div>';
@@ -493,6 +494,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                     echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+                    echo '<button onclick="window.location.href=\'NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
                 }
                 if ($agName === 'Kassenwart') {
                     if ($_SESSION['kasse']) {
@@ -537,16 +539,6 @@ function load_menu() {
             }
         }
 
-        ### BETA TEST ###
-        
-        if ($_SESSION['NetzAG'] || $_SESSION['Vorstand']) {
-            echo '<span class="vertical-line"></span>';    
-            echo '<div class="header-menu">';
-            echo '<div class="header-menu-item">';
-            echo '<button class="center-btn" onclick="window.location.href=\'Printer.php\';" style="white-space: nowrap;">Printer</button>';
-            echo '</div>';
-            echo '</div>';
-        }
         
         echo '<span class="vertical-line"></span>';    
         echo '<div class="header-menu">';
@@ -556,7 +548,7 @@ function load_menu() {
         echo '<button onclick="window.location.href=\'https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
-        echo '<button onclick="window.location.href=\'https://www2.weh.rwth-aachen.de/printer.php\';">Web-Printer</button> ';
+        echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
         echo '</div>';
