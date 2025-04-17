@@ -139,7 +139,7 @@ if (auth($conn) && ($_SESSION["PartyAG"] || $_SESSION["TvK-Sprecher"] || $_SESSI
     echo '<br><br><label for="cutofftime" style="color: white; font-size: 30px;">Cutoff-Datum:</label><br>';
     echo '<input type="date" name="cutofftime" id="cutofftime" style="font-size: 25px;"><br><br>';
     echo '<textarea name="nachricht" rows="30" cols="100"></textarea><br><br>';
-    echo "<div style='display: flex; justify-content: center;'>";
+    echo "<div style='display: flex; justify-content: center; margin-bottom: 50px;'>";
     echo "<input type='hidden' name='turmpost' value='" . $turm . "'>";
     echo "<button type='submit' name='preview' class='center-btn'>Preview</button>";  
     echo "</div>";
