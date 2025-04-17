@@ -135,14 +135,17 @@ if (auth($conn) && $_SESSION['valid']) {
         }
     
         if ($sent) {
+            $titel = remove_emojis($_POST['titel']);
+            $body = remove_emojis($_POST['body']);
+
             $sql = "INSERT INTO rundmails (uid, address, subject, tstamp, nachricht) VALUES (?,?,?,?,?)";
             $time = time();
             $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "issis", $_SESSION['uid'], $_POST['address'], $_POST['titel'], $time, $_POST['body']);
+            mysqli_stmt_bind_param($stmt, "issis", $_SESSION['uid'], $_POST['address'], $titel, $time, $body);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
             if ($_POST['address'] == "essential" || $_POST['address'] == "tvk-essential" || $_POST['address'] == "weh-essential") {
-                post2frontend($_POST['titel'], $_POST['body']);
+                post2frontend($titel, $body);
             }
             echo '<div style="margin: 0 auto; text-align: center;">';
             echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';

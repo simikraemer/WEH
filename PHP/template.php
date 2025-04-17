@@ -1662,6 +1662,20 @@ function berechneBlaetterausSeiten($gesamtseiten, $druckmodus) {
         return $gesamtseiten; // Simplex: 1 Seite pro Blatt
     }
 }
+
+function remove_emojis($text) {
+    return preg_replace('/[\x{1F600}-\x{1F64F}' .  // Emoticons
+                        '\x{1F300}-\x{1F5FF}' .  // Symbole & Piktogramme
+                        '\x{1F680}-\x{1F6FF}' .  // Transport & Orte
+                        '\x{1F1E6}-\x{1F1FF}' .  // Flaggen
+                        '\x{2600}-\x{26FF}' .    // Verschiedene Symbole
+                        '\x{2700}-\x{27BF}' .    // Dingbats
+                        '\x{1F900}-\x{1F9FF}' .  // Weitere Emojis (z. B. 🤯🦄)
+                        '\x{1FA70}-\x{1FAFF}' .  // Noch neuere Emojis (z. B. 🛝🪄)
+                        '\x{200D}' .             // Zero Width Joiner (kombinierte Emojis)
+                        '\x{FE0F}]+/u', '', $text); // Variation Selectors (z. B. ☑️)
+}
+
     
     
 
