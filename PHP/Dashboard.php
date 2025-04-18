@@ -986,8 +986,8 @@ function updateCountdowns() {
 
         // ✅ Verfärbung basierend auf verbleibender Zeit
         const factor = Math.min(1, Math.max(0, 1 - (remaining / total)));
-        const newColor = interpolateColor("rgb(0,0,0)", "rgb(32,99,30)", factor);
-        container.style.backgroundColor = newColor;
+        //const newColor = interpolateColor("rgb(0,0,0)", "rgb(32,99,30)", factor);
+        //container.style.backgroundColor = newColor;
     });
 }
 
@@ -998,7 +998,7 @@ document.querySelectorAll('.cronjob-container').forEach(container => {
     const outputBox = document.querySelector("#script-output");
 
     countdownElem.textContent = "Running...";
-    container.style.backgroundColor = "rgb(32,99,30)";
+    //container.style.backgroundColor = "rgb(32,99,30)";
     container._manualOverrideUntil = Infinity;
 
     fetch("run_script.php", {
@@ -1009,7 +1009,7 @@ document.querySelectorAll('.cronjob-container').forEach(container => {
     .then(response => response.text())
     .then(data => {
       countdownElem.textContent = "Done";
-      container.style.backgroundColor = "rgb(32,99,30)";
+      //container.style.backgroundColor = "rgb(32,99,30)";
       container._manualOverrideUntil = Date.now() + 2000;
 
       setTimeout(() => {

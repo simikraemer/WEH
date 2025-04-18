@@ -1670,7 +1670,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 .cronjob-container {
   flex: 1;
   transition: background-color 0.5s ease;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgb(32, 99, 30);
   color: white;
   font-size: 30px;
   padding: 20px;
@@ -1680,6 +1680,9 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   padding: 20px;
   border: 2px solid white;
   cursor: pointer;
+}
+.cronjob-container:hover {
+  background-color: rgb(50, 150, 50);
 }
 .dashboard-wrapper {
   display: grid;
