@@ -656,7 +656,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $endtime_formatiert = date("d.m.Y H:i", $endtime);
     $cert_box_text = "<div>Nächstes Ablaufdatum:</div><div><strong>$endtime_formatiert</strong></div><div>$cn</div>";
     $cert_box_color = ($alert > 0)
-        ? "rgba(0, 0, 0, 0.7)"
+        ? "#840d0a"
         : "#20631e";
     
 
@@ -672,27 +672,64 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     #mysqli_stmt_fetch($stmt);
     #mysqli_stmt_close($stmt);
 
-    $sql = "
-        SELECT
-            (SELECT COUNT(*) FROM users WHERE pid IN (11)) AS total_user,
-            (SELECT COUNT(*) FROM sperre WHERE endtime >= ? AND starttime <= ? AND internet = 1) AS gebannt_user
-    ";
+    // $sql = "
+    //     SELECT
+    //         (SELECT COUNT(*) FROM users WHERE pid IN (11)) AS total_user,
+    //         (SELECT COUNT(*) FROM sperre WHERE endtime >= ? AND starttime <= ? AND internet = 1) AS gebannt_user
+    // ";
     
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "ii", $zeit, $zeit);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $anzahl_user, $anzahl_gebannte_user);
-    mysqli_stmt_fetch($stmt);
-    mysqli_stmt_close($stmt);
+    // $stmt = mysqli_prepare($conn, $sql);
+    // mysqli_stmt_bind_param($stmt, "ii", $zeit, $zeit);
+    // mysqli_stmt_execute($stmt);
+    // mysqli_stmt_bind_result($stmt, $anzahl_user, $anzahl_gebannte_user);
+    // mysqli_stmt_fetch($stmt);
+    // mysqli_stmt_close($stmt);
     
-    $anzahl_aktive_user = $anzahl_user - $anzahl_gebannte_user;
+    // $anzahl_aktive_user = $anzahl_user - $anzahl_gebannte_user;
+
+    
+    $nagiosconfig = $config['nagios'];
+    $nagiosURL = $nagiosconfig['host'] . 'cgi-bin/statusjson.cgi?query=hostlist&details=true';
+    
+    $nagioscontext = stream_context_create([
+        "http" => [
+            "header" => "Authorization: Basic " . base64_encode($nagiosconfig['user'] . ":" . $nagiosconfig['password'])
+        ]
+    ]);
+    
+    $response = file_get_contents($nagiosURL, false, $nagioscontext);
+    $data = json_decode($response, true);
+    
+    // Down-Hosts sammeln
+    $downhosts_list = [];
+    if (isset($data['data']['hostlist'])) {
+        foreach ($data['data']['hostlist'] as $host => $info) {
+          ### status: 2=online ; 4=offline
+          ### scheduled_downtime_depth: 0=keine geplante downtime ;  1=geplante downtime
+            if (isset($info['status']) && $info['status'] == 4 && $info['scheduled_downtime_depth'] == 0) {
+                $downhosts_list[] = $host;
+            }
+        }
+    }
+    
+    // Debug-Ausgabe
+    // echo "<div style='color: white; text-align: center; font-family: monospace; margin-top: 30px;'>";
+    // echo "<h3>Nagios JSON Debug</h3>";
+    // echo "<pre>" . htmlspecialchars(print_r($data, true)) . "</pre>";
+    // echo "</div>";
+    
+    // Box-Farbe bestimmen
+    $nagios_box_color = count($downhosts_list) > 0 ? "#840d0a" : "#20631e";
+    
+    
     
 
  
-  # }
+  # } Ende Daten einholen
 
   
-  $empty_msg = "<p style='color: white; font-size: 20px; margin-top: 00px;'>-</p>";
+  #$empty_msg = "<p style='color: white; font-size: 20px; margin-top: 00px;'></p>";
+  $empty_msg = "";
 
 
   echo '<div style="height: 50px;"></div>';
@@ -707,23 +744,30 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     echo "</div>";
   
     // 🔸 Budget
-    $budget_box_color = ($netzbudget >= 0) ? "#20631e" : "rgba(165, 17, 13, 0.7)";
+    $budget_box_color = ($netzbudget >= 0) ? "#20631e" : "#840d0a";
     echo "<div class='dashboard-container' style='background-color: $budget_box_color;'>";
     echo "<div style='font-size: 30px; margin-bottom: 20px;'>Netz-Budget</div>";
     echo "<div style='font-size: 60px;'>" . number_format($netzbudget, 2, ',', '.') . " €</div>";
     echo "</div>";
   
-    // 🔹 Active User
-    $users_box_color = "#20631e";
-    echo "<div class='dashboard-container' style='background-color: $users_box_color;'>";
-    echo "<div style='font-size: 30px; margin-bottom: 20px;'>Aktive User</div>";
-    echo "<div style='font-size: 60px;'>" . $anzahl_aktive_user . "</div>";
+    // 🔹 Nagios Hosts
+    echo "<div class='dashboard-container' style='background-color: $nagios_box_color;'>";
+    echo "<div style='font-size: 30px; margin-bottom: 20px;'>Nicht erreichbare Hosts</div>";    
+    if (count($downhosts_list) > 0) {
+        echo "<div style='font-size: 30px;'>";
+        foreach ($downhosts_list as $hostname) {
+            echo "$hostname<br>";
+        }
+        echo "</div>";
+    } else {
+        echo "<div style='font-size: 40px;'>Alle Hosts online</div>";
+    }    
     echo "</div>";
 
   echo '</div>';
   
 
-  echo '<div style="height: 50px;"></div>';
+  echo '<div style="height: 25px;"></div>';
 
   
   #### Start FLEXBOX
@@ -796,7 +840,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
 
 
-  echo '<div style="height: 25px;"></div><hr><div style="height: 25px;"></div>';
+  echo '<div style="height: 25px;"></div>';
 
 
   function getCronTimes($crontabPath, $scriptName) {
