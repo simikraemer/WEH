@@ -195,7 +195,7 @@ if (auth($conn) && $_SESSION['valid']) {
           continue;
         }
         if (($addressID === 'essential' || $addressID === "tvk-essential" || $addressID === "weh-essential") 
-        && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["NetzAG"])) {
+        && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["TvK-Sprecher"] && !$_SESSION["NetzAG"])) {
           continue;
         }        
         if (($addressID === 'important' || $addressID === "tvk-important" || $addressID === "weh-important" 
