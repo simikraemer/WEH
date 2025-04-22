@@ -9,7 +9,7 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
-if (auth($conn) && $_SESSION['valid'] && ($_SESSION['Sport-AG'] || $_SESSION['Webmaster'])) {
+if (auth($conn) && $_SESSION['valid'] && ($_SESSION['SportAG'] || $_SESSION['Webmaster'])) {
     load_menu();    
     $zeit = time();
     
