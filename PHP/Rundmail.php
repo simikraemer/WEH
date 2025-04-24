@@ -195,7 +195,7 @@ if (auth($conn) && $_SESSION['valid']) {
           continue;
         }
         if (($addressID === 'essential' || $addressID === "tvk-essential" || $addressID === "weh-essential") 
-        && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["NetzAG"])) {
+        && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["TvK-Sprecher"] && !$_SESSION["NetzAG"])) {
           continue;
         }        
         if (($addressID === 'important' || $addressID === "tvk-important" || $addressID === "weh-important" 
@@ -203,10 +203,10 @@ if (auth($conn) && $_SESSION['valid']) {
         && !$hasAgMembership) {
           continue;
         }
-        if ($addressID === 'weh-community' && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["NetzAG"] && $_SESSION["turm"] != 'weh'))  {
+        if ($addressID === 'weh-community' && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["TvK-Sprecher"] && !$_SESSION["NetzAG"] && $_SESSION["turm"] != 'weh'))  {
           continue;
         }
-        if ($addressID === 'tvk-community' && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["NetzAG"] && $_SESSION["turm"] != 'tvk'))  {
+        if ($addressID === 'tvk-community' && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["TvK-Sprecher"] && !$_SESSION["NetzAG"] && $_SESSION["turm"] != 'tvk'))  {
           continue;
         }
         $selected = (($addressID === 'weh-community' && $_SESSION["turm"] == 'weh') || ($addressID === 'tvk-community' && $_SESSION["turm"] == 'tvk')) ? 'selected' : '';

@@ -316,6 +316,7 @@ function load_menu() {
         echo '<button onclick="window.location.href=\'BA-Voting.php\';"style="white-space: nowrap;">Belegungsvote</button> ';
         echo '<button onclick="window.location.href=\'Protokolle.php\';">Protokolle</button> ';
         echo '<button onclick="window.location.href=\'Fahrrad.php\';">Fahrradstellplatz</button> ';
+        echo '<button onclick="window.location.href=\'FitnessAccept.php\';" style="white-space: nowrap;">Fitness Equipment</button>';
         echo '<button onclick="window.location.href=\'WerkzeugBuchen.php\';"style="white-space: nowrap;">Werkzeugverleih</button> ';
         #echo '<button onclick="window.location.href=\'BuyDrinks.php\';">Getränkekauf</button> ';
         // Ich habe das hier erstmal ausgehashed, bis Jonatan wieder daran arbeitet. Wenn er weitermacht wird er das hier wahrscheinlich finden :-)
@@ -516,6 +517,10 @@ function load_menu() {
                 if ($agName === 'WEH-WaschAG') {
                     echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
                     echo '<button onclick="window.location.href=\'Waschmarken.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
+                }
+                if ($agName === 'SportAG') {                                        
+                    echo '<button onclick="window.location.href=\'FitnessNew.php\';" style="white-space: nowrap;">Fitness-Introduction</button>';
+                    echo '<button onclick="window.location.href=\'FitnessUsers.php\';" style="white-space: nowrap;">Liste Fitness-User</button> ';
                 }
                 if ($agName === 'WerkzeugAG') {
                     echo '<button onclick="window.location.href=\'WerkzeugAdministration.php\';">Buchungen</button> ';
@@ -1676,7 +1681,16 @@ function remove_emojis($text) {
                         '\x{FE0F}]+/u', '', $text); // Variation Selectors (z. B. ☑️)
 }
 
-    
+function formatTurm(string $turm): string {
+    $turm = strtolower(trim($turm));
+
+    if ($turm === 'tvk') {
+        return 'TvK';
+    }
+
+    return strtoupper($turm);
+}
+
     
 
 echo '<script>
