@@ -76,7 +76,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
     
     echo '<div style="width: 50%; margin: 0 auto; text-align: center;">';
     echo '<h2 style="text-align: center; font-size: 25px;">Hier kannst du Werkzeuge buchen!</h2>';
-    echo '<span style="color: white; text-align: center; font-size: 20px;">Die Werkzeug-AG wird dir das Werkzeug zur Startzeit entweder in den Briefkasten werfen oder zur Tür bringen.</span><br>';
+    echo '<span style="color: white; text-align: center; font-size: 20px;">Die Werkzeug-AG wird dir das Werkzeug zur Startzeit in den Briefkasten werfen.</span><br>';
     echo "<br><br><br>";
 
     echo '<form method="post" enctype="multipart/form-data">';  
@@ -86,13 +86,15 @@ if (auth($conn) && ($_SESSION['valid'])) {
     echo '<input type="text" id="tools" name="tools" style="width: 200px;" required><br><br>';
     echo '</div>';
 
-    echo '<div style="text-align: center; margin-bottom: 10px;">';
-    echo '<label for="zumbriefkasten" style="display: inline-block; width: 150px; color: white; font-size: 25px; text-align: left;">Zustellung:</label>';
-    echo '<select id="zumbriefkasten" name="zumbriefkasten" style="width: 200px;" required>';
-    echo '<option value="0">Zur Tür</option>';
-    echo '<option value="1">In den Briefkasten</option>';
-    echo '</select><br><br>';
-    echo '</div>';   
+    // echo '<div style="text-align: center; margin-bottom: 10px;">';
+    // echo '<label for="zumbriefkasten" style="display: inline-block; width: 150px; color: white; font-size: 25px; text-align: left;">Zustellung:</label>';
+    // echo '<select id="zumbriefkasten" name="zumbriefkasten" style="width: 200px;" required>';
+    // echo '<option value="0">Zur Tür</option>';
+    // echo '<option value="1">In den Briefkasten</option>';
+    // echo '</select><br><br>';
+    // echo '</div>';   
+    echo '<input type="hidden" id="zumbriefkasten" name="zumbriefkasten" value="1">';
+
 
     echo '<div style="text-align: center; margin-bottom: 10px;">';
     echo '<label for="starttime" style="display: inline-block; width: 150px; color: white; font-size: 25px; text-align: left;">Startzeit:</label>';
