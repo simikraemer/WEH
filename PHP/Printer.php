@@ -818,7 +818,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo "<input type='hidden' name='papierformat' value='" . htmlspecialchars($papierformat, ENT_QUOTES, 'UTF-8') . "'>";
         echo "<input type='hidden' name='druckmodus' value='" . htmlspecialchars($druckmodus, ENT_QUOTES, 'UTF-8') . "'>";
         echo "<input type='hidden' name='anzahl' value='" . (int)$anzahl_kopien . "'>";
-        echo "<input type='hidden' name='seiten' value='" . (int)$gesamtseiten . "'>";
+        echo "<input type='hidden' name='seiten' value='" . (int)$seiten . "'>";
         echo "<input type='hidden' name='graustufen' value='" . ($graustufen ? '1' : '0') . "'>";
         echo "<input type='hidden' name='merged_pdf_path' value='" . htmlspecialchars($merged_pdf_path, ENT_QUOTES, 'UTF-8') . "'>";
         echo "<input type='hidden' name='gesamtpreis' value='" . htmlspecialchars($gesamtpreis, ENT_QUOTES, 'UTF-8') . "'>";
