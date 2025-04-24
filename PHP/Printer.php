@@ -71,24 +71,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 $snmp_error_message = snmpget($ip, $community, "1.3.6.1.2.1.43.16.5.1.2.1.1");
                 $snmp_error_message = trim(str_replace("STRING:", "", $snmp_error_message)); // Bereinigen
 
-                $status_message = "⚠ Unbekannter Fehler oder Wartung erforderlich ($printer_status)";
-
-                // Überprüfen, ob die Fehlermeldung "Load Paper" enthält
-                if (strpos($snmp_error_message, "Load paper") !== false) {
-                    $status_message = "🛑 Kein Papier!";
-                }
-                if (strpos($snmp_error_message, "Waste toner") !== false) {
-                    $status_message = "🔥 Waste toner voll!";
-                }
-                if (strpos($snmp_error_message, "Paper jammed") !== false) {
-                    $status_message = "🚨 Papierstau!";
-                }
-                if (strpos($snmp_error_message, "Replace the toner") !== false) {
-                    $status_message = "🔥 Toner leer!";
-                }
-                if (strpos($snmp_error_message, "Close") !== false) {
-                    $status_message = "🚪 Klappe offen!";
-                }
+                $status_message = "⚠ Wartung erforderlich<br>$snmp_error_message";
                 
                 switch ($printer_status) {
                     case 2:
@@ -110,7 +93,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         $status_message = "🔥 Toner leer!";
                         break;
                     case 8:
-                        $status_message = "🚪 Tür offen!";
+                        $status_message = "🚪 Klappe offen!";
                         break;
                     case 9:
                         $status_message = "❌ Drucker offline!";

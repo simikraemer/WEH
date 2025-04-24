@@ -752,15 +752,20 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
   
     // 🔹 Nagios Hosts
     echo "<div class='dashboard-container' style='background-color: $nagios_box_color;'>";
-    echo "<div style='font-size: 30px; margin-bottom: 20px;'>Nicht erreichbare Hosts</div>";    
     if (count($downhosts_list) > 0) {
-        echo "<div style='font-size: 30px;'>";
-        foreach ($downhosts_list as $hostname) {
-            echo "$hostname<br>";
-        }
-        echo "</div>";
+      if (count($downhosts_list) > 1) {
+        echo "<div style='font-size: 30px; margin-bottom: 20px;'>Hosts offline:</div>";    
+      } else {
+        echo "<div style='font-size: 30px; margin-bottom: 20px;'>Host offline:</div>"; 
+      }   
+      echo "<div style='font-size: 30px;'>";
+      foreach ($downhosts_list as $hostname) {
+          echo "$hostname<br>";
+      }
+      echo "</div>";
     } else {
-        echo "<div style='font-size: 40px;'>Alle Hosts online</div>";
+      echo "<div style='font-size: 30px; margin-bottom: 20px;'>Service-Monitoring</div>";   
+      echo "<div style='font-size: 40px;'>Alle Hosts online</div>";
     }    
     echo "</div>";
 
