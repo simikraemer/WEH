@@ -108,11 +108,11 @@ if (auth($conn) && $_SESSION['valid']) {
                 <p style="font-size: 40px; font-weight: bold; text-align: center; margin-bottom: 25px;">
                     ✅ Fitness Access Confirmation
                 </p>
-
+        
                 <p style="margin-bottom: 15px;">
                     By confirming below, I acknowledge that I have participated in the official fitness introduction conducted by the Sport-AG at WEH.
                 </p>
-
+        
                 <ol style="padding-left: 20px; font-size: 20px; margin-bottom: 25px;">
                     <li style="margin-bottom: 12px;">
                         I acknowledge that I use the fitness equipment and facilities at <strong>my own risk</strong>.
@@ -123,12 +123,23 @@ if (auth($conn) && $_SESSION['valid']) {
                     <li style="margin-bottom: 12px;">
                         I hereby <strong>waive any liability</strong> and hold harmless the Sport-AG, the WEH e.V., and all related personnel for <strong>any injuries, damages, or losses</strong> resulting from the use of the fitness facilities.
                     </li>
+                    <li style="margin-bottom: 12px;">
+                        I agree to <strong>report and compensate</strong> for all damages I cause to the WEH property and building during my training.
+                    </li>
                 </ol>
-
+        
+                <p style="margin-bottom: 15px;">
+                    By signing this waiver, I acknowledge that I have read the following guidelines on safe training.
+                </p>
+        
+                <div style="margin: 20px 0; text-align: center;">
+                    <iframe src="files/exercise_safety.pdf" width="100%" height="600px" style="border: none;"></iframe>
+                </div>
+        
                 <p style="font-size: 30px; font-style: italic; text-align: center; margin-top: 10px;">
                     💡 Be mindful. Train responsibly. Stay safe.
                 </p>
-
+        
                 <form method="POST" style="display: flex; justify-content: center; margin-top: 30px;">
                     <input type="hidden" name="confirmuser" value="' . htmlspecialchars($user_entry_id) . '">
                     <button type="submit" class="center-btn" style="font-size: 18px; padding: 12px 30px; cursor: pointer;">
@@ -137,6 +148,7 @@ if (auth($conn) && $_SESSION['valid']) {
                 </form>
             </div>
         ';
+    
 
 
 
