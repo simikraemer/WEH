@@ -202,9 +202,6 @@ if (isset($_POST['save_transfer_id'])) {
         return $betrag;
     }
         
-            
-    
-    // Beispiele
     $formatierter_ausgangsbetrag = formatBetrag($ausgangs_betrag);
     $formatierter_betrag = formatBetrag($betrag);
        
@@ -235,7 +232,7 @@ if (isset($_POST['save_transfer_id'])) {
         }
         $changelog .= "Kasse: von " . $ausgangs_kasse . " auf " . $kasse . "\n";
     }
-    if ($betrag != $ausgangs_betrag) {
+    if ($formatierter_betrag != $formatierter_ausgangsbetrag) {
         if (!$has_changes) {
             $changelog .= "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
             $has_changes = true;
