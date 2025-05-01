@@ -636,8 +636,7 @@ if (isset($_POST['edit_transfer'])) {
         // Abfrage, um alle Benutzer zu laden
         $sql = "SELECT uid, name, room, turm 
                 FROM users 
-                WHERE pid = 11 
-                ORDER BY FIELD(turm, 'weh', 'tvk'), room";
+                ORDER BY pid, FIELD(turm, 'weh', 'tvk'), room";
         
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_execute($stmt);

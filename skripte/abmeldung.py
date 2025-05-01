@@ -90,7 +90,10 @@ def abmeldung():
         
         # Konto auf 0 setzen, wenn Auszahlung erfolgen soll
         if betrag > 0:
-            abrechnung_abmeldung(zeit, uid, summe, bezahlart, abmeldekosten)
+            if abmeldekosten > 0:
+                abrechnung_abmeldung(zeit, uid, summe, bezahlart, abmeldekosten)
+            else:                
+                abrechnung_abmeldung_keineabmeldekosten(zeit,uid,summe)
             print("Abrechnung durchgeführt für UID:", uid)
         
         # Bestätigungsmail an User ballern
@@ -228,6 +231,20 @@ def abrechnung_abmeldung(zeit,uid,summe,bezahlart,abmeldekosten):
 
     elif bezahlart == 0: #Abholung
         kasse = 1 #Barkasse
+    
+    cnx = connect_weh()
+    cursor = cnx.cursor()
+    insert_sql = "INSERT INTO transfers (uid,tstamp,beschreibung,konto,kasse,betrag) VALUES (%s,%s,%s,%s,%s,%s)"
+    insert_var = (uid,tstamp,beschreibung,konto,kasse,neg_summe)
+    cursor.execute(insert_sql, insert_var)
+    cnx.commit()
+    
+def abrechnung_abmeldung_keineabmeldekosten(zeit,uid,summe):
+    tstamp = zeit
+    beschreibung = "Abmeldung"
+    konto = 0
+    kasse = 72
+    neg_summe = -summe
     
     cnx = connect_weh()
     cursor = cnx.cursor()
