@@ -238,11 +238,55 @@ if (!isset($_SESSION['kasse_id'])) {
 
 $kid = $_SESSION['kasse_id'];
 $zeit = time();
-$semester_start = unixtime2startofsemester($zeit);
 
-echo '<form method="post" class="kasse-form">';
+if (isset($_POST['semester_start'])) {
+    $_SESSION['semester_start'] = intval($_POST['semester_start']);
+}
 
-// erste Zeile
+if (!isset($_SESSION['semester_start'])) {
+    $_SESSION['semester_start'] = unixtime2startofsemester(time());
+}
+
+$semester_start = $_SESSION['semester_start'];
+
+// Semesterende = Start des nächsten Semesters
+$month = date('m', $semester_start);
+$year = date('Y', $semester_start);
+
+if ($month == 4) {
+    // Sommersemester → nächstes Wintersemester beginnt im Oktober
+    $semester_ende = strtotime("01-10-$year");
+} else {
+    // Wintersemester → nächstes Sommersemester im April nächsten Jahres
+    $semester_ende = strtotime("01-04-" . ($year + 1));
+}
+
+// aktuelle Semesterbasis berechnen
+$current_start = unixtime2startofsemester($zeit);
+
+
+// ▼ HIER war's vorher bei dir vergessen:
+$semester_options = [];
+$ts = $current_start;
+while ($ts >= strtotime('01-10-2023')) {
+    $sem = unixtime2semester($ts);
+    $semester_options[$sem] = $ts;
+
+    $month = date('m', $ts);
+    $year = date('Y', $ts);
+
+    if ($month == 4) {
+        $ts = strtotime("01-10-" . ($year - 1));
+    } else {
+        $ts = strtotime("01-04-$year");
+    }
+}
+
+echo '<div class="kasse-semester-grid">';
+
+// Linke 2/3: Kassen-Formular
+echo '<form method="post" class="kasse-form" style="margin: 0;">';
+
 echo '<div class="kasse-row">';
 $buttons_1 = [
     ['id' => 72, 'label' => 'Netzkonto'],
@@ -255,7 +299,6 @@ foreach ($buttons_1 as $btn) {
 }
 echo '</div>';
 
-// zweite Zeile
 echo '<div class="kasse-row">';
 $buttons_2 = [
     ['id' => 73, 'label' => 'Netzbarkasse I'],
@@ -272,13 +315,28 @@ echo '</div>';
 
 echo '</form>';
 
+// Rechte 1/3: Semester-Dropdown
+echo '<form method="post" style="text-align: right;">';
+echo '<select id="semester-select" name="semester_start" class="semester-dropdown" onchange="this.form.submit()">';
+foreach ($semester_options as $label => $start_ts) {
+    $selected = ($start_ts == $semester_start) ? 'selected' : '';
+    echo "<option value=\"$start_ts\" $selected>$label</option>";
+}
+echo '</select>';
+echo '</form>';
+
+echo '</div>';
+
+
+
+
 
 
 echo '<hr>';
 
 
 
-echo '<form method="post" enctype="multipart/form-data">';
+echo '<form id="transfer-form" method="post" enctype="multipart/form-data">';
 echo '<div class="transfer-form-grid">';
 
 // Zeile 1
@@ -290,9 +348,8 @@ echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">
 echo '<div style="display: flex; gap: 6px; align-items: center;">';
 echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)" style="flex:1;">';
 echo '<div style="display: flex; gap: 4px;">';
-echo '<button type="button" class="dummy-btn" onclick="setDummyUser(472, \'NetzAG Dummy\')" title="NetzAG Dummy">NE</button>';
-echo '<button type="button" class="dummy-btn" onclick="setDummyUser(492, \'Haussprecher Dummy\')" title="Haussprecher Dummy">HS</button>';
-echo '<button type="button" class="dummy-btn" onclick="setDummyUser(2524, \'PayPal Dummy\')" title="PayPal Dummy">PP</button>';
+echo '<button type="button" class="dummy-btn" onclick="setDummyUser(472, \'NetzAG Dummy\')" title="NetzAG Dummy">Netz</button>';
+echo '<button type="button" class="dummy-btn" onclick="setDummyUser(492, \'Haussprecher Dummy\')" title="Haussprecher Dummy">Haus</button>';
 echo '</div>';
 echo '</div>';
 
@@ -312,14 +369,15 @@ $sql = "
            t.tstamp, t.beschreibung, t.betrag, t.pfad
     FROM transfers t
     JOIN users u ON t.uid = u.uid
-    WHERE t.tstamp >= ? AND t.kasse = ?
+    WHERE t.tstamp >= ? AND t.tstamp < ? AND t.kasse = ?
     ORDER BY t.tstamp DESC
 ";
 
 $stmt = mysqli_prepare($conn, $sql);
-mysqli_stmt_bind_param($stmt, "ii", $semester_start, $kid);
+mysqli_stmt_bind_param($stmt, "iii", $semester_start, $semester_ende, $kid);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
+
 
 // Tabelle mit sortierbaren Spalten
 echo '<table class="transfer-table" id="transfers-table">';
@@ -705,5 +763,15 @@ function setDummyUser(uid, name) {
     document.getElementById('usersuche').value = name;
     document.getElementById('usersuchergebnisse').innerHTML = '';
 }
+
+document.getElementById('transfer-form').addEventListener('submit', function(e) {
+    const uid = document.getElementById('uid_neu').value.trim();
+    const betrag = document.querySelector('input[name="betrag_neu"]').value.trim();
+
+    if (!uid || !betrag || parseFloat(betrag) <= 0) {
+        alert("Bitte Nutzer auswählen und gültigen Betrag eingeben.");
+        e.preventDefault(); // Verhindert das Absenden
+    }
+});
 
 </script>
