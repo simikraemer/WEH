@@ -196,109 +196,51 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
         echo '<hr style="border-top: 1px solid white;">';
         echo "<br>";
 
-
-        $onlinekassen = array(
-            "72" => array(
-                "name" => "Netzkonto"
-            ),
-            "69" => array(
-                "name" => "PayPal"
-            ),
-            "92" => array(
-                "name" => "Hauskonto"
-            )
-        );
-
-        $barkassen = array(
-            "1" => array(
-                "name" => "Netzbarkasse 1",
-                "db_name" => "kasse_netz1"
-            ),
-            "2" => array(
-                "name" => "Netzbarkasse 2",
-                "db_name" => "kasse_netz2"
-            ),
-            "3" => array(
-                "name" => "Kassenwartkasse 1",
-                "db_name" => "kasse_wart1"
-            ),
-            "4" => array(
-                "name" => "Kassenwartkasse 2",
-                "db_name" => "kasse_wart2"
-            ),
-            "5" => array(
-                "name" => "Tresor",
-                "db_name" => "kasse_tresor"
-            )
-        );
-
-        $gesamtsumme = 0;
-        $rücklagen_haus = 10000;
-        $rücklagen_netz = 30000;
-
-        foreach ($onlinekassen as $key => $kasse) {
-            if ($key == "69") { 
-                # PayPal Tax: 0,35€ + 1,5*Betrag 
-                # Bei 5€ und 10€ Überweisungen müssen die User 0,35€ absichtlich überweisen
-                # Da nur diese 8 Cases definiert sind, werden die Übersetzungen auch hier nur über das Case definiert :^) 
-                $sql = "SELECT SUM(
-                    CASE
-                        WHEN betrag = 5 THEN 4.92
-                        WHEN betrag = 10 THEN 9.84
-                        WHEN betrag = 20 THEN 19.35
-                        WHEN betrag = 30 THEN 29.20
-                        WHEN betrag = 40 THEN 39.05
-                        WHEN betrag = 50 THEN 48.90
-                        WHEN betrag = 75 THEN 73.53
-                        WHEN betrag = 100 THEN 98.15
-                        ELSE betrag
-                    END
-                ) FROM weh.transfers WHERE kasse = ?";      
-                $stmt = mysqli_prepare($conn, $sql);
-                mysqli_stmt_bind_param($stmt, "i", $key);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_bind_result($stmt, $summe);
-                if (mysqli_stmt_fetch($stmt)) {
-                    $gesamtsumme += $summe;
-                    $onlinekassen[$key]["summe"] = $summe;
-                }
-                $stmt->close();
-            } else {
-                $sql = "SELECT SUM(betrag) FROM weh.transfers WHERE kasse = ?";        
-                $stmt = mysqli_prepare($conn, $sql);
-                mysqli_stmt_bind_param($stmt, "i", $key);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_bind_result($stmt, $summe);
-                if (mysqli_stmt_fetch($stmt)) {
-                    $gesamtsumme += $summe;
-                    $onlinekassen[$key]["summe"] = $summe;
-                }
-                $stmt->close();
-            }
-        }
-
-        foreach ($barkassen as $key => $kasse) {
-            $sql = "SELECT u.name FROM weh.constants c JOIN weh.users u ON c.wert = u.uid WHERE c.name = ?";        
-            $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "s", $kasse["db_name"]);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $kassenusername);
-            if (mysqli_stmt_fetch($stmt)) {
-                $barkassen[$key]["username"] = $kassenusername;
-            }
-            $stmt->close();
-
-            $sql = "SELECT SUM(betrag) FROM weh.barkasse WHERE kasse = ?";
-            $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "i", $key);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $summe);
-            if (mysqli_stmt_fetch($stmt)) {
+        $onlinekassen = [
+                72 => ["name" => "Netzkonto"],
+                69 => ["name" => "PayPal"],
+                92 => ["name" => "Hauskonto"]
+            ];
+            
+            $barkassen = [
+                1 => ["name" => "Netzbarkasse 1", "db_name" => "kasse_netz1"],
+                2 => ["name" => "Netzbarkasse 2", "db_name" => "kasse_netz2"],
+                93 => ["name" => "Kassenwartkasse 1", "db_name" => "kasse_wart1"],
+                94 => ["name" => "Kassenwartkasse 2", "db_name" => "kasse_wart2"],
+                95 => ["name" => "Tresor", "db_name" => "kasse_tresor"]
+            ];
+            
+            $gesamtsumme = 0;
+            $rücklagen_haus = 10000;
+            $rücklagen_netz = 30000;
+            
+            // Onlinekassen-Summen
+            foreach ($onlinekassen as $key => &$kasse) {
+                $summe = berechneKontostand($conn, $key);
+                $kasse["summe"] = $summe;
                 $gesamtsumme += $summe;
-                $barkassen[$key]["summe"] = $summe;
             }
-            $stmt->close();
-        }
+            unset($kasse);
+            
+            // Barkassen-Summen
+            foreach ($barkassen as $key => &$kasse) {
+                // Besitzername laden
+                $sql = "SELECT u.name FROM constants c JOIN users u ON c.wert = u.uid WHERE c.name = ?";
+                $stmt = mysqli_prepare($conn, $sql);
+                mysqli_stmt_bind_param($stmt, "s", $kasse["db_name"]);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_bind_result($stmt, $kassenusername);
+                if (mysqli_stmt_fetch($stmt)) {
+                    $kasse["username"] = $kassenusername;
+                }
+                $stmt->close();
+            
+                $summe = berechneKontostand($conn, $key);
+                $kasse["summe"] = $summe;
+                $gesamtsumme += $summe;
+            }
+            unset($kasse);
+            
 
         $sql = "
             SELECT SUM(subquery.gesamtsumme) AS gesamtsumme_aller_benutzer
@@ -362,9 +304,27 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
         # -------------------------------------------------
 
 
-        $hausbudget = $onlinekassen["92"]["summe"] - $rücklagen_haus + $barkassen["3"]["summe"] + $barkassen["4"]["summe"] + $barkassen["5"]["summe"];
-        $netzbudget = $onlinekassen["72"]["summe"] - $rücklagen_netz - $userboundsumme + $barkassen["1"]["summe"] + $barkassen["2"]["summe"] + $onlinekassen["69"]["summe"];
-        $gesamtbudget = $netzbudget + $hausbudget;
+        // 💰 Hausbudget (Hauskonto + Barkassen – Rücklagen)
+        $hausbudget =
+            $onlinekassen[92]["summe"]     // Hauskonto
+            - $rücklagen_haus              // Rücklagen für Notfälle (Waschmaschinen, etc.)
+            + $barkassen[93]["summe"]      // Kassenwart I
+            + $barkassen[94]["summe"]      // Kassenwart II
+            + $barkassen[95]["summe"];     // Tresor
+
+        // 🌐 Netzbudget (Netzkonto + Barkassen + PayPal – Rücklagen – Userguthaben)
+        $netzbudget =
+            $onlinekassen[72]["summe"]     // Netzkonto
+            + $barkassen[1]["summe"]       // Netzkasse I
+            + $barkassen[2]["summe"]       // Netzkasse II
+            + $onlinekassen[69]["summe"]   // PayPal
+            - $rücklagen_netz              // Rücklagen für Notfälle (Infrastruktur)
+            - $userboundsumme;             // Guthaben der User (müsste im Ernstfall zurückgezahlt werden)
+
+        // 📊 Gesamtbudget
+        $gesamtbudget = $hausbudget + $netzbudget;
+
+
 
         echo '<div style="display: flex; justify-content: space-around;">';   
 

@@ -416,8 +416,8 @@ function load_menu() {
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Kassenprüfung</button>';
             echo '<div class="header-submenu">';
-            echo '<button onclick="window.location.href=\'Kassenprüfung.php\';" style="white-space: nowrap;">Barkassen validieren</button> ';
-            echo '<button onclick="window.location.href=\'AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button>';
+            echo '<button onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+            echo '<button onclick="window.location.href=\'CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
             echo '</div>';
             echo '</div>';
             echo '</div>';
@@ -466,7 +466,8 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'Dashboard.php\';">Dashboard</button> ';
                     echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
                     if ($_SESSION['kasse']) {
-                        echo '<button onclick="window.location.href=\'Kasse.php\';">Barkasse</button> ';
+                        echo '<button onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+                        echo '<button onclick="window.location.href=\'CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     }
                     echo '<button onclick="window.location.href=\'Lastradius.php\';" style="white-space: nowrap;">Last Radius</button> ';
                     echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
@@ -498,11 +499,9 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
                 }
                 if ($agName === 'Kassenwart') {
-                    if ($_SESSION['kasse']) {
-                        echo '<button onclick="window.location.href=\'Kassenwart.php\';">Konten-Übersicht</button> ';
-                        echo '<button onclick="window.location.href=\'Kasse.php\';">Barkasse</button> ';
-                    }
-                    echo '<button onclick="window.location.href=\'Kassenprüfung.php\';">Kassenprüfung</button> ';
+                    echo '<button onclick="window.location.href=\'Kassenwart.php\';">Konten-Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+                    echo '<button onclick="window.location.href=\'CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     echo '<button onclick="window.location.href=\'AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'Kassenprüfer.php\';">Kassenprüfer</button> ';
                 }

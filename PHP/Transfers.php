@@ -55,11 +55,25 @@
 require('template.php');
 mysqli_set_charset($conn, "utf8");
 
-if (!(auth($conn) && $_SESSION['valid'] && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"]))) {
+// 🔐 Zugriffsschutz: nur NetzAG, Vorstand oder Kassenprüfer
+$berechtigt = auth($conn)
+    && !empty($_SESSION['valid'])
+    && (
+        !empty($_SESSION["NetzAG"])
+        || !empty($_SESSION["Vorstand"])
+        || !empty($_SESSION["Kassenpruefer"])
+    );
+
+if (!$berechtigt) {
     header("Location: denied.php");
     exit;
 }
+
 load_menu();
+
+// ✏️ Bearbeitungsrecht: nur NetzAG oder Vorstand
+$admin = !empty($_SESSION["NetzAG"]) || !empty($_SESSION["Vorstand"]);
+
 
 
 
@@ -266,20 +280,22 @@ if (isset($_POST['transfer_upload_speichern'])) {
     }
 
 
-    // Konto bestimmen
+    // Konto & Kasse
     $konto = ($betrag >= 0) ? 4 : 8;
     $kasse = isset($_POST['kasse_id']) ? intval($_POST['kasse_id']) : 1;
+    $agent = $_SESSION["uid"];
 
     // Changelog
-    $changelog = "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $_SESSION["uid"]  . "\n";
+    $changelog = "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
     $changelog .= "Insert durch Transfers.php\n";
 
-    // Insert in Datenbank
-    $sql = "INSERT INTO transfers (uid, beschreibung, betrag, konto, kasse, tstamp, changelog, pfad)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    // Insert in Datenbank (inkl. Agent)
+    $sql = "INSERT INTO transfers (uid, beschreibung, betrag, konto, kasse, tstamp, changelog, pfad, agent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("dsdiiiss", $uid, $beschreibung, $betrag, $konto, $kasse, $zeit, $changelog, $rechnungspfad);
-    
+    $stmt->bind_param("dsdiiissi", $uid, $beschreibung, $betrag, $konto, $kasse, $zeit, $changelog, $rechnungspfad, $agent);
+
     if ($stmt->execute()) {
         echo '<p style="color: green; text-align: center;">Transfer erfolgreich gespeichert.</p>';
     } else {
@@ -287,6 +303,7 @@ if (isset($_POST['transfer_upload_speichern'])) {
     }
 
     $stmt->close();
+
 }
 
 
@@ -437,34 +454,36 @@ echo '</div>';
 echo '<hr>';
 
 
+if ($admin) {    
 
-echo '<form id="transfer-form" method="post" enctype="multipart/form-data">';
-echo '<div class="transfer-form-grid">';
+    echo '<form id="transfer-form" method="post" enctype="multipart/form-data">';
+    echo '<div class="transfer-form-grid">';
 
-// Zeile 1
-echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
-echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
-echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
+    // Zeile 1
+    echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
+    echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
+    echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
 
-// Zeile 2
-echo '<div style="display: flex; gap: 6px; align-items: center;">';
-echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)" style="flex:1;">';
-echo '<div style="display: flex; gap: 4px;">';
-echo '<button type="button" class="dummy-btn" onclick="setDummyUser(472, \'NetzAG Dummy\')" title="NetzAG Dummy">Netz</button>';
-echo '<button type="button" class="dummy-btn" onclick="setDummyUser(492, \'Haussprecher Dummy\')" title="Haussprecher Dummy">Haus</button>';
-echo '</div>';
-echo '</div>';
+    // Zeile 2
+    echo '<div style="display: flex; gap: 6px; align-items: center;">';
+    echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)" style="flex:1;">';
+    echo '<div style="display: flex; gap: 4px;">';
+    echo '<button type="button" class="dummy-btn" onclick="setDummyUser(472, \'NetzAG Dummy\')" title="NetzAG Dummy">Netz</button>';
+    echo '<button type="button" class="dummy-btn" onclick="setDummyUser(492, \'Haussprecher Dummy\')" title="Haussprecher Dummy">Haus</button>';
+    echo '</div>';
+    echo '</div>';
 
-echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444; min-height: 75px;"></div>';
-echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
-echo '<input type="hidden" name="uid_neu" id="uid_neu">';
-echo '<input type="hidden" name="kasse_id" value="' . intval($kid) . '">';
+    echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444; min-height: 75px;"></div>';
+    echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
+    echo '<input type="hidden" name="uid_neu" id="uid_neu">';
+    echo '<input type="hidden" name="kasse_id" value="' . intval($kid) . '">';
 
-echo '</div>';
-echo '</form>';
+    echo '</div>';
+    echo '</form>';
 
 
-echo '<hr>';
+    echo '<hr>';
+}
 
 
 $sql = "
@@ -531,8 +550,6 @@ echo '</tbody></table>';
 
 if (isset($_POST['edit_transfer'])) {
     
-    $editable = (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true) || (isset($_SESSION["Vorstand"]) && $_SESSION["Vorstand"] === true);
-    
     // Abfrage für die Transfer-Informationen
     $query = "SELECT t.uid, t.konto, t.kasse, t.betrag, t.tstamp, t.beschreibung, t.changelog, t.pfad FROM transfers t WHERE id = ?";
     $stmt = $conn->prepare($query);
@@ -590,7 +607,7 @@ if (isset($_POST['edit_transfer'])) {
     echo '<div style="text-align: center;">';
 
     // Wenn die Felder editierbar sind, erstelle ein Formular, sonst nur Anzeige
-    if ($editable) {
+    if ($admin) {
       echo '<form method="post" enctype="multipart/form-data">';
       echo '<input type="hidden" name="transfer_id" value="'.$_POST['transfer_id'].'">';
       echo '<input type="hidden" name="ausgangs_betrag" value="'.number_format($selected_transfer_betrag, 2, ".", "").'">';
@@ -608,7 +625,7 @@ if (isset($_POST['edit_transfer'])) {
     
 
     // Benutzerinformationen oder Auswahl anzeigen
-    if (!$editable) {
+    if (!$admin) {
         $query_user = "SELECT name, room, turm FROM users WHERE uid = ?";
         $stmt_user = $conn->prepare($query_user);
         $stmt_user->bind_param("i", $selected_transfer_uid);
@@ -655,7 +672,7 @@ if (isset($_POST['edit_transfer'])) {
 
     // Beschreibung (editierbar oder nicht)
     echo '<label style="color:lightgrey;">Beschreibung:</label><br>';
-    if (!$editable) {
+    if (!$admin) {
         // Prüfen, ob die Beschreibung vorhanden ist, um die Deprecated-Fehlermeldung zu vermeiden
         echo '<p style="color:white !important;">'.(!is_null($selected_transfer_beschreibung) ? htmlspecialchars($selected_transfer_beschreibung) : '').'</p><br>';
     } else {
@@ -671,7 +688,7 @@ if (isset($_POST['edit_transfer'])) {
     echo '<div style="flex: 1; max-width: 100%;">'; // Flex-Item für Konto
     echo '<label style="color:lightgrey;">Konto:</label><br>';
     $konto_display = isset($konto_options[$selected_transfer_konto]) ? $konto_options[$selected_transfer_konto] : "Undefiniertes Konto";
-    if (!$editable) {
+    if (!$admin) {
         echo '<p style="color:white !important;">'.$konto_display.'</p><br>';
     } else {
         echo '<select name="konto_update" style="text-align: center; width: 100%;">'; // Volle Breite
@@ -686,7 +703,7 @@ if (isset($_POST['edit_transfer'])) {
     echo '<div style="flex: 1; max-width: 100%;">'; // Flex-Item für Kasse
     echo '<label style="color:lightgrey;">Kasse:</label><br>';
     $kasse_display = isset($kasse_options[$selected_transfer_kasse]) ? $kasse_options[$selected_transfer_kasse] : "Undefinierte Kasse";
-    if (!$editable) {
+    if (!$admin) {
         echo '<p style="color:white !important;">'.$kasse_display.'</p><br>';
     } else {
         echo '<select name="kasse" style="text-align: center; width: 100%;">'; // Volle Breite
@@ -705,7 +722,7 @@ if (isset($_POST['edit_transfer'])) {
 
     // Betrag anzeigen
     echo '<label style="color:lightgrey;">Betrag:</label><br>';
-    if (!$editable) {
+    if (!$admin) {
       echo '<p style="color:white !important;">'.number_format($selected_transfer_betrag, 2, ",", ".").' €</p><br>';
     } else {
         echo '<input type="text" name="betrag" value="'.number_format($selected_transfer_betrag, 2, ",", ".").'" style="text-align: center;"><br><br>';
@@ -721,7 +738,7 @@ if (isset($_POST['edit_transfer'])) {
     }
         
 
-    if ($editable) {
+    if ($admin) {
         // Upload-Feld für neue Rechnung
         echo '<input type="file" name="rechnung_upload" accept=".pdf,.jpg,.jpeg,.png,.gif" style="margin-top: 8px; color: white;"><br><br>';
     }
@@ -729,7 +746,7 @@ if (isset($_POST['edit_transfer'])) {
 
 
     // Changelog anzeigen (nicht editierbar) in einem optisch ansprechenden Feld
-    if ($editable) {
+    if ($admin) {
       echo '<br>';
       echo '<label style="color:lightgrey;">Changelog:</label><br><br>';
       
@@ -748,7 +765,7 @@ if (isset($_POST['edit_transfer'])) {
 
 
     // Falls editierbar, Speicher-Button anzeigen und alle Eingaben an POST übergeben
-    if ($editable) {
+    if ($admin) {
         echo '<div style="display: flex; justify-content: center; margin-top: 20px;">';
         echo '<button type="submit" name="save_transfer_id" class="sml-center-btn" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px;">Speichern</button>';
         echo '</form>'; // Hier endet das Hauptformular

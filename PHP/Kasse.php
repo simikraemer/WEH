@@ -24,7 +24,9 @@ require('template.php');
 mysqli_set_charset($conn, "utf8");
 
 
-if (auth($conn) && ($_SESSION['kasse'])) {  
+# Offline genommen von Fiji am 01.05.2025 - Von nun an alles via Transfers.php
+if (auth($conn) && (($_SESSION["Webmaster"]))) {
+  #if (auth($conn) && ($_SESSION['kasse'])) {  
   load_menu();
 
 #///// START IN WORK /////

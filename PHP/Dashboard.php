@@ -553,73 +553,25 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
 
 
     
-
     $kassen = [
-      72 => ["name" => "Netzkonto", "typ" => "online"],
-      69 => ["name" => "PayPal", "typ" => "online", "paypal" => true],
-      1  => ["name" => "Netzbarkasse 1", "typ" => "bar", "db_name" => "kasse_netz1"],
-      2  => ["name" => "Netzbarkasse 2", "typ" => "bar", "db_name" => "kasse_netz2"],
+        72 => ["name" => "Netzkonto",       "typ" => "online"],
+        69 => ["name" => "PayPal",          "typ" => "online", "paypal" => true],
+        1  => ["name" => "Netzbarkasse 1",  "typ" => "bar", "db_name" => "kasse_netz1"],
+        2  => ["name" => "Netzbarkasse 2",  "typ" => "bar", "db_name" => "kasse_netz2"]
     ];
     
-    $gesamtsumme = 0;
-    $rücklagen_netz = 30000;
+    $gesamtsumme     = 0;
+    $rücklagen_netz  = 30000;
     
-    // Netzkassen durchgehen
+    // 🔁 Netzkassen summieren
     foreach ($kassen as $key => &$kasse) {
-        if ($kasse["typ"] === "online") {
-            if (!empty($kasse["paypal"])) {
-                $sql = "SELECT SUM(
-                            CASE
-                                WHEN betrag = 5 THEN 4.92
-                                WHEN betrag = 10 THEN 9.84
-                                WHEN betrag = 20 THEN 19.35
-                                WHEN betrag = 30 THEN 29.20
-                                WHEN betrag = 40 THEN 39.05
-                                WHEN betrag = 50 THEN 48.90
-                                WHEN betrag = 75 THEN 73.53
-                                WHEN betrag = 100 THEN 98.15
-                                ELSE betrag
-                            END
-                        ) FROM weh.transfers WHERE kasse = ?";
-            } else {
-                $sql = "SELECT SUM(betrag) FROM weh.transfers WHERE kasse = ?";
-            }
-            $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "i", $key);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $summe);
-            if (mysqli_stmt_fetch($stmt)) {
-                $kasse["summe"] = $summe;
-                $gesamtsumme += $summe;
-            }
-            $stmt->close();
-        }
-    
-        if ($kasse["typ"] === "bar") {
-            // Benutzername für Barkasse holen
-            $sql = "SELECT u.name FROM weh.constants c JOIN weh.users u ON c.wert = u.uid WHERE c.name = ?";
-            $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "s", $kasse["db_name"]);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $username);
-            if (mysqli_stmt_fetch($stmt)) {
-                $kasse["username"] = $username;
-            }
-            $stmt->close();
-    
-            // Betrag holen
-            $sql = "SELECT SUM(betrag) FROM weh.barkasse WHERE kasse = ?";
-            $stmt = mysqli_prepare($conn, $sql);
-            mysqli_stmt_bind_param($stmt, "i", $key);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $summe);
-            if (mysqli_stmt_fetch($stmt)) {
-                $kasse["summe"] = $summe;
-                $gesamtsumme += $summe;
-            }
-            $stmt->close();
-        }
+        // 💰 Kontostand berechnen (automatisch inkl. PayPal-Logik)
+        $summe = berechneKontostand($conn, $key);
+        $kasse["summe"] = $summe;
+        $gesamtsumme += $summe;
     }
+    unset($kasse);
+  
     
     // Userboundsumme
     $sql = "

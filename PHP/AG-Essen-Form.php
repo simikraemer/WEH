@@ -216,7 +216,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     "https://backend.weh.rwth-aachen.de/AG-Essen.php" . PHP_EOL .
                     "\nViele Grüße," . PHP_EOL .
                     "AG-Essen-Form.php";     
-                    $to = "kasse@weh.rwth-aachen.de";
+                    $to = "fiji@weh.rwth-aachen.de";
                     $subject = "WEH - AG Essen";
                     $headers = "From: " . $mailconfig['address'] . "\r\n";
                     $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
@@ -335,13 +335,14 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo '<form method="post" enctype="multipart/form-data">';    
 
         
-        $options = array(
-            "Bitte auswählen - 0",
-            "Netzbarkasse 1 - 1",
-            "Netzbarkasse 2 - 2",
-            "Kassenwartkasse 1 - 3",
-            "Kassenwartkasse 2 - 4"
-        );
+        $options = [
+                1  => "Netzbarkasse 1",
+                2  => "Netzbarkasse 2",
+                93 => "Kassenwartkasse 1",
+                94 => "Kassenwartkasse 2",
+                95 => "Tresor"
+            ];
+            
         
         echo '<div id="ibanContainer" style="text-align: center; margin-bottom: 10px;">';
         echo '<label for="iban" style="display: inline-block; width: 150px; color: white; font-size:25px; text-align: left;">IBAN:</label>';
@@ -352,12 +353,12 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '<div id="dropdownContainer" style="display: none; text-align: center; margin-bottom: 10px;">';
             echo '<label for="bar" style="display: inline-block; width: 158px; color: white; font-size:25px; text-align: left;">Kasse:</label>';
             echo '<select id="bar" name="bar" style="width: 200px;">';
-            foreach ($options as $option) {
-                list($label, $value) = explode(" - ", $option);
+            echo '<option value="">Bitte auswählen</option>'; // erste leere Option
+            foreach ($options as $value => $label) {
                 echo '<option value="Bar ' . $value . '">' . $label . '</option>';
             }
             echo '</select>';
-            echo '</div>';
+            echo '</div>';            
 
             echo '<input type="checkbox" id="barkasseCheckbox" onclick="toggleIBAN()" style="color: white;"> <label for="barkasseCheckbox" style="color: white;">Von Barkasse bezahlt</label>';
             echo "<br><br>";

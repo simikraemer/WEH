@@ -33,28 +33,41 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
 
 
         if (strpos($iban, "Bar") === false) {
-            $konto = 8; // Nicht so wichtig, lol. Sowas wie "Diverses"
-            $kasse = 92; // Hauskonto DE37 3905 0000 1070 3345 84
-
-            // Überweisung in transfers eintragen für Übersicht in Kassenwart.php
-            $insert_sql = "INSERT INTO transfers (tstamp, uid, beschreibung, betrag, konto, kasse, agent) VALUES (?,?,?,?,?,?,?)";
-            $insert_var = array($zeit, $dummy_uid, $insert_beschreibung, $insert_betrag, $konto, $kasse, $agent);
+            // 🔹 Hauskonto-Überweisung
+            $konto = ($insert_betrag >= 0) ? 4 : 8;
+            $kasse = 92; // Hauskonto
+            $zeitstempel = date("d.m.Y H:i", $zeit);
+            $changelog = "[" . $zeitstempel . "] Agent " . $_SESSION["uid"] . "\nAG-Essen bestätigt\n";
+        
+            $insert_sql = "
+                INSERT INTO transfers (tstamp, uid, beschreibung, betrag, konto, kasse, agent, changelog)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $insert_var = [$zeit, $dummy_uid, $insert_beschreibung, $insert_betrag, $konto, $kasse, $agent, $changelog];
+        
             $stmt = mysqli_prepare($conn, $insert_sql);
-            mysqli_stmt_bind_param($stmt, "iisdiii", ...$insert_var);
+            mysqli_stmt_bind_param($stmt, "iisdiiss", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
+        
         } else {
+            // 🔹 Barkassen-Überweisung
             $x_string = substr($iban, strpos($iban, "Bar") + strlen("Bar"));
             $kasse = intval(trim($x_string));
-
-            // In Barkassendokumentation eintragen
-            $insert_sql = "INSERT INTO barkasse (tstamp, uid, beschreibung, betrag, kasse, pfad) VALUES (?,?,?,?,?,?)";
-            $insert_var = array($zeit, $uid, $insert_beschreibung, $insert_betrag, $kasse, $pfad);
+            $konto = ($insert_betrag >= 0) ? 4 : 8;
+            $zeitstempel = date("d.m.Y H:i", $zeit);
+            $changelog = "[" . $zeitstempel . "] Agent " . $_SESSION["uid"] . "\nAG-Essen bestätigt\n";
+        
+            $insert_sql = "
+                INSERT INTO transfers (tstamp, uid, beschreibung, betrag, kasse, konto, pfad, agent, changelog)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $insert_var = [$zeit, $dummy_uid, $insert_beschreibung, $insert_betrag, $kasse, $konto, $pfad, $_SESSION["uid"], $changelog];
+        
             $stmt = mysqli_prepare($conn, $insert_sql);
-            mysqli_stmt_bind_param($stmt, "iisdis", ...$insert_var);
+            mysqli_stmt_bind_param($stmt, "iisdiisss", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
         }
+        
 
     }
 
