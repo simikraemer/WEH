@@ -16,8 +16,8 @@
                    username LIKE '%$searchTerm%' OR 
                    geburtsort LIKE '%$searchTerm%' OR 
                    (room = '$searchTerm') OR 
-                   (uid = '$searchTerm') OR 
-                   (oldroom = '$searchTerm'))
+                   (uid = '$searchTerm') 
+                  )
                   AND pid IN (11,12,13,64)";
         } else {
             // Wenn $searchTerm keine gültige Zahl ist, keine Suche in room und oldroom durchführen
