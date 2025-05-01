@@ -69,12 +69,67 @@ if (!$berechtigt) {
     exit;
 }
 
-load_menu();
+if (isset($_POST['transfer_upload_speichern'])) {
+    $uid = intval($_POST['uid_neu']);
+    $beschreibung = trim($_POST['beschreibung_neu']);
+    $betrag = floatval(str_replace(',', '.', $_POST['betrag_neu']));
+    $zeit = time();
 
-// ✏️ Bearbeitungsrecht: nur NetzAG oder Vorstand
-$admin = !empty($_SESSION["NetzAG"]) || !empty($_SESSION["Vorstand"]);
+    // Datei hochladen
+    $rechnungspfad = null;
+    if (isset($_FILES['rechnung_neu']) && $_FILES['rechnung_neu']['error'] === 0) {
+        $upload_dir = 'rechnungen/';
+        $original_name = $_FILES['rechnung_neu']['name'];
+
+        // Endung extrahieren
+        $extension = pathinfo($original_name, PATHINFO_EXTENSION);
+        $basename = pathinfo($original_name, PATHINFO_FILENAME);
+
+        // Kürzen auf max 200 Zeichen (inkl. evtl. Suffix später)
+        $max_basename_len = 200;
+        $base = substr($basename, 0, $max_basename_len);
+        $filename = $base . '.' . $extension;
+        $zielpfad = $upload_dir . $filename;
+
+        $counter = 1;
+        while (file_exists($zielpfad)) {
+            // Reserviere Platz für z.B. "_2", "_3" ... also 2-4 zusätzliche Zeichen
+            $suffix = '_' . $counter;
+            $cut_base = substr($base, 0, $max_basename_len - strlen($suffix));
+            $filename = $cut_base . $suffix . '.' . $extension;
+            $zielpfad = $upload_dir . $filename;
+            $counter++;
+        }
+
+        // Datei verschieben
+        if (move_uploaded_file($_FILES['rechnung_neu']['tmp_name'], $zielpfad)) {
+            $rechnungspfad = $zielpfad;
+        }
+    }
 
 
+    // Konto & Kasse
+    $konto = ($betrag >= 0) ? 4 : 8;
+    $kasse = isset($_POST['kasse_id']) ? intval($_POST['kasse_id']) : 1;
+    $agent = $_SESSION["uid"];
+
+    // Changelog
+    $changelog = "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
+    $changelog .= "Insert durch Transfers.php\n";
+
+    // Insert in Datenbank (inkl. Agent)
+    $sql = "INSERT INTO transfers (uid, beschreibung, betrag, konto, kasse, tstamp, changelog, pfad, agent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("dsdiiissi", $uid, $beschreibung, $betrag, $konto, $kasse, $zeit, $changelog, $rechnungspfad, $agent);
+
+    $stmt->execute();
+
+    $stmt->close();
+    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?')); // entfernt evtl. alte Query-Strings
+    exit;
+}
 
 
 if (isset($_POST['save_transfer_id'])) {
@@ -226,87 +281,17 @@ if (isset($_POST['save_transfer_id'])) {
         $stmt->bind_param("iiidsissi", $selected_user, $konto, $kasse, $formatierter_betrag, $beschreibung, $agent, $pfad, $changelog, $transfer_id);
 
         // Führt das Update aus
-        if ($stmt->execute()) {
-          echo '<p style="color: green; text-align: center;">Der Transfer wurde erfolgreich aktualisiert.</p>';
-        } else {
-          echo '<p style="color: red; text-align: center;">Fehler beim Aktualisieren des Transfers: ' . $conn->error . '</p>';
-        }
+        $stmt->execute();
 
         // Schließt das Statement
         $stmt->close();
-    } else {
-      echo '<p style="color: green; text-align: center;">Keine Änderungen vorgenommen.</p>';
     }
 }
 
+load_menu();
 
-
-if (isset($_POST['transfer_upload_speichern'])) {
-    $uid = intval($_POST['uid_neu']);
-    $beschreibung = trim($_POST['beschreibung_neu']);
-    $betrag = floatval(str_replace(',', '.', $_POST['betrag_neu']));
-    $zeit = time();
-
-    // Datei hochladen
-    $rechnungspfad = null;
-    if (isset($_FILES['rechnung_neu']) && $_FILES['rechnung_neu']['error'] === 0) {
-        $upload_dir = 'rechnungen/';
-        $original_name = $_FILES['rechnung_neu']['name'];
-
-        // Endung extrahieren
-        $extension = pathinfo($original_name, PATHINFO_EXTENSION);
-        $basename = pathinfo($original_name, PATHINFO_FILENAME);
-
-        // Kürzen auf max 200 Zeichen (inkl. evtl. Suffix später)
-        $max_basename_len = 200;
-        $base = substr($basename, 0, $max_basename_len);
-        $filename = $base . '.' . $extension;
-        $zielpfad = $upload_dir . $filename;
-
-        $counter = 1;
-        while (file_exists($zielpfad)) {
-            // Reserviere Platz für z.B. "_2", "_3" ... also 2-4 zusätzliche Zeichen
-            $suffix = '_' . $counter;
-            $cut_base = substr($base, 0, $max_basename_len - strlen($suffix));
-            $filename = $cut_base . $suffix . '.' . $extension;
-            $zielpfad = $upload_dir . $filename;
-            $counter++;
-        }
-
-        // Datei verschieben
-        if (move_uploaded_file($_FILES['rechnung_neu']['tmp_name'], $zielpfad)) {
-            $rechnungspfad = $zielpfad;
-        }
-    }
-
-
-    // Konto & Kasse
-    $konto = ($betrag >= 0) ? 4 : 8;
-    $kasse = isset($_POST['kasse_id']) ? intval($_POST['kasse_id']) : 1;
-    $agent = $_SESSION["uid"];
-
-    // Changelog
-    $changelog = "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
-    $changelog .= "Insert durch Transfers.php\n";
-
-    // Insert in Datenbank (inkl. Agent)
-    $sql = "INSERT INTO transfers (uid, beschreibung, betrag, konto, kasse, tstamp, changelog, pfad, agent)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("dsdiiissi", $uid, $beschreibung, $betrag, $konto, $kasse, $zeit, $changelog, $rechnungspfad, $agent);
-
-    if ($stmt->execute()) {
-        echo '<p style="color: green; text-align: center;">Transfer erfolgreich gespeichert.</p>';
-    } else {
-        echo '<p style="color: red; text-align: center;">Fehler beim Speichern: ' . $conn->error . '</p>';
-    }
-
-    $stmt->close();
-
-}
-
-
+// ✏️ Bearbeitungsrecht: nur NetzAG oder Vorstand
+$admin = !empty($_SESSION["NetzAG"]) || !empty($_SESSION["Vorstand"]);
 
 
 if (isset($_POST['kasse_id'])) {
