@@ -72,6 +72,9 @@ if (!$berechtigt) {
 if (isset($_POST['transfer_upload_speichern'])) {
     $uid = intval($_POST['uid_neu']);
     $beschreibung = trim($_POST['beschreibung_neu']);
+    if ($beschreibung === '') {
+        $beschreibung = 'Transfer';
+    }
     $betrag = floatval(str_replace(',', '.', $_POST['betrag_neu']));
     $zeit = time();
 
