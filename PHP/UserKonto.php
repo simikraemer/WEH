@@ -209,16 +209,19 @@ if (isset($_POST['save_transfer_id'])) {
     $ausgangs_uid = $_POST['ausgangs_uid'];
     $ausgangs_konto = $_POST['ausgangs_konto'];
     $ausgangs_kasse = $_POST['ausgangs_kasse'];
-    $ausgangs_betrag = str_replace(",", ".", $_POST['ausgangs_betrag']); // Betrag wird wieder in Dezimalform gebracht
+    $ausgangs_betrag = $_POST['ausgangs_betrag'];
     $ausgangs_beschreibung = $_POST['ausgangs_beschreibung']; // Alte Beschreibung
 
     function formatBetrag($betrag) {
-        // Entferne zuerst Tausenderpunkte, nur wenn sie vor einer Dezimaltrennstelle stehen
-        $betrag = str_replace('.', '', $betrag); 
-        // Wandelt das Dezimalkomma in einen Dezimalpunkt um
-        $betrag = str_replace(',', '.', $betrag);
-        return $betrag; // MySQL-kompatibler FLOAT-String
+        // Wenn Komma vorhanden, ist Punkt Tausendertrenner
+        if (strpos($betrag, ',') !== false) {
+            $betrag = str_replace('.', '', $betrag);
+            $betrag = str_replace(',', '.', $betrag);
+        }
+        return $betrag;
     }
+        
+            
     
     // Beispiele
     $formatierter_ausgangsbetrag = formatBetrag($ausgangs_betrag);

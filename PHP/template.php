@@ -375,12 +375,12 @@ function load_menu() {
             echo '<span class="vertical-line"></span>';    
 
 
-            ## Seiten im Aufbau ##
-            #echo '<div class="header-menu">';
-            #echo '<div class="header-menu-item">';
-            #echo '<button class="center-btn" onclick="window.location.href=\'Printer.php\';" style="white-space: nowrap;">Printer</button>';
-            #echo '</div>';
-            #echo '</div>';
+            # Seiten im Aufbau ##
+            echo '<div class="header-menu">';
+            echo '<div class="header-menu-item">';
+            echo '<button class="center-btn" onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button>';
+            echo '</div>';
+            echo '</div>';
 
 
             echo '<div class="header-menu">';
@@ -1690,6 +1690,16 @@ function formatTurm(string $turm): string {
 
     return strtoupper($turm);
 }
+
+function cutName($firstname, $lastname) {    
+    $name = explode(' ', $firstname)[0] . ' ' . explode(' ', $lastname)[0];
+    return $name;
+}
+
+function displayBetrag($betrag) {
+    return number_format((float)$betrag, 2, ',', '.');
+}
+
 
     
 

@@ -1721,3 +1721,84 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.transfer-table {
+  margin: 20px auto;
+  border-collapse: collapse;
+  width: 70%;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: #eee;
+  background-color: #1e1e1e;
+}
+
+.transfer-table th,
+.transfer-table td {
+  border: 1px solid #444;
+  padding: 4px 6px;
+  text-align: left;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-table th {
+  cursor: pointer;
+  background-color: #2a2a2a;
+  font-weight: 700;
+  font-size: 14px;
+  user-select: none;
+  color: #fff;
+}
+
+.transfer-table tr:nth-child(even) {
+  background-color: #262626;
+}
+
+.transfer-table tr:hover {
+  background-color: #14532d; /* dunkles Grün */
+  cursor: pointer;
+}
+
+
+.transfer-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 70%;
+  margin: 20px auto;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  background-color: #1f1f1f;
+  padding: 10px;
+  border: 1px solid #444;
+  color: #fff;
+  font-size: 14px;
+}
+
+.transfer-form-grid input[type="text"],
+.transfer-form-grid input[type="number"],
+.transfer-form-grid input[type="file"] {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.transfer-form-grid button {
+  background-color: #166534; /* dunkelgrün */
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.transfer-form-grid button:hover {
+  background-color: #14532d;
+}
