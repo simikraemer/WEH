@@ -365,8 +365,8 @@ echo '</div>';
 
 
 $barkassen = [
-    ['id' => 73, 'label' => 'Netzbarkasse I', 'const' => 'kasse_netz1'],
-    ['id' => 74, 'label' => 'Netzbarkasse II', 'const' => 'kasse_netz2'],
+    ['id' => 1, 'label' => 'Netzbarkasse I', 'const' => 'kasse_netz1'],
+    ['id' => 2, 'label' => 'Netzbarkasse II', 'const' => 'kasse_netz2'],
     ['id' => 93, 'label' => 'Kassenwart I', 'const' => 'kasse_wart1'],
     ['id' => 94, 'label' => 'Kassenwart II', 'const' => 'kasse_wart2'],
     ['id' => 95, 'label' => 'Tresor', 'const' => 'kasse_tresor']
