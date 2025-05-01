@@ -1857,16 +1857,17 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
 .kasse-semester-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 4fr 2fr; /* 3 Spalten: Buttons, Dropdown, Kontostand */
   gap: 12px;
   width: 70%;
   margin: 20px auto;
+  background-color: #1f1f1f;
   padding: 10px;
+  border: 1px solid #444;
   color: #fff;
   font-size: 14px;
   align-items: center;
 }
-
 
 .kassenbereich {
   display: flex;
@@ -1897,13 +1898,19 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   border-radius: 4px;
   cursor: pointer;
   width: 100%;
-  height: 80px !important;
+  height: 94px !important;
   box-sizing: border-box;
 }
 
-.semester-dropdown:focus {
-  outline: none;
-  border-color: #166534;
+
+.kontostand-box {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  color: white;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 16px;
+  text-align: center;
+  width: 70%;
+  white-space: nowrap;
 }
-
-

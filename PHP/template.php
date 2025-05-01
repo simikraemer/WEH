@@ -1700,6 +1700,36 @@ function displayBetrag($betrag) {
     return number_format((float)$betrag, 2, ',', '.');
 }
 
+function berechneKontostand(mysqli $conn, int $kasse_id): float {
+    if ($kasse_id === 69) {
+        // PayPal: Sonderberechnung wegen Gebühren
+        $sql = "SELECT SUM(
+            CASE
+                WHEN betrag = 5 THEN 4.92
+                WHEN betrag = 10 THEN 9.84
+                WHEN betrag = 20 THEN 19.35
+                WHEN betrag = 30 THEN 29.20
+                WHEN betrag = 40 THEN 39.05
+                WHEN betrag = 50 THEN 48.90
+                WHEN betrag = 75 THEN 73.53
+                WHEN betrag = 100 THEN 98.15
+                ELSE betrag
+            END
+        ) FROM transfers WHERE kasse = ?";
+    } else {
+        // Standard: normal summieren
+        $sql = "SELECT SUM(betrag) FROM transfers WHERE kasse = ?";
+    }
+
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $kasse_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $summe);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    return round($summe ?? 0, 2);
+}
 
     
 

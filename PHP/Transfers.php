@@ -284,39 +284,72 @@ while ($ts >= strtotime('01-10-2023')) {
 
 echo '<div class="kasse-semester-grid">';
 
-// Linke 2/3: Kassen-Formular
+// Linke 4/6: Kassen-Formular
 echo '<form method="post" class="kasse-form" style="margin: 0;">';
 
 echo '<div class="kasse-row">';
-$buttons_1 = [
+$onlinekassen = [
     ['id' => 72, 'label' => 'Netzkonto'],
     ['id' => 69, 'label' => 'PayPal'],
     ['id' => 92, 'label' => 'Hauskonto']
 ];
-foreach ($buttons_1 as $btn) {
+foreach ($onlinekassen as $btn) {
     $active = ($kid == $btn['id']) ? ' active' : '';
     echo '<button type="submit" name="kasse_id" value="' . $btn['id'] . '" class="kasse-button' . $active . '" style="font-size:20px; width:150px;">' . $btn['label'] . '</button>';
 }
 echo '</div>';
 
-echo '<div class="kasse-row">';
-$buttons_2 = [
-    ['id' => 73, 'label' => 'Netzbarkasse I'],
-    ['id' => 74, 'label' => 'Netzbarkasse II'],
-    ['id' => 93, 'label' => 'Kassenwart I'],
-    ['id' => 94, 'label' => 'Kassenwart II'],
-    ['id' => 95, 'label' => 'Tresor']
+
+$barkassen = [
+    ['id' => 73, 'label' => 'Netzbarkasse I', 'const' => 'kasse_netz1'],
+    ['id' => 74, 'label' => 'Netzbarkasse II', 'const' => 'kasse_netz2'],
+    ['id' => 93, 'label' => 'Kassenwart I', 'const' => 'kasse_wart1'],
+    ['id' => 94, 'label' => 'Kassenwart II', 'const' => 'kasse_wart2'],
+    ['id' => 95, 'label' => 'Tresor', 'const' => 'kasse_tresor']
 ];
-foreach ($buttons_2 as $btn) {
+$kassen_usernames = [];
+
+$stmt = mysqli_prepare($conn, "SELECT u.firstname FROM constants c JOIN users u ON c.wert = u.uid WHERE c.name = ?");
+foreach ($barkassen as $barkasse) {
+    $name = $barkasse['const'];
+    mysqli_stmt_bind_param($stmt, "s", $name);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $firstname);
+    if (mysqli_stmt_fetch($stmt)) {
+        $kassen_usernames[$barkasse['id']] = $firstname;
+    } else {
+        $kassen_usernames[$barkasse['id']] = '–';
+    }
+    mysqli_stmt_free_result($stmt);
+}
+mysqli_stmt_close($stmt);
+
+echo '<div class="kasse-row">';
+foreach ($barkassen as $btn) {
     $active = ($kid == $btn['id']) ? ' active' : '';
-    echo '<button type="submit" name="kasse_id" value="' . $btn['id'] . '" class="kasse-button' . $active . '" style="font-size:15px; width:130px;">' . $btn['label'] . '</button>';
+    $owner = $kassen_usernames[$btn['id']] ?? '–';
+
+    echo '<button type="submit" name="kasse_id" value="' . $btn['id'] . '" class="kasse-button' . $active . '" style="font-size:13px; width:130px; display: flex; flex-direction: column; align-items: center;">';
+    echo '<span>' . $btn['label'] . '</span>';
+    echo '<span style="font-size:11px; color:#aaa;">' . htmlspecialchars($owner) . '</span>';
+    echo '</button>';
 }
 echo '</div>';
 
+
 echo '</form>';
 
-// Rechte 1/3: Semester-Dropdown
-echo '<form method="post" style="text-align: right;">';
+// Rechte 2/6: Semester-Dropdown + Kontostand
+echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center;">';
+
+// Kontostand
+$kontostand = berechneKontostand($conn, $kid);
+echo '<div class="kontostand-box">';
+echo 'Kontostand:<br><strong>' . number_format($kontostand, 2, ',', '.') . ' €</strong>';
+echo '</div>';
+
+// Dropdown
+echo '<form method="post" style="margin: 0;">';
 echo '<select id="semester-select" name="semester_start" class="semester-dropdown" onchange="this.form.submit()">';
 foreach ($semester_options as $label => $start_ts) {
     $selected = ($start_ts == $semester_start) ? 'selected' : '';
@@ -324,6 +357,11 @@ foreach ($semester_options as $label => $start_ts) {
 }
 echo '</select>';
 echo '</form>';
+
+echo '</div>'; // Ende rechte 2/6
+
+
+
 
 echo '</div>';
 
