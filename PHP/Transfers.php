@@ -17,7 +17,8 @@
                    geburtsort LIKE '%$searchTerm%' OR 
                    (room = '$searchTerm') OR 
                    (uid = '$searchTerm') OR 
-                   (oldroom = '$searchTerm'))";
+                   (oldroom = '$searchTerm'))
+                  AND pid IN (11,12,13,64)";
         } else {
             // Wenn $searchTerm keine gültige Zahl ist, keine Suche in room und oldroom durchführen
             $sql = "SELECT uid, name, username, room, oldroom, turm FROM users WHERE 
@@ -25,7 +26,8 @@
                      username LIKE '%$searchTerm%' OR 
                      email LIKE '%$searchTerm%' OR 
                      aliase LIKE '%$searchTerm%' OR 
-                     geburtsort LIKE '%$searchTerm%')";
+                     geburtsort LIKE '%$searchTerm%')
+                   AND pid IN (11,12,13,64)";
         }
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_execute($stmt);
@@ -225,45 +227,6 @@ if (isset($_POST['transfer_upload_speichern'])) {
 }
 
 
-echo '<form method="post" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:20px;">';
-
-    // Erste Zeile – Online-Konten (große Buttons)
-    echo '<div style="display:flex; flex-basis:100%; justify-content:center; gap:10px;">';
-    echo '<button type="submit" name="kasse_id" value="72" class="house-button" style="font-size:20px; width:150px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Netzkonto</button>';
-    echo '<button type="submit" name="kasse_id" value="69" class="house-button" style="font-size:20px; width:150px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">PayPal</button>';
-    echo '<button type="submit" name="kasse_id" value="92" class="house-button" style="font-size:20px; width:150px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Hauskonto</button>';
-    echo '</div>';
-
-    // Zweite Zeile – Barkassen (kleinere Buttons)
-    echo '<div style="display:flex; flex-basis:100%; justify-content:center; gap:10px;">';
-    echo '<button type="submit" name="kasse_id" value="73" class="house-button" style="font-size:15px; width:130px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Netzbarkasse I</button>';
-    echo '<button type="submit" name="kasse_id" value="74" class="house-button" style="font-size:15px; width:130px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Netzbarkasse II</button>';
-    echo '<button type="submit" name="kasse_id" value="93" class="house-button" style="font-size:15px; width:130px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Kassenwart I</button>';
-    echo '<button type="submit" name="kasse_id" value="94" class="house-button" style="font-size:15px; width:130px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Kassenwart II</button>';
-    echo '<button type="submit" name="kasse_id" value="95" class="house-button" style="font-size:15px; width:130px; background-color:#fff; color:#000; border:2px solid #000; padding: 5px; transition:background-color 0.2s;">Tresor</button>';
-    echo '</div>';
-
-echo '</form>';
-
-echo '<form method="post" enctype="multipart/form-data">';
-echo '<div class="transfer-form-grid">';
-
-// Zeile 1
-echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
-echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
-echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
-
-// Zeile 2
-echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)">';
-echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444;"></div>';
-echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
-echo '<input type="hidden" name="uid_neu" id="uid_neu">';
-
-echo '</div>';
-echo '</form>';
-
-
-echo '<br><hr><br>';
 
 if (isset($_POST['kasse_id'])) {
     $_SESSION['kasse_id'] = $_POST['kasse_id'];
@@ -276,6 +239,73 @@ if (!isset($_SESSION['kasse_id'])) {
 $kid = $_SESSION['kasse_id'];
 $zeit = time();
 $semester_start = unixtime2startofsemester($zeit);
+
+echo '<form method="post" class="kasse-form">';
+
+// erste Zeile
+echo '<div class="kasse-row">';
+$buttons_1 = [
+    ['id' => 72, 'label' => 'Netzkonto'],
+    ['id' => 69, 'label' => 'PayPal'],
+    ['id' => 92, 'label' => 'Hauskonto']
+];
+foreach ($buttons_1 as $btn) {
+    $active = ($kid == $btn['id']) ? ' active' : '';
+    echo '<button type="submit" name="kasse_id" value="' . $btn['id'] . '" class="kasse-button' . $active . '" style="font-size:20px; width:150px;">' . $btn['label'] . '</button>';
+}
+echo '</div>';
+
+// zweite Zeile
+echo '<div class="kasse-row">';
+$buttons_2 = [
+    ['id' => 73, 'label' => 'Netzbarkasse I'],
+    ['id' => 74, 'label' => 'Netzbarkasse II'],
+    ['id' => 93, 'label' => 'Kassenwart I'],
+    ['id' => 94, 'label' => 'Kassenwart II'],
+    ['id' => 95, 'label' => 'Tresor']
+];
+foreach ($buttons_2 as $btn) {
+    $active = ($kid == $btn['id']) ? ' active' : '';
+    echo '<button type="submit" name="kasse_id" value="' . $btn['id'] . '" class="kasse-button' . $active . '" style="font-size:15px; width:130px;">' . $btn['label'] . '</button>';
+}
+echo '</div>';
+
+echo '</form>';
+
+
+
+echo '<hr>';
+
+
+
+echo '<form method="post" enctype="multipart/form-data">';
+echo '<div class="transfer-form-grid">';
+
+// Zeile 1
+echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
+echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
+echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
+
+// Zeile 2
+echo '<div style="display: flex; gap: 6px; align-items: center;">';
+echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)" style="flex:1;">';
+echo '<div style="display: flex; gap: 4px;">';
+echo '<button type="button" class="dummy-btn" onclick="setDummyUser(472, \'NetzAG Dummy\')" title="NetzAG Dummy">NE</button>';
+echo '<button type="button" class="dummy-btn" onclick="setDummyUser(492, \'Haussprecher Dummy\')" title="Haussprecher Dummy">HS</button>';
+echo '<button type="button" class="dummy-btn" onclick="setDummyUser(2524, \'PayPal Dummy\')" title="PayPal Dummy">PP</button>';
+echo '</div>';
+echo '</div>';
+
+echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444; min-height: 75px;"></div>';
+echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
+echo '<input type="hidden" name="uid_neu" id="uid_neu">';
+
+echo '</div>';
+echo '</form>';
+
+
+echo '<hr>';
+
 
 $sql = "
     SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
@@ -641,19 +671,23 @@ function sucheUser(term) {
                 if (count >= maxResults) break;
 
                 const userInfo = data[uid][0];
-                const username = userInfo.username;
+                let turm = userInfo.turm?.trim().toUpperCase() || '';
+                if (turm === 'tvk') {
+                    turm = 'TvK';
+                }
+
+                const displayText = `${userInfo.name} (${turm} ${userInfo.room})`;
 
                 const div = document.createElement('div');
-                div.textContent = username;
+                div.textContent = displayText;
                 div.style.padding = '4px 0';
                 div.style.borderBottom = '1px solid #444';
                 div.style.cursor = 'pointer';
 
-                // 👉 bei Klick UID merken und Inputfeld befüllen
                 div.onclick = () => {
-                    document.getElementById('usersuche').value = username;
+                    document.getElementById('usersuche').value = displayText;
                     hiddenUidField.value = uid;
-                    ergebnisContainer.innerHTML = ''; // Ergebnisse ausblenden
+                    ergebnisContainer.innerHTML = '';
                 };
 
                 ergebnisContainer.appendChild(div);
@@ -663,7 +697,13 @@ function sucheUser(term) {
             if (count === 0) {
                 ergebnisContainer.innerHTML = '<div style="color: #888;">Keine Ergebnisse</div>';
             }
-        })
+        });
+}
+
+function setDummyUser(uid, name) {
+    document.getElementById('uid_neu').value = uid;
+    document.getElementById('usersuche').value = name;
+    document.getElementById('usersuchergebnisse').innerHTML = '';
 }
 
 </script>

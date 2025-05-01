@@ -1769,7 +1769,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   width: 70%;
   margin: 20px auto;
   border-collapse: collapse;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
   background-color: #1f1f1f;
   padding: 10px;
   border: 1px solid #444;
@@ -1789,7 +1789,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 }
 
 .transfer-form-grid button {
-  background-color: #166534; /* dunkelgrün */
+  background-color: #14532d;
   color: #fff;
   border: none;
   padding: 8px 12px;
@@ -1800,5 +1800,58 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 }
 
 .transfer-form-grid button:hover {
-  background-color: #14532d;
+  background-color: #166534;
 }
+
+.kasse-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.kasse-row {
+  display: flex;
+  flex-basis: 100%;
+  justify-content: center;
+  gap: 10px;
+}
+
+.kasse-button {
+  font-family: inherit;
+  border: 2px solid #444;
+  padding: 6px 12px;
+  cursor: pointer;
+  background-color: #2a2a2a;
+  color: #fff;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  border-radius: 4px;
+}
+
+.kasse-button:hover {
+  background-color: #1f1f1f;
+}
+
+.kasse-button.active {
+  background-color: #14532d;
+  border-color: #166534;
+  color: #fff;
+}
+
+.dummy-btn {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.dummy-btn:hover {
+  background-color: #14532d;
+  color: #fff;
+}
+
