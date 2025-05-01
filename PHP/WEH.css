@@ -1757,7 +1757,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 }
 
 .transfer-table tr:hover {
-  background-color: #14532d; /* dunkles Grün */
+  background-color: #166534; /* dunkles Grün */
   cursor: pointer;
 }
 
@@ -1839,8 +1839,12 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   color: #fff;
 }
 
+.kasse-button.active:hover {
+  background-color: #166534;
+}
+
 .dummy-btn {
-  background-color: #2a2a2a;
+  background-color: #14532d;
   border: 1px solid #444;
   color: #ccc;
   padding: 4px 6px;
@@ -1851,7 +1855,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 }
 
 .dummy-btn:hover {
-  background-color: #14532d;
+  background-color: #166534;
   color: #fff;
 }
 
@@ -1861,9 +1865,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   gap: 12px;
   width: 70%;
   margin: 20px auto;
-  background-color: #1f1f1f;
   padding: 10px;
-  border: 1px solid #444;
   color: #fff;
   font-size: 14px;
   align-items: center;

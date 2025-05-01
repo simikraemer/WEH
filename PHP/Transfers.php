@@ -84,26 +84,35 @@ if (isset($_POST['save_transfer_id'])) {
     $ausgangs_beschreibung = $_POST['ausgangs_beschreibung'];
     $ausgangs_pfad = $_POST['ausgangs_pfad'];
 
-    
+    $pfad = $ausgangs_pfad; // Standard: alter Pfad bleibt erhalten
+
     if (isset($_FILES['rechnung_upload']) && $_FILES['rechnung_upload']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = 'rechnungen/';
-        $transfer_id = intval($transfer_id); // falls $transfer_id nicht garantiert integer ist
+        $transfer_id = intval($transfer_id);
         $tmp_name = $_FILES['rechnung_upload']['tmp_name'];
         $original_name = $_FILES['rechnung_upload']['name'];
         $extension = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
-
-        // Sicherstellen, dass nur erlaubte Endungen akzeptiert werden
+    
         $allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif'];
         if (in_array($extension, $allowed_extensions)) {
-            $new_filename = $transfer_id . '.' . $extension;
+            $base = $transfer_id;
+            $new_filename = $base . '.' . $extension;
             $target_path = $upload_dir . $new_filename;
-
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true); // Ordner erstellen, falls nicht vorhanden
+            $counter = 1;
+    
+            // Bei Kollision: fortlaufend durchnummerieren
+            while (file_exists($target_path)) {
+                $new_filename = $base . '_' . $counter . '.' . $extension;
+                $target_path = $upload_dir . $new_filename;
+                $counter++;
             }
-
+    
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+    
             if (move_uploaded_file($tmp_name, $target_path)) {
-                $pfad = $target_path;
+                $pfad = $target_path; // nur jetzt wird überschrieben
             } else {
                 echo "Fehler beim Verschieben der Datei.";
             }
@@ -216,15 +225,70 @@ if (isset($_POST['save_transfer_id'])) {
     }
 }
 
-if (isset($_POST['transfer_upload_speichern'])) {
-    echo '<pre style="background-color: #1f1f1f; color: #fff; padding: 10px; border: 1px solid #444;">';
-    echo "=== POST-Daten ===\n";
-    print_r($_POST);
 
-    echo "\n=== FILE-Daten ===\n";
-    print_r($_FILES);
-    echo '</pre>';
+
+if (isset($_POST['transfer_upload_speichern'])) {
+    $uid = intval($_POST['uid_neu']);
+    $beschreibung = trim($_POST['beschreibung_neu']);
+    $betrag = floatval(str_replace(',', '.', $_POST['betrag_neu']));
+    $zeit = time();
+
+    // Datei hochladen
+    $rechnungspfad = null;
+    if (isset($_FILES['rechnung_neu']) && $_FILES['rechnung_neu']['error'] === 0) {
+        $upload_dir = 'rechnungen/';
+        $original_name = $_FILES['rechnung_neu']['name'];
+
+        // Endung extrahieren
+        $extension = pathinfo($original_name, PATHINFO_EXTENSION);
+        $basename = pathinfo($original_name, PATHINFO_FILENAME);
+
+        // Kürzen auf max 200 Zeichen (inkl. evtl. Suffix später)
+        $max_basename_len = 200;
+        $base = substr($basename, 0, $max_basename_len);
+        $filename = $base . '.' . $extension;
+        $zielpfad = $upload_dir . $filename;
+
+        $counter = 1;
+        while (file_exists($zielpfad)) {
+            // Reserviere Platz für z.B. "_2", "_3" ... also 2-4 zusätzliche Zeichen
+            $suffix = '_' . $counter;
+            $cut_base = substr($base, 0, $max_basename_len - strlen($suffix));
+            $filename = $cut_base . $suffix . '.' . $extension;
+            $zielpfad = $upload_dir . $filename;
+            $counter++;
+        }
+
+        // Datei verschieben
+        if (move_uploaded_file($_FILES['rechnung_neu']['tmp_name'], $zielpfad)) {
+            $rechnungspfad = $zielpfad;
+        }
+    }
+
+
+    // Konto bestimmen
+    $konto = ($betrag >= 0) ? 4 : 8;
+    $kasse = isset($_POST['kasse_id']) ? intval($_POST['kasse_id']) : 1;
+
+    // Changelog
+    $changelog = "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $_SESSION["uid"]  . "\n";
+    $changelog .= "Insert durch Transfers.php\n";
+
+    // Insert in Datenbank
+    $sql = "INSERT INTO transfers (uid, beschreibung, betrag, konto, kasse, tstamp, changelog, pfad)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("dsdiiiss", $uid, $beschreibung, $betrag, $konto, $kasse, $zeit, $changelog, $rechnungspfad);
+    
+    if ($stmt->execute()) {
+        echo '<p style="color: green; text-align: center;">Transfer erfolgreich gespeichert.</p>';
+    } else {
+        echo '<p style="color: red; text-align: center;">Fehler beim Speichern: ' . $conn->error . '</p>';
+    }
+
+    $stmt->close();
 }
+
 
 
 
@@ -345,7 +409,7 @@ echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; alig
 // Kontostand
 $kontostand = berechneKontostand($conn, $kid);
 echo '<div class="kontostand-box">';
-echo 'Kontostand:<br><strong>' . number_format($kontostand, 2, ',', '.') . ' €</strong>';
+echo 'Aktueller Kontostand:<br><strong>' . number_format($kontostand, 2, ',', '.') . ' €</strong>';
 echo '</div>';
 
 // Dropdown
@@ -394,6 +458,7 @@ echo '</div>';
 echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444; min-height: 75px;"></div>';
 echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
 echo '<input type="hidden" name="uid_neu" id="uid_neu">';
+echo '<input type="hidden" name="kasse_id" value="' . intval($kid) . '">';
 
 echo '</div>';
 echo '</form>';
