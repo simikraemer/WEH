@@ -876,7 +876,7 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
     const uid = document.getElementById('uid_neu').value.trim();
     const betrag = document.querySelector('input[name="betrag_neu"]').value.trim();
 
-    if (!uid || !betrag || parseFloat(betrag) <= 0) {
+    if (!uid || !betrag) {
         alert("Bitte Nutzer auswählen und gültigen Betrag eingeben.");
         e.preventDefault(); // Verhindert das Absenden
     }
