@@ -88,9 +88,13 @@ if (isset($_POST['transfer_upload_speichern'])) {
         $extension = pathinfo($original_name, PATHINFO_EXTENSION);
         $basename = pathinfo($original_name, PATHINFO_FILENAME);
 
-        // Kürzen auf max 200 Zeichen (inkl. evtl. Suffix später)
+        // Leerzeichen und Sonderzeichen bereinigen
+        $base = str_replace(' ', '_', $basename); // oder komplett: preg_replace('/[^A-Za-z0-9_\-]/', '', $basename);
+        $base = preg_replace('/[^A-Za-z0-9_\-]/', '', $base);
+
+        // Kürzen auf max 200 Zeichen
         $max_basename_len = 200;
-        $base = substr($basename, 0, $max_basename_len);
+        $base = substr($base, 0, $max_basename_len);
         $filename = $base . '.' . $extension;
         $zielpfad = $upload_dir . $filename;
 
