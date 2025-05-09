@@ -77,7 +77,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     $activeButton = $_SERVER['REQUEST_METHOD'] === 'POST' ? array_keys($_POST)[0] : 'weh';
 
     foreach ($buttons as $name => $label) {
-        $bgColor = ($activeButton === $name) ? '#11a50d' : '#fff';
+        $bgColor = ($activeButton === $name) ? '#0d840a' : '#fff';
         $fontSize = in_array($name, ['weh', 'tvk']) ? '50px' : '20px';
         $width = in_array($name, ['weh', 'tvk']) ? '200px' : '160px';
         $padding = in_array($name, ['weh', 'tvk']) ? 'initial' : '10px 5px';
@@ -91,7 +91,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
     echo '<div style="display:flex; flex-basis:100%; justify-content:center;">'; // Zweite Zeile
     foreach ($buttons as $name => $label) {
         if ($name !== 'weh' && $name !== 'tvk') {
-            $bgColor = ($activeButton === $name) ? '#11a50d' : '#fff';
+            $bgColor = ($activeButton === $name) ? '#0d840a' : '#fff';
             echo "<button type=\"submit\" name=\"$name\" class=\"house-button\" style=\"font-size:20px; width:160px; background-color:$bgColor; color:#000; border:2px solid #000; padding:10px 5px; transition:background-color 0.2s;\">$label</button>";
         }
     }
