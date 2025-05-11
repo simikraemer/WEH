@@ -279,6 +279,8 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                     $firstname = $user["firstname"];
                     $lastname = $user["lastname"];
                     $name_html = htmlspecialchars($firstname . ' ' . $lastname, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
+                    $email = $user_name . '@weh.rwth-aachen.de';
+                    $mailto = "mailto:\"$name_html\" <$email>";
                     $ags = $user["groups"];
                     $ags_icons = getAgsIcons($ags, 20);
 
@@ -287,7 +289,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
                     echo "<td>$user_id</td>";
                     echo "<td>
-                          <a href='mailto:$user_name@weh.rwth-aachen.de'>
+                          <a href='$mailto'>
                               <img src='images/mail_white.png'                    
                                   style='width: 20px; height: 20px;'
                                   onmouseover=\"this.src='images/mail_green.png';\" 

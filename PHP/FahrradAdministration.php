@@ -275,7 +275,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             
             // Contact-Icon mit mailto-Funktion
             echo "<td style='text-align: center;'>
-                      <a href='mailto:$username@weh.rwth-aachen.de' style='display: inline-block;'>
+                          <a href='mailto:\"$name\" <$username@weh.rwth-aachen.de>' style='display: inline-block;'>
                           <img src='images/mail_white.png' 
                                alt='Contact Icon' 
                                style='width: 24px; height: 24px;'
@@ -335,8 +335,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
           
           // Contact-Icon mit mailto-Funktion
           echo "<td style='text-align: center;'>
-                    <a href='mailto:$username@weh.rwth-aachen.de' style='display: inline-block;'>
-                        <img src='images/mail_white.png' 
+                             <a href='mailto:\"$name\" <$username@weh.rwth-aachen.de>' style='display: inline-block;'>
+                             <img src='images/mail_white.png' 
                              alt='Contact Icon' 
                              style='width: 24px; height: 24px;'
                              onmouseover=\"this.src='images/mail_green.png';\" 
