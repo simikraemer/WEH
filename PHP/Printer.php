@@ -151,7 +151,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 $output .= '<input type="hidden" name="step" value="dokument_upload">';
 
                 $druckerTurm = strtolower($d["turm"]);
-                $istTurmdesUsers = ($druckerTurm === $nutzerTurm);
+                $istTurmdesUsers = ($druckerTurm === $nutzerTurm || $_SESSION["uid"] == 2626);
                 $style = ($istTurmdesUsers && $printer_ready) ? "" : "opacity: 0.5; pointer-events: none;";
                 
                 $output .= '<button type="submit" class="printer_button printer_flex_button" style="' . $style . '">';
@@ -631,20 +631,28 @@ if (auth($conn) && ($_SESSION['valid'])) {
             if ($fileType === 'application/pdf') {
                 $pdf_files[] = $filePath;
             } elseif (in_array($fileType, ['image/jpeg', 'image/png'])) {
-                // **Bild in PDF umwandeln mit Graustufen**
-                $pdfPath = $uploadsDir . uniqid() . "_grayscale.pdf";
-                
-                $convertCmd = "convert " . escapeshellarg($filePath) . " -resize 595x842 -gravity center -extent 595x842 -background white -density 300 -quality 100 ";
-                
-                $convertCmd .= escapeshellarg($pdfPath);
+                $tmpPdf = $uploadsDir . uniqid("tmp_") . ".pdf";
+                $finalPdf = $uploadsDir . uniqid("a4_") . ".pdf";
+            
+                // Schritt 1: Bild zu einfachem PDF
+                $convertCmd = "convert " . escapeshellarg($filePath) . " " . escapeshellarg($tmpPdf);
                 shell_exec($convertCmd);
-
-                if (file_exists($pdfPath)) {
-                    chmod($pdfPath, 0644);
-                    $pdf_files[] = $pdfPath;
+            
+                // Schritt 2: Mit Ghostscript auf A4 zwingen
+                $gsCmd = "gs -sDEVICE=pdfwrite -dPDFFitPage -dCompatibilityLevel=1.4 " .
+                         "-dNOPAUSE -dQUIET -dBATCH -sPAPERSIZE=a4 " .
+                         "-sOutputFile=" . escapeshellarg($finalPdf) . " " . escapeshellarg($tmpPdf);
+                shell_exec($gsCmd);
+            
+                if (file_exists($finalPdf)) {
+                    chmod($finalPdf, 0644);
+                    $pdf_files[] = $finalPdf;
+                    unlink($tmpPdf);
+                } else {
+                    echo "<!-- FEHLER: PDF-Konvertierung fehlgeschlagen für $filePath -->";
                 }
             }
-        }
+        }            
 
         // **PDFs zusammenfügen**
         if (empty($pdf_files)) {

@@ -566,19 +566,23 @@ if (isset($_POST['edit_transfer'])) {
         4 => "Einzahlung",
         5 => "Getränk",
         6 => "Waschmaschine",
-        7 => "Spülmaschine"
+        7 => "Spülmaschine",
+        8 => "Undefiniert"
     ];
     
     $kasse_options = [
-        0 => "Haus",
-        1 => "NetzAG(bar)-I",
-        2 => "NetzAG(bar)-II",
-        3 => "imaginäre Schuldbuchung",
-        4 => "Netzkonto (alt)",
-        5 => "imaginäre Rückzahlung",
-        69 => "PayPal",
         72 => "Netzkonto",
-        92 => "Hauskonto"
+        92 => "Hauskonto",
+        69 => "PayPal",
+        1 => "Netzbarkasse I",
+        2 => "Netzbarkasse II",
+        93 => "Kassenwart I",
+        94 => "Kassenwart II",
+        95 => "Tresor",
+        3 => "imaginäre Schuldbuchung",
+        5 => "imaginäre Rückzahlung",
+        0 => "Haus (alt)",
+        4 => "Netzkonto (alt)",
     ];
 
     // Deutsche Zeitformatierung (Timestamp in Unixtime)
