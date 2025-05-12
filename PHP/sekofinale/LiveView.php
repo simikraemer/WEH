@@ -93,11 +93,39 @@
       font-weight: bold;
     }
 
-    .category-list, .answers-list {
-      margin-top: 0px;
+    .category-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: center;
     }
 
-    .category-item, .answer-item {
+    .category-item {
+      background-color: #333;
+      color: #eee;
+      padding: 10px 16px;
+      border: 1px solid #555;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .category-item:hover {
+      background-color: #4caf50;
+      color: #000;
+    }
+
+    .category-item.highlight {
+      background-color: #4caf50;
+      color: #000;
+    }
+
+    .answers-list {
+      margin-top: 20px;
+    }
+
+    .answer-item {
       background: #333;
       color: #eee;
       padding: 12px 20px;
@@ -148,7 +176,6 @@
         const res = await fetch('live_state.json');
         const data = await res.json();
 
-        // ========== LINKER BEREICH ==========
         const stack = document.getElementById("player-stack");
         stack.innerHTML = "";
 
@@ -177,7 +204,6 @@
         });
 
         allPlayers
-          .filter(p => !p.out)
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
           .forEach(p => {
             const tr = document.createElement("tr");
@@ -191,7 +217,7 @@
             scoreboardBody.appendChild(tr);
           });
 
-        // ========== RECHTER BEREICH ==========
+
         const right = document.getElementById("right-content");
         const info = document.getElementById("right-info");
         right.innerHTML = "";
@@ -201,17 +227,24 @@
           const catList = document.createElement("div");
           catList.className = "category-list";
 
-(data.allCategories || []).forEach(cat => {
-  // bereits verwendete Kategorien rausfiltern
-  const used = (data.usedCategories || []);
-  if (used.includes(cat)) return;
+          (data.allCategories || []).forEach(cat => {
+            if ((data.usedCategories || []).includes(cat)) return;
 
-  const div = document.createElement("div");
-  div.className = "category-item";
-  div.textContent = cat;
-  catList.appendChild(div);
-});
+            const btn = document.createElement("div");
+            btn.className = "category-item";
+            btn.textContent = cat;
 
+            btn.onclick = () => {
+              document.querySelectorAll('.category-item').forEach(el => {
+                el.classList.add("fade");
+                el.classList.remove("highlight");
+              });
+              btn.classList.remove("fade");
+              btn.classList.add("highlight");
+            };
+
+            catList.appendChild(btn);
+          });
 
           right.appendChild(catList);
         } else {
@@ -223,30 +256,26 @@
           const answerList = document.createElement("div");
           answerList.className = "answers-list";
 
-const reversedAnswers = (data.answers || []).slice().reverse();
-
-reversedAnswers.forEach((ans, i) => {
-  const div = document.createElement("div");
-  div.className = "answer-item";
-  div.textContent = `${reversedAnswers.length - i} – ${ans}`;
-  answerList.appendChild(div);
-});
-
+          const reversedAnswers = (data.answers || []).slice().reverse();
+          reversedAnswers.forEach((ans, i) => {
+            const div = document.createElement("div");
+            div.className = "answer-item";
+            div.textContent = `${reversedAnswers.length - i} – ${ans}`;
+            answerList.appendChild(div);
+          });
 
           right.appendChild(answerList);
 
-          // ✅ Anzeige: Alle Begriffe gewählt (über Backend-Status)
           if (data.allOptionsUsed === true) {
             info.textContent = "✅ Alle Optionen gewählt!";
           }
         }
-
       } catch (err) {
         console.error("Fehler beim Laden von live_state.json:", err);
       }
     }
 
-    setInterval(poll, 500);
+    setInterval(poll, 1000);
     poll();
   </script>
 </body>

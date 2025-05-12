@@ -13,7 +13,7 @@ if (($handle = fopen($csvFile, "r")) !== false) {
     }
     $lineNumber = 0;
     while (($data = fgetcsv($handle, 1000, ";")) !== false) {
-        if ($lineNumber++ === 0) continue;
+        #if ($lineNumber++ === 0) continue;
         foreach ($header as $index => $col) {
             if (!empty($data[$index])) {
                 $categories[trim($col)][] = trim($data[$index]);
@@ -166,6 +166,8 @@ if (($handle = fopen($csvFile, "r")) !== false) {
     const categories = <?= json_encode($categories, JSON_UNESCAPED_UNICODE) ?>;
     let currentCategory = null;
     let usedItems = [];
+    let isCountdownPlaying = false;
+
 
     let players = [
         { name: "", score: 0, out: false },
@@ -182,14 +184,27 @@ if (($handle = fopen($csvFile, "r")) !== false) {
 
     const player = document.getElementById("audio-player");
 
-    function playSound(key) {
-        if (sounds[key]) {
+function playSound(key) {
+    if (!sounds[key]) return;
+
+    // Nur für Countdown toggeln
+    if (key === 'countdown') {
+        if (isCountdownPlaying) {
             player.pause();
             player.currentTime = 0;
-            player.src = sounds[key];
-            player.play().catch(e => console.log("Audio blockiert:", e));
+            isCountdownPlaying = false;
+            return;
         }
+        isCountdownPlaying = true;
+        player.onended = () => isCountdownPlaying = false;
     }
+
+    player.pause();
+    player.currentTime = 0;
+    player.src = sounds[key];
+    player.play().catch(e => console.log("Audio blockiert:", e));
+}
+
 
     function selectCategory(cat) {
         currentCategory = cat;
