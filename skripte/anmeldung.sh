@@ -12,10 +12,26 @@ echo "[INFO] Starte Python-Skript..."
 CONFIG_FILE="/etc/credentials/config.json"
 
 # Konfigurationswerte auslesen
-HOST=$(jq -r '.www2ssh.host' $CONFIG_FILE)
-PORT=$(jq -r '.www2ssh.port' $CONFIG_FILE)
-USERNAME=$(jq -r '.www2ssh.username' $CONFIG_FILE)
-KEYFILE=$(jq -r '.www2ssh.keyfile' $CONFIG_FILE)
+HOST=$(jq -r '.www2ssh.host' "$CONFIG_FILE")
+PORT=$(jq -r '.www2ssh.port' "$CONFIG_FILE")
+USERNAME=$(jq -r '.www2ssh.username' "$CONFIG_FILE")
+KEYFILE_ORIGINAL=$(jq -r '.www2ssh.keyfile' "$CONFIG_FILE")
+
+# Validierung
+if [ -z "$KEYFILE_ORIGINAL" ]; then
+    echo "[✗] Fehler: KEYFILE aus config.json ist leer!"
+    exit 1
+fi
+
+# Angepasster Pfad basierend auf Benutzer
+if [ "$(whoami)" = "www-data" ]; then
+    KEYFILE="$KEYFILE_ORIGINAL"
+else
+    KEYFILE="${KEYFILE_ORIGINAL}.root"
+fi
+
+# Debug-Ausgabe
+echo "[INFO] Verwende SSH-Key: $KEYFILE"
 
 # Lokaler und Remote-Pfad
 REMOTE_DIR="/SERVER/htdocs/www/reg/uploads/"
