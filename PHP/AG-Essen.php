@@ -40,12 +40,12 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
             $changelog = "[" . $zeitstempel . "] Agent " . $_SESSION["uid"] . "\nAG-Essen bestätigt\n";
         
             $insert_sql = "
-                INSERT INTO transfers (tstamp, uid, beschreibung, betrag, konto, kasse, agent, changelog)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            $insert_var = [$zeit, $dummy_uid, $insert_beschreibung, $insert_betrag, $konto, $kasse, $agent, $changelog];
+                INSERT INTO transfers (tstamp, uid, beschreibung, betrag, konto, kasse, agent, changelog, pfad)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $insert_var = [$zeit, $dummy_uid, $insert_beschreibung, $insert_betrag, $konto, $kasse, $agent, $changelog, $pfad];
         
             $stmt = mysqli_prepare($conn, $insert_sql);
-            mysqli_stmt_bind_param($stmt, "iisdiiss", ...$insert_var);
+            mysqli_stmt_bind_param($stmt, "iisdiisss", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
         
