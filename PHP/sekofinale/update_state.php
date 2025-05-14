@@ -7,7 +7,7 @@ $categories = [];
 
 // CSV-Datei laden und alle Kategoriennamen extrahieren
 if (file_exists($csvFile) && ($handle = fopen($csvFile, "r")) !== false) {
-    $header = fgetcsv($handle, 1000, ";");
+    $header = fgetcsv($handle, 10000, ";");
     foreach ($header as $col) {
         $categories[] = trim($col);
     }

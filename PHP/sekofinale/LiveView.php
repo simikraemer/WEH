@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Liveview – Spieler</title>
+  <title>Liveview - Spieler</title>
   <style>
     body {
       margin: 0;
@@ -20,13 +20,14 @@
       overflow-y: auto;
     }
 
-    .left {
-      background-color: #181818;
-      border-right: 2px solid #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+.left {
+  background-color: #181818;
+  border-right: 2px solid #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
 
     .right {
       background-color: #1a1a1a;
@@ -62,32 +63,53 @@
       color: white;
     }
 
-    .scoreboard {
-      margin-top: 60px;
-      width: 100%;
-      max-width: 400px;
-      border-collapse: collapse;
-      font-size: 18px;
-    }
+.scoreboard {
+  position: absolute;
+  bottom: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 400px;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 18px;
+  background-color: #181818;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+}
 
-    .scoreboard th, .scoreboard td {
-      padding: 12px 16px;
-      border-bottom: 1px solid #444;
-    }
+.scoreboard th, .scoreboard td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+}
 
-    .scoreboard th {
-      background-color: #222;
-      color: #4caf50;
-      text-align: left;
-    }
+.scoreboard th {
+  background-color: #202020;
+  color: #4caf50;
+  text-align: left;
+  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
 
-    .scoreboard tr:hover {
-      background-color: #2a2a2a;
-    }
+.scoreboard tr:last-child td {
+  border-bottom: none;
+}
 
-    .scoreboard td {
-      color: #ddd;
-    }
+.scoreboard tr:hover {
+  background-color: #2a2a2a;
+}
+
+.scoreboard td {
+  color: #ddd;
+  transition: background-color 0.3s;
+}
+
+.scoreboard td.name {
+  font-weight: bold;
+  color: #fff;
+}
+
 
     .scoreboard td.name {
       font-weight: bold;
@@ -260,7 +282,7 @@
           reversedAnswers.forEach((ans, i) => {
             const div = document.createElement("div");
             div.className = "answer-item";
-            div.textContent = `${reversedAnswers.length - i} – ${ans}`;
+            div.textContent = `${reversedAnswers.length - i} - ${ans}`;
             answerList.appendChild(div);
           });
 
