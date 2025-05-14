@@ -40,13 +40,13 @@ if (($handle = fopen($csvFile, "r")) !== false) {
         }
         .container {
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
             text-align: center;
         }
         h1 {
             color: #4caf50;
         }
-        .category-btn, .back-btn, .top-btn {
+        .back-btn, .top-btn {
             background-color: #333;
             color: white;
             padding: 12px 20px;
@@ -55,9 +55,37 @@ if (($handle = fopen($csvFile, "r")) !== false) {
             border-radius: 6px;
             cursor: pointer;
         }
-        .category-btn:hover, .back-btn:hover, .top-btn:hover {
+        .back-btn:hover, .top-btn:hover {
             background-color: #4caf50;
         }
+        .category-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: center;
+        }
+
+        .category-item {
+        background-color: #333;
+        color: #eee;
+        padding: 10px 16px;
+        border: 1px solid #555;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        }
+
+        .category-item:hover {
+        background-color: #4caf50;
+        color: #000;
+        }
+
+        .category-item.highlight {
+        background-color: #4caf50;
+        color: #000;
+        }
+
         .grid {
             display: flex;
             flex-direction: column;
@@ -108,12 +136,19 @@ if (($handle = fopen($csvFile, "r")) !== false) {
         .player-row button:hover {
             background-color: #d00;
         }
+
         .select-current-btn {
-            background-color: #0a0 !important;
+        background-color: #555 !important; /* Standard grau */
         }
+
+        .select-current-btn.active {
+        background-color: #0a0 !important; /* Nur der aktuelle Spieler wird grün */
+        }
+
         .select-current-btn:hover {
-            background-color: #0f0 !important;
+        background-color: #0f0 !important;
         }
+
 
 
     </style>
@@ -137,20 +172,35 @@ if (($handle = fopen($csvFile, "r")) !== false) {
     <div id="category-view"> 
         <p>Wähle eine Kategorie:</p>       
 
+        <div class="category-list">
         <?php foreach ($categories as $cat => $items): ?>
-            <button class="category-btn" onclick="selectCategory('<?= htmlspecialchars($cat) ?>')">
+            <div class="category-item" onclick="selectCategory('<?= htmlspecialchars($cat) ?>')">
                 <?= htmlspecialchars($cat) ?>
-            </button>
+            </div>
         <?php endforeach; ?>
+        </div>
+
+
     </div>
 
     <div id="game-view" class="hidden">
-        <button class="back-btn" onclick="backToMenu()">Zurück zur Auswahl</button>
+        <div style="position: relative; display: inline-block;">
+            <button class="back-btn" id="back-btn-hold">🔙 Zurück zur Auswahl</button>
+            <div id="back-progress" style="
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                height: 4px;
+                background-color: #4caf50;
+                width: 0%;
+                transition: width 1s linear;
+            "></div>
+        </div>
         <h2 id="category-title"></h2>
 
         <div class="top-controls">
-            <button class="top-btn" onclick="playSound('countdown')">Countdown</button>
-            <button class="top-btn" onclick="playSound('incorrect')">Falsch</button>
+            <button class="top-btn" onclick="playSound('countdown')">⏳ Countdown</button>
+            <button class="top-btn" onclick="playSound('incorrect')">❌ Falsch</button>
         </div>
 
         <input type="text" id="search" class="search-input" placeholder="Suchbegriff..." oninput="updateList()">
@@ -184,26 +234,62 @@ if (($handle = fopen($csvFile, "r")) !== false) {
 
     const player = document.getElementById("audio-player");
 
+
 function playSound(key) {
     if (!sounds[key]) return;
 
-    // Nur für Countdown toggeln
+    const currentIndex = window.currentPlayerIndexState ?? 0;
+
+    const excludeCurrentPlayer = () => {
+        players[currentIndex].out = true;
+
+        const active = players
+            .map((p, i) => ({ ...p, i }))
+            .filter(p => !p.out);
+
+        if (active.length > 0) {
+            const nextIndex = active.find(p => p.i > currentIndex)?.i ?? active[0].i;
+            window.currentPlayerIndexState = nextIndex;
+        } else {
+            window.currentPlayerIndexState = 0;
+        }
+
+        renderPlayerControls();
+        syncState();
+    };
+
     if (key === 'countdown') {
         if (isCountdownPlaying) {
             player.pause();
             player.currentTime = 0;
             isCountdownPlaying = false;
+            player.onended = null;
             return;
         }
+
         isCountdownPlaying = true;
-        player.onended = () => isCountdownPlaying = false;
+        player.onended = () => {
+            isCountdownPlaying = false;
+            excludeCurrentPlayer();
+            player.onended = null;
+        };
+    } else {
+        player.onended = null;
+    }
+
+    if (key === 'incorrect') {
+        excludeCurrentPlayer();
     }
 
     player.pause();
     player.currentTime = 0;
     player.src = sounds[key];
-    player.play().catch(e => console.log("Audio blockiert:", e));
+    player.play().catch(() => {});
 }
+
+
+
+
 
 
     function selectCategory(cat) {
@@ -219,7 +305,14 @@ function playSound(key) {
 
 
 function backToMenu() {
-    currentCategory = ""; // statt null
+    // Punkte +1 für aktive Spieler
+    players.forEach(p => {
+        if (!p.out) {
+            p.score = (p.score ?? 0) + 1;
+        }
+    });
+
+    currentCategory = "";
     document.getElementById("category-view").classList.remove("hidden");
     document.getElementById("game-view").classList.add("hidden");
 
@@ -229,6 +322,7 @@ function backToMenu() {
     renderPlayerControls();
     syncState();
 }
+
 
 
 
@@ -290,6 +384,7 @@ function markUsed(item) {
             const next = activeIndexes[(activeIndexes.indexOf(current) + 1) % activeIndexes.length];
             window.currentPlayerIndexState = next;
         }
+        renderPlayerControls();
         playSound("correct");
         document.getElementById("search").value = "";
         updateList();
@@ -329,42 +424,43 @@ function renderPlayerControls() {
         const selectBtn = document.createElement("button");
         selectBtn.textContent = "O";
         selectBtn.className = "select-current-btn";
+        if (index === window.currentPlayerIndexState) {
+            selectBtn.classList.add("active");
+        }
         selectBtn.onclick = () => {
             window.currentPlayerIndexState = index;
+            renderPlayerControls(); // neu rendern, damit der Buttonstatus aktualisiert wird
             syncState();
         };
 
         // Out-Button
-const btn = document.createElement("button");
-btn.textContent = player.out ? "Reaktivieren" : "X";
-btn.onclick = () => {
-    const wasActive = index === window.currentPlayerIndexState;
+        const btn = document.createElement("button");
+        btn.textContent = player.out ? "Reaktivieren" : "X";
+        btn.onclick = () => {
+            const wasActive = index === window.currentPlayerIndexState;
 
-    players[index].out = !players[index].out;
+            players[index].out = !players[index].out;
 
-    renderPlayerControls();
+            renderPlayerControls();
 
-    if (players[index].out && wasActive) {
-        const active = players
-            .map((p, i) => ({ ...p, i }))
-            .filter(p => !p.out);
+            if (players[index].out && wasActive) {
+                const active = players
+                    .map((p, i) => ({ ...p, i }))
+                    .filter(p => !p.out);
 
-        if (active.length > 0) {
-            const current = index;
-            const nextIndex = active.find(p => p.i > current)?.i ?? active[0].i;
-            window.currentPlayerIndexState = nextIndex;
-        } else {
-            window.currentPlayerIndexState = 0;
-        }
-    }
-
-
-    syncState();
-};
+                if (active.length > 0) {
+                    const current = index;
+                    const nextIndex = active.find(p => p.i > current)?.i ?? active[0].i;
+                    window.currentPlayerIndexState = nextIndex;
+                } else {
+                    window.currentPlayerIndexState = 0;
+                }
+                renderPlayerControls();
+            }
 
 
-
-
+            syncState();
+        };
 
         row.appendChild(nameInput);
         row.appendChild(scoreInput);
@@ -415,6 +511,34 @@ fetch('live_state.json')
       })
       .catch(err => console.error("Reset fehlgeschlagen:", err));
 }
+
+// Halten für 1 Sekunde + Ladebalken
+const backBtn = document.getElementById("back-btn-hold");
+const progressBar = document.getElementById("back-progress");
+
+let holdTimeout;
+let holdActive = false;
+
+backBtn.addEventListener("mousedown", () => {
+  holdActive = true;
+  progressBar.style.transition = "width 1s linear";
+  progressBar.style.width = "100%";
+
+  holdTimeout = setTimeout(() => {
+    if (holdActive) {
+      backToMenu();
+    }
+  }, 1000);
+});
+
+["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(evt => {
+  backBtn.addEventListener(evt, () => {
+    holdActive = false;
+    clearTimeout(holdTimeout);
+    progressBar.style.transition = "none";
+    progressBar.style.width = "0%";
+  });
+});
 
 
 </script>
