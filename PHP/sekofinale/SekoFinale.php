@@ -224,6 +224,8 @@ if (($handle = fopen($csvFile, "r")) !== false) {
     let players = [
         { name: "", score: 0, out: false },
         { name: "", score: 0, out: false },
+        { name: "", score: 0, out: false },
+        { name: "", score: 0, out: false },
         { name: "", score: 0, out: false }
     ];
 

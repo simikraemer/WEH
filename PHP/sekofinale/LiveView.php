@@ -20,18 +20,28 @@
       overflow-y: auto;
     }
 
-.left {
-  background-color: #181818;
-  border-right: 2px solid #333;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
+    .left {
+      background-color: #181818;
+      border-right: 2px solid #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
 
     .right {
       background-color: #1a1a1a;
+      padding: 40px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
     }
+
+    .right.center-content {
+      justify-content: center;
+      align-items: center;
+    }
+
 
     .player-stack {
       display: flex;
@@ -65,7 +75,7 @@
 
 .scoreboard {
   position: absolute;
-  bottom: 200px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   max-width: 400px;
@@ -173,7 +183,6 @@
 </head>
 <body>
   <div class="left">
-    <h2>Aktuelle Reihenfolge</h2>
     <div id="player-stack" class="player-stack"></div>
 
     <table class="scoreboard" id="scoreboard">
@@ -192,113 +201,121 @@
     <div id="right-info"></div>
   </div>
 
-  <script>
-    async function poll() {
-      try {
-        const res = await fetch('live_state.json');
-        const data = await res.json();
+<script>
+  async function poll() {
+    try {
+      const res = await fetch('live_state.json');
+      const data = await res.json();
 
-        const stack = document.getElementById("player-stack");
-        stack.innerHTML = "";
+      const stack = document.getElementById("player-stack");
+      stack.innerHTML = "";
 
-        const scoreboardBody = document.getElementById("scoreboard").querySelector("tbody");
-        scoreboardBody.innerHTML = "";
+      const scoreboardBody = document.getElementById("scoreboard").querySelector("tbody");
+      scoreboardBody.innerHTML = "";
 
-        const allPlayers = (data.players || []).map((p, i) => ({ ...p, index: i }));
-        const activePlayers = allPlayers.filter(p => !p.out);
-        const currentPlayerIndex = data.currentPlayerIndex ?? 0;
+      const allPlayers = (data.players || []).map((p, i) => ({ ...p, index: i }));
+      const activePlayers = allPlayers.filter(p => !p.out);
+      const currentPlayerIndex = data.currentPlayerIndex ?? 0;
 
-        activePlayers.forEach((player, idx) => {
-          const div = document.createElement("div");
-          div.className = "player-block";
-          if (player.index === currentPlayerIndex) {
-            div.classList.add("active");
-          }
-          div.textContent = player.name.trim() !== "" ? player.name : `Spieler ${player.index + 1}`;
-          stack.appendChild(div);
+      activePlayers.forEach((player, idx) => {
+        const div = document.createElement("div");
+        div.className = "player-block";
+        if (player.index === currentPlayerIndex) {
+          div.classList.add("active");
+        }
+        div.textContent = player.name.trim() !== "" ? player.name : `Spieler ${player.index + 1}`;
+        stack.appendChild(div);
 
-          if (idx < activePlayers.length - 1) {
-            const arrow = document.createElement("div");
-            arrow.className = "arrow";
-            arrow.textContent = "↓";
-            stack.appendChild(arrow);
-          }
+        if (idx < activePlayers.length - 1) {
+          const arrow = document.createElement("div");
+          arrow.className = "arrow";
+          arrow.textContent = "↓";
+          stack.appendChild(arrow);
+        }
+      });
+
+      allPlayers
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .forEach(p => {
+          const tr = document.createElement("tr");
+          const name = document.createElement("td");
+          const score = document.createElement("td");
+          name.className = "name";
+          name.textContent = p.name.trim() !== "" ? p.name : `Spieler ${p.index + 1}`;
+          score.textContent = p.score ?? 0;
+          tr.appendChild(name);
+          tr.appendChild(score);
+          scoreboardBody.appendChild(tr);
         });
 
-        allPlayers
-          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-          .forEach(p => {
-            const tr = document.createElement("tr");
-            const name = document.createElement("td");
-            const score = document.createElement("td");
-            name.className = "name";
-            name.textContent = p.name.trim() !== "" ? p.name : `Spieler ${p.index + 1}`;
-            score.textContent = p.score ?? 0;
-            tr.appendChild(name);
-            tr.appendChild(score);
-            scoreboardBody.appendChild(tr);
-          });
+      const right = document.getElementById("right-content");
+      const info = document.getElementById("right-info");
+      const rightCol = document.querySelector(".right"); // neu
+
+      right.innerHTML = "";
+      info.innerHTML = "";
+      rightCol.classList.remove("center-content"); // immer zurücksetzen
+
+      if (!data.category || data.category.trim() === "") {
+        rightCol.classList.add("center-content"); // nur wenn Kategorie-Auswahl
+
+        const catList = document.createElement("div");
+        catList.className = "category-list";
+
+        (data.allCategories || []).forEach(cat => {
+          if ((data.usedCategories || []).includes(cat)) return;
+
+          const btn = document.createElement("div");
+          btn.className = "category-item";
+          btn.textContent = cat;
+
+          btn.onclick = () => {
+            document.querySelectorAll('.category-item').forEach(el => {
+              el.classList.add("fade");
+              el.classList.remove("highlight");
+            });
+            btn.classList.remove("fade");
+            btn.classList.add("highlight");
+          };
+
+          catList.appendChild(btn);
+        });
+
+        right.appendChild(catList);
+      } else {
+        const title = document.createElement("div");
+        title.className = "category-title";
+        title.textContent = data.category;
+        right.appendChild(title);
+
+        const answerList = document.createElement("div");
+        answerList.className = "answers-list";
+
+        const answers = data.answers || [];
+        answers.forEach((ans) => {
+          const div = document.createElement("div");
+          div.className = "answer-item";
+          div.textContent = ans;
+          answerList.appendChild(div);
+        });
+
+        right.appendChild(answerList);
+        const scrollContainer = document.querySelector(".right");
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
 
 
-        const right = document.getElementById("right-content");
-        const info = document.getElementById("right-info");
-        right.innerHTML = "";
-        info.innerHTML = "";
-
-        if (!data.category || data.category.trim() === "") {
-          const catList = document.createElement("div");
-          catList.className = "category-list";
-
-          (data.allCategories || []).forEach(cat => {
-            if ((data.usedCategories || []).includes(cat)) return;
-
-            const btn = document.createElement("div");
-            btn.className = "category-item";
-            btn.textContent = cat;
-
-            btn.onclick = () => {
-              document.querySelectorAll('.category-item').forEach(el => {
-                el.classList.add("fade");
-                el.classList.remove("highlight");
-              });
-              btn.classList.remove("fade");
-              btn.classList.add("highlight");
-            };
-
-            catList.appendChild(btn);
-          });
-
-          right.appendChild(catList);
-        } else {
-          const title = document.createElement("div");
-          title.className = "category-title";
-          title.textContent = data.category;
-          right.appendChild(title);
-
-          const answerList = document.createElement("div");
-          answerList.className = "answers-list";
-
-          const reversedAnswers = (data.answers || []).slice().reverse();
-          reversedAnswers.forEach((ans, i) => {
-            const div = document.createElement("div");
-            div.className = "answer-item";
-            div.textContent = `${reversedAnswers.length - i} - ${ans}`;
-            answerList.appendChild(div);
-          });
-
-          right.appendChild(answerList);
-
-          if (data.allOptionsUsed === true) {
-            info.textContent = "✅ Alle Optionen gewählt!";
-          }
+        if (data.allOptionsUsed === true) {
+          info.textContent = "✅ Alle Optionen gewählt!";
         }
-      } catch (err) {
-        console.error("Fehler beim Laden von live_state.json:", err);
       }
+    } catch (err) {
+      console.error("Fehler beim Laden von live_state.json:", err);
     }
+  }
 
-    setInterval(poll, 1000);
-    poll();
-  </script>
+  setInterval(poll, 1000);
+  poll();
+</script>
+
 </body>
 </html>

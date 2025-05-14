@@ -19,6 +19,8 @@ $resetState = [
     'players' => [
         [ 'name' => '', 'score' => 0, 'out' => false ],
         [ 'name' => '', 'score' => 0, 'out' => false ],
+        [ 'name' => '', 'score' => 0, 'out' => false ],
+        [ 'name' => '', 'score' => 0, 'out' => false ],
         [ 'name' => '', 'score' => 0, 'out' => false ]
     ],
     'currentPlayerIndex' => 0,
