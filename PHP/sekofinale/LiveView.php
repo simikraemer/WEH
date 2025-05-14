@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Liveview – Spieler</title>
+  <title>Liveview - Spieler</title>
   <style>
     body {
       margin: 0;
@@ -282,7 +282,7 @@
           reversedAnswers.forEach((ans, i) => {
             const div = document.createElement("div");
             div.className = "answer-item";
-            div.textContent = `${reversedAnswers.length - i} – ${ans}`;
+            div.textContent = `${reversedAnswers.length - i} - ${ans}`;
             answerList.appendChild(div);
           });
 

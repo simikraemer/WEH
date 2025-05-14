@@ -7,12 +7,12 @@ if (!file_exists($csvFile)) {
 }
 
 if (($handle = fopen($csvFile, "r")) !== false) {
-    $header = fgetcsv($handle, 1000, ";");
+    $header = fgetcsv($handle, 10000, ";");
     foreach ($header as $col) {
         $categories[trim($col)] = [];
     }
     $lineNumber = 0;
-    while (($data = fgetcsv($handle, 1000, ";")) !== false) {
+    while (($data = fgetcsv($handle, 10000, ";")) !== false) {
         #if ($lineNumber++ === 0) continue;
         foreach ($header as $index => $col) {
             if (!empty($data[$index])) {
@@ -213,7 +213,9 @@ if (($handle = fopen($csvFile, "r")) !== false) {
 </div>
 
 <script>
-    const categories = <?= json_encode($categories, JSON_UNESCAPED_UNICODE) ?>;
+    const categories = JSON.parse(<?= json_encode(json_encode($categories, JSON_UNESCAPED_UNICODE)) ?>);
+    console.log("✅ Kategorien geladen:", categories); // Debug-Ausgabe
+
     let currentCategory = null;
     let usedItems = [];
     let isCountdownPlaying = false;

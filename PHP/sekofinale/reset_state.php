@@ -5,7 +5,7 @@ $csvFile = '/WEH/PHP/sekofinale/kategorien.csv';
 // Kategorien aus der CSV laden
 $categories = [];
 if (file_exists($csvFile) && ($handle = fopen($csvFile, "r")) !== false) {
-    $header = fgetcsv($handle, 1000, ";");
+    $header = fgetcsv($handle, 10000, ";");
     foreach ($header as $col) {
         $categories[] = trim($col);
     }
