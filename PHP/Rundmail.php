@@ -122,6 +122,7 @@ if (auth($conn) && $_SESSION['valid']) {
             'important' => 'important@tuerme.rwth-aachen.de',
             'tvk-important' => 'important@tvk.rwth-aachen.de',
             'weh-important' => 'important@weh.rwth-aachen.de',
+            'community' => 'community@tuerme.rwth-aachen.de',
             'tvk-community' => 'community@tvk.rwth-aachen.de',
             'weh-community' => 'community@weh.rwth-aachen.de',
             'ags' => 'ags@tuerme.rwth-aachen.de',
@@ -171,18 +172,19 @@ if (auth($conn) && $_SESSION['valid']) {
       echo '<div style="margin: 0 auto; text-align: center;">';
       echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
       $addressOptions = array(
-        'webmaster'       => 'Debug – Webmaster',
-        'essential'       => 'Türme – Essential',
-        'important'       => 'Türme – Important',
-        'ags'             => 'Türme – AG Mitglieder',
-        'weh-essential'   => 'WEH – Essential',
-        'weh-important'   => 'WEH – Important',
-        'weh-community'   => 'WEH – Community',
-        'weh-ags'         => 'WEH – AG Mitglieder',
-        'tvk-essential'   => 'TvK – Essential',
-        'tvk-important'   => 'TvK – Important',
-        'tvk-community'   => 'TvK – Community',
-        'tvk-ags'         => 'TvK – AG Mitglieder',
+        'webmaster'       => 'Debug - Webmaster',
+        'essential'       => 'Türme - Essential',
+        'important'       => 'Türme - Important',
+        'community'       => 'Türme - Community',
+        'ags'             => 'Türme - AG Mitglieder',
+        'weh-essential'   => 'WEH - Essential',
+        'weh-important'   => 'WEH - Important',
+        'weh-community'   => 'WEH - Community',
+        'weh-ags'         => 'WEH - AG Mitglieder',
+        'tvk-essential'   => 'TvK - Essential',
+        'tvk-important'   => 'TvK - Important',
+        'tvk-community'   => 'TvK - Community',
+        'tvk-ags'         => 'TvK - AG Mitglieder',
       );    
       echo '<form method="post" action="Rundmail.php" id="mail_form" name="mail-form" style="text-align: center;">';
 
@@ -198,7 +200,7 @@ if (auth($conn) && $_SESSION['valid']) {
         && ($_SESSION["sprecher"] == 0 && !$_SESSION["Vorstand"] && !$_SESSION["TvK-Sprecher"] && !$_SESSION["NetzAG"])) {
           continue;
         }        
-        if (($addressID === 'important' || $addressID === "tvk-important" || $addressID === "weh-important" 
+        if (($addressID === 'important' || $addressID === "tvk-important" || $addressID === "weh-important" || $addressID === "community" 
         || $addressID === "ags" || $addressID === "tvk-ags" || $addressID === "weh-ags") 
         && !$hasAgMembership) {
           continue;
