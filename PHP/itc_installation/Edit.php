@@ -50,51 +50,48 @@ function formatUnix($ts) {
 <?php
 echo <<<HTML
 <div class="main-header">
-    <div class="logo-title">📝 ITC Installation</div>
+    <div class="logo-title">💻 IT-Administration Neugeräte</div>
     <nav class="main-nav">
-        <a class="nav-link active">Editieren</a>
+        <a class="nav-link active">🔨 Editieren</a>
         <a href="Installation.php" class="nav-link">📋 Übersicht</a>
         <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
         <a href="Archiv.php" class="nav-link">📁 Archiv</a>
+        <a href="Admin.php" class="nav-link">⚙️ Einstellungen</a>
     </nav>
 </div>
 HTML;
 ?>
 
 <div class="container">
-    <h2>Eintrag bearbeiten (ID <?= $id ?>)</h2>
+    <h2>Eintrag bearbeiten</h2>
 
     <div class="edit-section">
         <h3>Allgemeine Informationen</h3>
         <div class="edit-row">
             <?= inputField('Status', 'status', 'select', $row, $status) ?>
             <?= inputField('Ticket', 'ticket', 'text', $row) ?>
-            <?= inputField('Datum', 'datum', 'date', $row) ?>
+            <?= inputField('Ausgabedatum', 'datum', 'date', $row) ?>
             <?= inputField('Zeit', 'zeit', 'time', $row) ?>
         </div>
         <div class="edit-row">
-            <?= inputField('Name', 'name', 'text', $row) ?>
             <?= inputField('Neugerät', 'neugerät', 'text', $row) ?>
+            <?= inputField('Name', 'name', 'text', $row) ?>
             <?= inputField('Abteilung', 'abteilung', 'select', $row, $abteilungen) ?>
             <?= inputField('MA-Status', 'mastatus', 'select', $row, $mastatus) ?>
         </div>
         <div class="edit-row">
-            <?= inputField('Dock', 'dock', 'text', $row) ?>
+            <?= inputField('Docking-Station', 'dock', 'text', $row) ?>
             <?= inputField('Monitor', 'monitor', 'text', $row) ?>
             <?= inputField('Altgerät', 'altgerät', 'text', $row) ?>
         </div>
-    </div>
-
-    <div class="edit-section">
-        <h3>Zusätzliche Informationen</h3>
         <div class="edit-row">
-            <?= inputField('Software', 'software', 'textarea', $row) ?>
+            <?= inputField('Software/Lizenz', 'software', 'textarea', $row) ?>
             <?= inputField('Notiz', 'notiz', 'textarea', $row) ?>
         </div>
     </div>
 
     <div class="edit-section">
-        <h3>Zeitpunkte</h3>
+        <h3>Installationsfortschritt Zeitpunkte</h3>
         <div class="edit-row">
             <?= inputField('Geräte-Sharepoint', 'prog_sp', 'datetime', $row) ?>
             <?= inputField('DHCP-Admin', 'prog_dhcp', 'datetime', $row) ?>
@@ -102,13 +99,13 @@ HTML;
             <?= inputField('BIOS-PW', 'prog_bios', 'datetime', $row) ?>
         </div>
         <div class="edit-row">
-            <?= inputField('Software', 'prog_software', 'datetime', $row) ?>
-            <?= inputField('Updates', 'prog_updates', 'datetime', $row) ?>
-            <?= inputField('Dock', 'prog_dock', 'datetime', $row) ?>
-            <?= inputField('Monitor', 'prog_monitor', 'datetime', $row) ?>
+            <?= inputField('Software/Lizenz erledigt', 'prog_software', 'datetime', $row) ?>
+            <?= inputField('Dock vorbereitet', 'prog_dock', 'datetime', $row) ?>
+            <?= inputField('Monitor vorbereitet', 'prog_monitor', 'datetime', $row) ?>
         </div>
         <div class="edit-row">
-            <?= inputField('Ausgabe', 'prog_ausgabe', 'datetime', $row) ?>
+            <?= inputField('Updates installiert', 'prog_updates', 'datetime', $row) ?>
+            <?= inputField('Neugerät ausgegeben', 'prog_ausgabe', 'datetime', $row) ?>
             <?= inputField('Altgerät zurückgegeben', 'prog_altgerät', 'datetime', $row) ?>
         </div>
     </div>
@@ -134,13 +131,24 @@ function inputField($label, $field, $type, $row, $options = []) {
 
         case 'select':
             $out .= "<select id='$field' onchange=\"updateField('$field', this.value)\">";
+
             foreach ($options as $k => $v) {
-                $v = is_array($v) ? $v['label'] : $v;
-                $selected = ((string)$k === (string)$value) ? "selected" : "";
-                $out .= "<option value='$k' $selected>" . htmlspecialchars($v) . "</option>";
+                // Wenn Wert ein Array (z. B. bei $status), extrahiere Label
+                $label = is_array($v) ? $v['label'] : $v;
+
+                // WENN Feld "abteilung", vergleiche mit Label (nicht ID)
+                if ($field === 'abteilung') {
+                    $selected = ((string)$value === (string)$label) ? "selected" : "";
+                    $out .= "<option value='" . htmlspecialchars($label) . "' $selected>" . htmlspecialchars($label) . "</option>";
+                } else {
+                    $selected = ((string)$value === (string)$k) ? "selected" : "";
+                    $out .= "<option value='" . htmlspecialchars($k) . "' $selected>" . htmlspecialchars($label) . "</option>";
+                }
             }
+
             $out .= "</select>";
             break;
+
 
         case 'datetime':
             $formatted = $value ? date('d.m.Y H:i', (int)$value) : '';

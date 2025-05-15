@@ -39,11 +39,13 @@ function ip_in_range($ip, $range) {
     return ($ip & $mask) === ($subnet & $mask);
 }
 
-$allowed_ips = [
-    '134.130.0.0/23',
-    '137.226.141.200',
-    '137.226.141.203'
-];
+$allowed_ips = [];
+$res = mysqli_query($conn, "SELECT ip, prefix FROM allowed_ips");
+while ($row = mysqli_fetch_assoc($res)) {
+    $prefix = (int)$row['prefix'];
+    $allowed_ips[] = $prefix === 32 ? $row['ip'] : $row['ip'] . '/' . $prefix;
+}
+
 
 $client_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 $access_granted = false;
@@ -80,28 +82,22 @@ $status = [
 // ------------------------------
 // Mitarbeiter-Status
 // ------------------------------
-$mastatus = [
-     0 => 'Neuer Mitarbeiter',
-     1 => 'Neuer HiWi',
-     2 => 'Neuer Azubi',
-     3 => 'Praktikant',
-     4 => 'Bestehender Mitarbeiter',
-     5 => 'Bestehender HiWi',
-     6 => 'Bestehender Azubi',
-     7 => 'IT-Koordinator',
-     8 => 'Undefiniert'
-];
+$mastatus = [];
+$res = mysqli_query($conn, "SELECT id, label FROM ma_status ORDER BY id ASC");
+while ($row = mysqli_fetch_assoc($res)) {
+    $mastatus[(int)$row['id']] = $row['label'];
+}
+
 
 // ------------------------------
 // Abteilungen
 // ------------------------------
-$abteilungen = [
-    'SeKo', 'FPO', 'SuB', 'RPDM', 'PDSL', 'Netze', 'CSE', 'ITSSM', 'Stabsstelle',
-    'SeKo Marie', 'SeKo WiPro', 'SeKo IT-Admin', 'SeKo Security',
-    'CSE HPC', 'CSE MATSE', 'CSE VR', 'CSE VIS',
-    'SuB ABC', 'SuB IDM', 'SuB Anwendungsentwicklung', 'SuB SSH',
-    'Netze Kommunikation', 'Netze NOC', 'Netze Planung', 'Netze Organisation', 'Netze Support'
-];
+$abteilungen = [];
+$res = mysqli_query($conn, "SELECT name FROM abteilungen ORDER BY name ASC");
+while ($row = mysqli_fetch_assoc($res)) {
+    $abteilungen[] = $row['name'];
+}
+
 
 function getUpdatedStatus(array $row, string $field, bool $checked): ?int {
     // Felder vor Updates

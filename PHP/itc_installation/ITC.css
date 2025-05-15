@@ -7,7 +7,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 30px;
+    margin-bottom: 0px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     position: sticky;
     top: 0;
@@ -62,7 +62,7 @@
 
 
 
-/* BODY */
+/* Installation */
 
 body {
     background-color: #121212;
@@ -120,15 +120,15 @@ h1 {
     border: 2px solid #444;
     border-radius: 10px;
     padding: 10px 15px;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
 }
 
 .info-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
+    justify-content: space-between;
+    position: relative;
+    padding: 5px 0;
 }
 
 .status-label {
@@ -139,14 +139,23 @@ h1 {
 }
 
 .main-data {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 1.1em;
-    font-weight: bold;
-    text-align: center;
-    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 1;
+    pointer-events: auto;
 }
+
+.ausgabe-datum {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.ausgabe-subinfo {
+    font-size: 0.95em;
+    color: #bbbbbb;
+}
+
 
 .action-buttons {
     display: flex;
@@ -163,15 +172,14 @@ h1 {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
     transition: background-color 0.2s ease, transform 0.1s ease;
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    background-color: rgb(77, 77, 77);
+    background-color: #1c7ed6;
     color: #fff;
 }
 
 .quittung-button:hover, .edit-button:hover {
-    background-color: rgb(100, 100, 100);
+    background-color: #4e9fff;
     transform: translateY(-1px);
 }
-
 
 .progress-section {
     display: flex;
@@ -185,10 +193,15 @@ h1 {
     border-radius: 6px;
     padding: 10px;
     min-width: 130px;
+    min-height: 60px; /* Platz für title + date-label */
     text-align: center;
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     user-select: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
 }
 
 .prog-item:hover {
@@ -205,7 +218,6 @@ h1 {
 }
 
 .prog-title {
-    margin-bottom: 5px;
     font-size: 0.9em;
     font-weight: bold;
 }
@@ -215,10 +227,12 @@ h1 {
     margin-bottom: 5px;
 }
 
-
 .date-label {
     font-size: 0.75em;
-    color: #aaaaaa;
+    color: #7fc27f;
+    visibility: visible;
+    height: 1.2em;
+    line-height: 1.2em;
 }
 
 .software-hinweis {
@@ -243,6 +257,7 @@ h1 {
     background-color: #1f1f1f;
     border-radius: 8px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    width: 900px;
 }
 
 .edit-section h3 {
@@ -290,4 +305,243 @@ h1 {
     outline: none;
     border-color: #4e9fff;
     background-color: #2f2f2f;
+}
+
+/* New */
+
+.save-button {
+    background-color: #1c7ed6;
+    color: #fff;
+    font-weight: bold;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+    background-color: #4e9fff;
+}
+
+/* Archiv */
+
+.archiv-header {
+    position: sticky;
+    top: 72px; /* exakt unter .main-header (je nach tatsächlicher Höhe) */
+    z-index: 90;
+    background-color: #1f1f1f;
+    padding: 12px 30px;
+    border-bottom: 1px solid #333;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+
+
+.archiv-header h2 {
+    margin: 0 0 10px;
+    font-size: 1.5em;
+    color: #f0f0f0;
+    font-weight: 600;
+}
+
+.jahr-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.5em;
+    color: #ccc;
+}
+
+.jahr-selector select {
+    background-color: #2a2a2a;
+    color: #ffffff;
+    border: 1px solid #444;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 1.5em;
+}
+
+.jahr-selector select:hover,
+.jahr-selector select:focus {
+    border-color: #888;
+    outline: none;
+}
+
+
+
+
+
+.archiv-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.archiv-table thead {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+.archiv-table th {
+    padding: 10px 28px 10px 12px; /* rechter Padding für Sortierpfeil */
+    text-align: left;
+    border-bottom: 1px solid #444;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.archiv-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.archiv-table tbody tr {
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.archiv-table tbody tr:hover {
+    background-color: #2d4f77;
+}
+
+.archiv-table th.sorted-asc::after,
+.archiv-table th.sorted-desc::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    margin-top: -5px;
+    border: 5px solid transparent;
+}
+
+.archiv-table th.sorted-asc::after {
+    border-bottom-color: #4e9fff;
+}
+
+.archiv-table th.sorted-desc::after {
+    border-top-color: #4e9fff;
+}
+
+/* Admin */
+
+.admin-wrapper {
+    background-color: #1c1c1c;
+    padding: 30px;
+    border-radius: 10px;
+    min-width: 530px !important;
+    max-width: 900px;
+    margin: 40px auto;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.admin-tabs {
+    display: flex;
+    background-color: #2a2a2a;
+    border-bottom: 1px solid #444;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    overflow: hidden;
+}
+
+.admin-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
+    text-decoration: none;
+    color: #cccccc;
+    font-weight: bold;
+    background-color: #1c1c1c;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    border-right: 1px solid #333;
+}
+
+.admin-tab:last-child {
+    border-right: none;
+}
+
+.admin-tab:hover {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+.admin-tab.active {
+    background-color: #4e9fff;
+    color: #ffffff;
+}
+
+
+
+.admin-table-container {
+    overflow-x: auto;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.admin-table th, .admin-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #444;
+    color: #e0e0e0;
+}
+
+.admin-table th {
+    background-color: #2b2b2b;
+    text-align: left;
+    font-weight: bold;
+}
+
+.admin-table tr:nth-child(even) {
+    background-color: #242424;
+}
+
+.admin-table tr:hover {
+    background-color: #2e4f7a;
+}
+
+.admin-input {
+    width: 100%;
+    padding: 6px 10px;
+    background-color: #2d2d2d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn.add {
+    background-color: #4e9fff;
+    color: #fff;
+}
+
+.btn.add:hover {
+    background-color: #1c7ed6;
+}
+
+.btn.danger {
+    background-color: #a10000;
+    color: #fff;
+}
+
+.btn.danger:hover {
+    background-color: #7a0000;
 }

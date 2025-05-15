@@ -31,11 +31,12 @@ require_once("template.php");
 <?php
 echo <<<HTML
 <div class="main-header">
-    <div class="logo-title">💻 ITC Installation</div>
+    <div class="logo-title">💻 IT-Administration Neugeräte</div>
     <nav class="main-nav">
         <a href="Installation.php" class="nav-link active">📋 Übersicht</a>
         <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
         <a href="Archiv.php" class="nav-link">📁 Archiv</a>
+        <a href="Admin.php" class="nav-link">⚙️ Einstellungen</a>
     </nav>
 </div>
 HTML;
@@ -54,13 +55,14 @@ HTML;
             )
         )
     )
-    ORDER BY status ASC
+    ORDER BY datum ASC
     ";
+
     $result = mysqli_query($conn, $query);
 
     while ($row = mysqli_fetch_assoc($result)) {
         $bordercolor = $status[$row['status']]['color'];
-        echo "<div class='installation' style='border: 3px solid $bordercolor'>";
+        echo "<div class='installation'>";
 
         // Erste Etage: Infos und Buttons
         echo "<div class='info-row'>";
@@ -75,24 +77,25 @@ HTML;
         echo "<div class='main-data'>";
 
         if (!empty($row['datum']) || !empty($row['zeit'])) {
-            echo "<span class='ausgabe-info'>";
-
+            echo "<span class='ausgabe-datum'>";
             if (!empty($row['datum'])) {
                 $datum = date('d.m.Y', strtotime($row['datum']));
-                echo "$datum";
+                echo $datum;
             }
-
             if (!empty($row['zeit'])) {
                 $zeit = date('H:i', strtotime($row['zeit']));
                 echo !empty($row['datum']) ? " $zeit" : "Ausgabezeit: $zeit";
             }
-
             echo "</span><br>";
         }
-        echo htmlspecialchars($row['ticket']) . " | " . htmlspecialchars($row['neugerät']) . " | " . htmlspecialchars($row['name']);
 
+        $parts = [];
+        if (!empty($row['ticket'])) $parts[] = htmlspecialchars($row['ticket']);
+        if (!empty($row['neugerät'])) $parts[] = htmlspecialchars($row['neugerät']);
+        if (!empty($row['name'])) $parts[] = htmlspecialchars($row['name']);
+
+        echo "<span class='ausgabe-subinfo'>" . implode(' | ', $parts) . "</span>";
         echo "</div>";
-
 
         echo "<div class='action-buttons'>";
         echo "<form method='post' action='Edit.php' style='display:inline;'>";
@@ -142,10 +145,10 @@ HTML;
 
             echo "<div class='prog-item $checkedClass' onclick=\"toggleProgress(" . $row['id'] . ", '$field', this.classList.contains('checked'))\">";
             echo "<div class='prog-title'>" . htmlspecialchars($dynamicLabel) . "</div>";
-            if ($checked) {
-                echo "<div class='date-label'>" . $timestamp . "</div>";
-            }
+            echo "<div class='date-label'>" . ($checked ? $timestamp : '') . "</div>";
             echo "</div>";
+
+
         }
         echo "</div>";
 

@@ -551,12 +551,12 @@ function load_menu() {
         echo '<div class="header-menu-item">';
         echo '<button class="center-btn">Links</button>';
         echo '<div class="header-submenu">';
-        echo '<button onclick="window.location.href=\'/https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
-        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
-        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
-        echo '<button onclick="window.location.href=\'/Printer.php\';">Web-Printer</button> ';
-        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
-        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
+        echo '<button onclick="window.location.href=\'https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
+        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
+        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
+        echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
+        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
+        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
         echo '</div>';
         echo '</div>';
         echo '</div>';
