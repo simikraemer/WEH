@@ -88,7 +88,6 @@ while ($row = mysqli_fetch_assoc($res)) {
     $mastatus[(int)$row['id']] = $row['label'];
 }
 
-
 // ------------------------------
 // Abteilungen
 // ------------------------------
@@ -96,6 +95,15 @@ $abteilungen = [];
 $res = mysqli_query($conn, "SELECT name FROM abteilungen ORDER BY name ASC");
 while ($row = mysqli_fetch_assoc($res)) {
     $abteilungen[] = $row['name'];
+}
+
+// ------------------------------
+// Admins
+// ------------------------------
+$admins = [];
+$res = mysqli_query($conn, "SELECT name FROM administratoren ORDER BY name ASC");
+while ($row = mysqli_fetch_assoc($res)) {
+    $admins[] = $row['name'];
 }
 
 

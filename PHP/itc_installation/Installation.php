@@ -105,6 +105,8 @@ HTML;
         echo "<button class='quittung-button'>Quittung</button>";
         echo "</div>";
         echo "</div>";
+        
+        echo "<hr>";
 
         // Zweite Etage: Fortschritt
         echo "<div class='progress-section'>";

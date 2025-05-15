@@ -14,6 +14,7 @@ require_once("template.php");
 $tables = [
     'abteilungen' => ['label' => 'Abteilungen', 'columns' => ['name']],
     'ma_status' => ['label' => 'Mitarbeiter-Status', 'columns' => ['label']],
+    'administratoren' => ['label' => 'Admins', 'columns' => ['name']],
     'allowed_ips' => ['label' => 'Freigeschaltete IPs', 'columns' => ['ip', 'prefix']]
 ];
 

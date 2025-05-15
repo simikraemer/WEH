@@ -96,8 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <div class="edit-row" style="margin-top: 20px;">
-            <button type="submit" class="save-button">💾 Eintrag speichern</button>
+        <div class="edit-row button-row" style="margin-top: 20px;">
+            <button type="submit" class="save-button">💾 Speichern</button>
         </div>
     </form>
 </div>
