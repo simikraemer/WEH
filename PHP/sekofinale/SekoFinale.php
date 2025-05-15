@@ -1,4 +1,20 @@
 <?php
+session_start();
+?>
+<!DOCTYPE html>
+<html>
+    <head>
+    <meta name="format-detection" content="telefon=no">
+    <link rel="stylesheet" href="../WEH.css" media="screen">
+    </head>
+
+<?php
+require('../template.php');
+if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
+    header("Location: denied.php");
+}
+load_menu();
+
 $csvFile = '/WEH/PHP/sekofinale/kategorien.csv';
 $categories = [];
 
@@ -34,9 +50,10 @@ if (($handle = fopen($csvFile, "r")) !== false) {
             background-color: #121212;
             color: #eee;
             font-family: Arial, sans-serif;
+        }
+        .ersatzbody {
             display: flex;
-            justify-content: center;
-            padding: 40px;
+            justify-content: center;            
         }
         .container {
             width: 100%;
@@ -137,6 +154,62 @@ if (($handle = fopen($csvFile, "r")) !== false) {
             background-color: #d00;
         }
 
+#player-count-selector {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+#player-count-selector .top-btn {
+  background-color: #2c2c2c;
+  color: #eee;
+  padding: 10px 18px;
+  font-size: 16px;
+  font-weight: bold;
+  border: 2px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#player-count-selector .top-btn:hover {
+  background-color: #4caf50;
+  color: #000;
+  border-color: #4caf50;
+  transform: translateY(-1px);
+}
+
+#player-count-selector .top-btn:active {
+  background-color: #388e3c;
+  transform: scale(0.98);
+  box-shadow: none;
+}
+
+#player-count-selector .top-btn.selected {
+  background-color: #4caf50;
+  color: #000;
+  border-color: #4caf50;
+}
+
+.hold-btn {
+  position: relative;
+  display: inline-block;
+}
+
+.hold-btn .progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  width: 0%;
+  background-color: #4caf50;
+  transition: width 1s linear;
+}
+
+
+
         .select-current-btn {
         background-color: #555 !important; /* Standard grau */
         }
@@ -157,12 +230,30 @@ if (($handle = fopen($csvFile, "r")) !== false) {
     
 
 
+<div class="ersatzbody">
 
 <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="align-items: center;">
   <h1 style="margin: 0;">Frühstücksmeeting-Finale</h1>
-  <button class="top-btn" onclick="resetGame()">🔁 Reset</button>
+  <h2 style="margin: 0;">Gamemaster Ansicht</h2>
 </div>
+  <button class="top-btn" onclick="resetGame()">🔁 Reset</button>
+
+    <div id="player-count-selector">
+    <div class="hold-btn" data-count="3">
+        <button class="top-btn">3</button>
+        <div class="progress-bar"></div>
+    </div>
+    <div class="hold-btn" data-count="4">
+        <button class="top-btn">4</button>
+        <div class="progress-bar"></div>
+    </div>
+    <div class="hold-btn" data-count="5">
+        <button class="top-btn">5</button>
+        <div class="progress-bar"></div>
+    </div>
+    </div>
+
 
     <div class="player-setup" style="margin-bottom: 30px;">
         <h2>Spieler</h2>
@@ -210,6 +301,7 @@ if (($handle = fopen($csvFile, "r")) !== false) {
         <!-- Sound-Player (dynamisch) -->
         <audio id="audio-player"></audio>
     </div>
+</div>
 </div>
 
 <script>
@@ -491,6 +583,23 @@ function syncState() {
     }).catch(err => console.error("State-Sync fehlgeschlagen:", err));
 }
 
+function setPlayerCount(n) {
+  const template = { name: "", score: 0, out: false };
+  players = Array.from({ length: n }, () => ({ ...template }));
+  window.currentPlayerIndexState = 0;
+  renderPlayerControls();
+  syncState();
+
+  // Button visuell hervorheben
+  document.querySelectorAll("#player-count-selector .top-btn").forEach(btn => {
+    btn.classList.remove("selected");
+  });
+  const btn = [...document.querySelectorAll("#player-count-selector .top-btn")]
+    .find(b => b.textContent.includes(n));
+  if (btn) btn.classList.add("selected");
+}
+
+
 
 // Initialwert für currentPlayerIndexState und Spieler aus JSON holen
 fetch('live_state.json')
@@ -541,6 +650,38 @@ backBtn.addEventListener("mousedown", () => {
     clearTimeout(holdTimeout);
     progressBar.style.transition = "none";
     progressBar.style.width = "0%";
+  });
+});
+
+
+document.querySelectorAll('.hold-btn').forEach(wrapper => {
+  const btn = wrapper.querySelector("button");
+  const progress = wrapper.querySelector(".progress-bar");
+  const count = parseInt(wrapper.dataset.count, 10);
+  let timeout;
+  let active = false;
+
+  const reset = () => {
+    clearTimeout(timeout);
+    active = false;
+    progress.style.transition = "none";
+    progress.style.width = "0%";
+  };
+
+  btn.addEventListener("mousedown", () => {
+    active = true;
+    progress.style.transition = "width 1s linear";
+    progress.style.width = "100%";
+
+    timeout = setTimeout(() => {
+      if (active) {
+        setPlayerCount(count);
+      }
+    }, 1000);
+  });
+
+  ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(evt => {
+    btn.addEventListener(evt, reset);
   });
 });
 

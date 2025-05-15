@@ -75,7 +75,6 @@
 
 .scoreboard {
   position: absolute;
-  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   max-width: 400px;
@@ -212,6 +211,33 @@
 
       const scoreboardBody = document.getElementById("scoreboard").querySelector("tbody");
       scoreboardBody.innerHTML = "";
+
+      // Dynamisch den Abstand der Scoreboard-Tabelle setzen
+      const scoreboard = document.getElementById("scoreboard");
+      if (scoreboard) {
+        const playerCount = (data.players || []).filter(p => !p.out).length;
+        if (playerCount === 3) {
+          scoreboard.style.bottom = "200px";
+        } else if (playerCount === 4) {
+          scoreboard.style.bottom = "150px";
+        } else {
+          scoreboard.style.bottom = "100px";
+        }
+      }
+
+      // Dynamisch den oberen Abstand des Player-Stacks anpassen
+      const playerStack = document.getElementById("player-stack");
+      if (playerStack) {
+        const playerCount = (data.players || []).filter(p => !p.out).length;
+        if (playerCount === 3) {
+          playerStack.style.marginTop = "120px";
+        } else if (playerCount === 4) {
+          playerStack.style.marginTop = "70px";
+        } else {
+          playerStack.style.marginTop = "20px";
+        }
+      }
+
 
       const allPlayers = (data.players || []).map((p, i) => ({ ...p, index: i }));
       const activePlayers = allPlayers.filter(p => !p.out);

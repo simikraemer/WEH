@@ -5,49 +5,49 @@ if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
     header("Location: denied.php");
 }
 
-    // Standardwerte setzen
-    $mode = $_POST['mode'] ?? 'Beispiel';
-    switch ($mode) {
-        case 'Beispiel':
-            $videoDir = "videos/beispiel/";
-            $unmuteTime = 30;
-            break;
-        case 'Spot the Shot':
-            $videoDir = "videos/spottheshot/";
-            $unmuteTime = 30;
-            break;
-        case 'Pick the Hit':
-            $videoDir = "videos/pickthehit/";
-            $unmuteTime = 30;
-            break;
-        default:
-            $videoDir = "videos/namethegame/";
-            $unmuteTime = 30;
-    }
+// Standardwerte setzen
+$mode = $_POST['mode'] ?? 'Beispiel';
+switch ($mode) {
+    case 'Beispiel':
+        $videoDir = "videos/beispiel/";
+        $unmuteTime = 30;
+        break;
+    case 'Spot the Shot':
+        $videoDir = "videos/spottheshot/";
+        $unmuteTime = 30;
+        break;
+    case 'Pick the Hit':
+        $videoDir = "videos/pickthehit/";
+        $unmuteTime = 30;
+        break;
+    default:
+        $videoDir = "videos/namethegame/";
+        $unmuteTime = 30;
+}
 
 
-    $videos = array_diff(scandir($videoDir), array('..', '.'));
+$videos = array_diff(scandir($videoDir), array('..', '.'));
 
-    $videoFiles = array_values(array_filter($videos, function($file) {
-        return preg_match('/^\d+\.\s.*\.(mp4|webm|ogg)$/i', $file);
-    }));
-    
-    // Sortieren der Dateien basierend auf der Nummerierung am Anfang des Namens
-    usort($videoFiles, function($a, $b) {
-        return intval(explode('.', $a)[0]) - intval(explode('.', $b)[0]);
-    });
-    
-    if (empty($videoFiles)) {
-        die("Keine Videos im Ordner vorhanden!");
-    }
-    
-    // Entferne die Nummerierung aus den Dateinamen für die Ausgabe
-    $cleanVideoFiles = array_map(function($file) {
-        return preg_replace('/^\d+\.\s/', '', $file);
-    }, $videoFiles);
+$videoFiles = array_values(array_filter($videos, function($file) {
+    return preg_match('/^\d+\.\s.*\.(mp4|webm|ogg)$/i', $file);
+}));
 
-    $videoNumbers = array_flip(array_values($videoFiles)); // Erzeugt eine Map: filename -> Nummer
-    $totalVideos = count($videoFiles);    
+// Sortieren der Dateien basierend auf der Nummerierung am Anfang des Namens
+usort($videoFiles, function($a, $b) {
+    return intval(explode('.', $a)[0]) - intval(explode('.', $b)[0]);
+});
+
+if (empty($videoFiles)) {
+    die("Keine Videos im Ordner vorhanden!");
+}
+
+// Entferne die Nummerierung aus den Dateinamen für die Ausgabe
+$cleanVideoFiles = array_map(function($file) {
+    return preg_replace('/^\d+\.\s/', '', $file);
+}, $videoFiles);
+
+$videoNumbers = array_flip(array_values($videoFiles)); // Erzeugt eine Map: filename -> Nummer
+$totalVideos = count($videoFiles);    
 ?>
 
 

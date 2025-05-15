@@ -312,15 +312,15 @@ function load_menu() {
         echo '<div class="header-menu-item">';
         echo '<button class="center-btn">Home</button>';
         echo '<div class="header-submenu">';
-        echo '<button onclick="window.location.href=\'start.php\';">Start</button> ';
-        echo '<button onclick="window.location.href=\'BA-Voting.php\';"style="white-space: nowrap;">Belegungsvote</button> ';
-        echo '<button onclick="window.location.href=\'Protokolle.php\';">Protokolle</button> ';
-        echo '<button onclick="window.location.href=\'Fahrrad.php\';">Fahrradstellplatz</button> ';
-        echo '<button onclick="window.location.href=\'FitnessAccept.php\';" style="white-space: nowrap;">Fitness Equipment</button>';
-        echo '<button onclick="window.location.href=\'WerkzeugBuchen.php\';"style="white-space: nowrap;">Werkzeugverleih</button> ';
-        #echo '<button onclick="window.location.href=\'BuyDrinks.php\';">Getränkekauf</button> ';
+        echo '<button onclick="window.location.href=\'/start.php\';">Start</button> ';
+        echo '<button onclick="window.location.href=\'/BA-Voting.php\';"style="white-space: nowrap;">Belegungsvote</button> ';
+        echo '<button onclick="window.location.href=\'/Protokolle.php\';">Protokolle</button> ';
+        echo '<button onclick="window.location.href=\'/Fahrrad.php\';">Fahrradstellplatz</button> ';
+        echo '<button onclick="window.location.href=\'/FitnessAccept.php\';" style="white-space: nowrap;">Fitness Equipment</button>';
+        echo '<button onclick="window.location.href=\'/WerkzeugBuchen.php\';"style="white-space: nowrap;">Werkzeugverleih</button> ';
+        #echo '<button onclick="window.location.href=\'/BuyDrinks.php\';">Getränkekauf</button> ';
         // Ich habe das hier erstmal ausgehashed, bis Jonatan wieder daran arbeitet. Wenn er weitermacht wird er das hier wahrscheinlich finden :-)
-        //echo '<button onclick="window.location.href=\'Sublet.php\';">Subletting</button> ';
+        //echo '<button onclick="window.location.href=\'/Sublet.php\';">Subletting</button> ';
         echo '</div>';
         echo '</div>';
         echo '</div>';     
@@ -329,12 +329,12 @@ function load_menu() {
         echo '<div class="header-menu-item">';
         echo '<button class="center-btn">Kontakt</button>';
         echo '<div class="header-submenu">';
-        echo '<button onclick="window.location.href=\'Rundmail.php\';">Rundmail</button> ';
-        echo '<button onclick="window.location.href=\'AGs.php\';">AGs</button> ';
-        echo '<button onclick="window.location.href=\'Etagensprecher.php\';">Etagensprecher</button> ';
-        echo '<button onclick="window.location.href=\'Individuen.php\';"style="white-space: nowrap;">Übersicht Bewohner</button> ';
-        echo '<button onclick="window.location.href=\'MailOverview.php\';"style="white-space: nowrap;">Übersicht Mailadressen</button> ';
-        echo '<button onclick="window.location.href=\'Alumni.php\';"style="white-space: nowrap;">Alumni-Newsletter</button>'; 
+        echo '<button onclick="window.location.href=\'/Rundmail.php\';">Rundmail</button> ';
+        echo '<button onclick="window.location.href=\'/AGs.php\';">AGs</button> ';
+        echo '<button onclick="window.location.href=\'/Etagensprecher.php\';">Etagensprecher</button> ';
+        echo '<button onclick="window.location.href=\'/Individuen.php\';"style="white-space: nowrap;">Übersicht Bewohner</button> ';
+        echo '<button onclick="window.location.href=\'/MailOverview.php\';"style="white-space: nowrap;">Übersicht Mailadressen</button> ';
+        echo '<button onclick="window.location.href=\'/Alumni.php\';"style="white-space: nowrap;">Alumni-Newsletter</button>'; 
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -343,11 +343,11 @@ function load_menu() {
         echo '<div class="header-menu-item">';
         echo '<button class="center-btn">Netz</button>';
         echo '<div class="header-submenu">'; 
-        echo '<button onclick="window.location.href=\'IPverwaltung.php\';" style="white-space: nowrap;">IP-Verwaltung</button>'; 
-        echo '<button onclick="window.location.href=\'Troubleshoot.php\';"style="white-space: nowrap;">Troubleshoot</button> ';
-        echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
-        echo '<button onclick="window.location.href=\'PSK.php\';"style="white-space: nowrap;">PSK Netz</button> ';
-        echo '<button onclick="window.location.href=\'Minecraft.php\';"style="white-space: nowrap;">Minecraft Server</button> ';
+        echo '<button onclick="window.location.href=\'/IPverwaltung.php\';" style="white-space: nowrap;">IP-Verwaltung</button>'; 
+        echo '<button onclick="window.location.href=\'/Troubleshoot.php\';"style="white-space: nowrap;">Troubleshoot</button> ';
+        echo '<button onclick="window.location.href=\'/Printer.php\';">Web-Printer</button> ';
+        echo '<button onclick="window.location.href=\'/PSK.php\';"style="white-space: nowrap;">PSK Netz</button> ';
+        echo '<button onclick="window.location.href=\'/Minecraft.php\';"style="white-space: nowrap;">Minecraft Server</button> ';
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -356,10 +356,10 @@ function load_menu() {
         echo '<div class="header-menu-item">';
         echo '<button class="center-btn">Account</button>';
         echo '<div class="header-submenu">';
-        echo '<button onclick="window.location.href=\'UserKonto.php\';">Mitgliedskonto</button>';       
-        echo '<button onclick="window.location.href=\'Mail.php\';">E-Mail Settings</button> ';
-        echo '<button onclick="window.location.href=\'PWchange.php\';">Passwort ändern</button> ';
-        echo '<button onclick="window.location.href=\'Abmeldung.php\';">Abmeldung</button> ';
+        echo '<button onclick="window.location.href=\'/UserKonto.php\';">Mitgliedskonto</button>';       
+        echo '<button onclick="window.location.href=\'/Mail.php\';">E-Mail Settings</button> ';
+        echo '<button onclick="window.location.href=\'/PWchange.php\';">Passwort ändern</button> ';
+        echo '<button onclick="window.location.href=\'/Abmeldung.php\';">Abmeldung</button> ';
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -367,7 +367,7 @@ function load_menu() {
         #if ($_SESSION["Etage05"] && $_SESSION["uid"] == 2136) {
         #    echo '<span class="vertical-line"></span>'; 
         #    echo '<div class="header-menu">';
-        #    echo '<button class="center-btn" onclick="window.location.href=\'Etage05.php\';">5. Etage</button>'; 
+        #    echo '<button class="center-btn" onclick="window.location.href=\'/Etage05.php\';">5. Etage</button>'; 
         #    echo '</div>';
         #}
         
@@ -378,7 +378,7 @@ function load_menu() {
             # Seiten im Aufbau ##
             // echo '<div class="header-menu">';
             // echo '<div class="header-menu-item">';
-            // echo '<button class="center-btn" onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button>';
+            // echo '<button class="center-btn" onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button>';
             // echo '</div>';
             // echo '</div>';
 
@@ -387,17 +387,17 @@ function load_menu() {
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Webmaster</button>';
             echo '<div class="header-submenu">';
-            echo '<button onclick="window.location.href=\'Constants.php\';" style="white-space: nowrap;">Konstanten</button> ';
-            echo '<button onclick="window.location.href=\'SetSessions.php\';" style="white-space: nowrap;">Sessions verwalten</button> ';
-            #echo '<button onclick="window.location.href=\'EilendersFluch.php\';" style="white-space: nowrap;">Eilender\'s Fluch</button>';
-            echo '<button onclick="window.location.href=\'Notaus.php\';" style="white-space: nowrap;">Notaus</button>';
-            echo '<button onclick="window.location.href=\'WaschmarkenExchange.php\';" style="white-space: nowrap;">Waschmarken Exchange</button> ';
-            echo '<button onclick="window.location.href=\'loki.php\';" style="white-space: nowrap;">Loki View</button> ';
-            echo '<button onclick="window.location.href=\'Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
-            echo '<button onclick="window.location.href=\'MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
-            echo '<button onclick="window.location.href=\'GuesstheMess.php\';" style="white-space: nowrap;">Guess the Mess</button>';
-            echo '<button onclick="window.location.href=\'sekofinale/SekoFinale.php\';" style="white-space: nowrap;">Seko Finale</button>';
-            echo '<button onclick="window.location.href=\'sekofinale/LiveView.php\';" style="white-space: nowrap;">Seko Finale - Live View</button>';
+            echo '<button onclick="window.location.href=\'/Constants.php\';" style="white-space: nowrap;">Konstanten</button> ';
+            echo '<button onclick="window.location.href=\'/SetSessions.php\';" style="white-space: nowrap;">Sessions verwalten</button> ';
+            #echo '<button onclick="window.location.href=\'/EilendersFluch.php\';" style="white-space: nowrap;">Eilender\'s Fluch</button>';
+            echo '<button onclick="window.location.href=\'/Notaus.php\';" style="white-space: nowrap;">Notaus</button>';
+            echo '<button onclick="window.location.href=\'/WaschmarkenExchange.php\';" style="white-space: nowrap;">Waschmarken Exchange</button> ';
+            echo '<button onclick="window.location.href=\'/loki.php\';" style="white-space: nowrap;">Loki View</button> ';
+            echo '<button onclick="window.location.href=\'/Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
+            echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
+            echo '<button onclick="window.location.href=\'/GuesstheMess.php\';" style="white-space: nowrap;">Guess the Mess</button>';
+            echo '<button onclick="window.location.href=\'/sekofinale/SekoFinale.php\';" style="white-space: nowrap;">Seko Finale</button>';
+            echo '<button onclick="window.location.href=\'/sekofinale/LiveView.php\';" style="white-space: nowrap;">Seko Finale - Live View</button>';
             echo '</div>';
             echo '</div>';
             echo '</div>';
@@ -418,8 +418,8 @@ function load_menu() {
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Kassenprüfung</button>';
             echo '<div class="header-submenu">';
-            echo '<button onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
-            echo '<button onclick="window.location.href=\'CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
+            echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+            echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
             echo '</div>';
             echo '</div>';
             echo '</div>';
@@ -427,7 +427,7 @@ function load_menu() {
         if ($_SESSION['Hausmeister']) {
             echo '<span class="vertical-line"></span>';    
             echo '<div class="header-menu">';
-            echo '<button class="center-btn" onclick="window.location.href=\'Schluessel.php\';">Schlüsselverwaltung</button>'; 
+            echo '<button class="center-btn" onclick="window.location.href=\'/Schluessel.php\';">Schlüsselverwaltung</button>'; 
             echo '</div>';
         }
 
@@ -437,12 +437,12 @@ function load_menu() {
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Aktiv</button>';
             echo '<div class="header-submenu">';
-            echo '<button onclick="window.location.href=\'AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
-            echo '<button onclick="window.location.href=\'AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
+            echo '<button onclick="window.location.href=\'/AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
+            echo '<button onclick="window.location.href=\'/AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
             if ($_SESSION["turm"] != "weh") {
                 echo '<button style="white-space: nowrap; color: gray; cursor: not-allowed;" disabled>Infoterminal</button> ';
             } else {
-                echo '<button onclick="window.location.href=\'LokiManagement.php\';" style="white-space: nowrap;">Infoterminal</button> ';
+                echo '<button onclick="window.location.href=\'/LokiManagement.php\';" style="white-space: nowrap;">Infoterminal</button> ';
             }
             echo '</div>';
             echo '</div>';
@@ -463,81 +463,81 @@ function load_menu() {
                 echo '<div class="header-menu-item">';
                 echo '<button class="center-btn">' . $agName . '</button>';
                 echo '<div class="header-submenu">';
-                #echo '<button onclick="window.location.href=\''.$agName.'.php\';" style="white-space: nowrap;">'.$agName.'</button>';
+                #echo '<button onclick="window.location.href=\'/'.$agName.'.php\';" style="white-space: nowrap;">'.$agName.'</button>';
                 if ($agName === 'NetzAG') {
-                    echo '<button onclick="window.location.href=\'Dashboard.php\';">Dashboard</button> ';
-                    echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
+                    echo '<button onclick="window.location.href=\'/Dashboard.php\';">Dashboard</button> ';
+                    echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
                     if ($_SESSION['kasse']) {
-                        echo '<button onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
-                        echo '<button onclick="window.location.href=\'CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
+                        echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+                        echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     }
-                    echo '<button onclick="window.location.href=\'Lastradius.php\';" style="white-space: nowrap;">Last Radius</button> ';
-                    echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
-                    echo '<button onclick="window.location.href=\'APs.php\';">APs</button> ';
-                    echo '<button onclick="window.location.href=\'Certs.php\';">SSL-Zertifikate</button> ';
-                    echo '<button onclick="window.location.href=\'Switches.php\';">Switches</button> ';
-                    echo '<button onclick="window.location.href=\'mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
-                    echo '<button onclick="window.location.href=\'IPs.php\';" style="white-space: nowrap;">IP Übersicht</button> ';
-                    echo '<button onclick="window.location.href=\'IPhistory.php\';" style="white-space: nowrap;">IP Historie</button> ';
+                    echo '<button onclick="window.location.href=\'/Lastradius.php\';" style="white-space: nowrap;">Last Radius</button> ';
+                    echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
+                    echo '<button onclick="window.location.href=\'/APs.php\';">APs</button> ';
+                    echo '<button onclick="window.location.href=\'/Certs.php\';">SSL-Zertifikate</button> ';
+                    echo '<button onclick="window.location.href=\'/Switches.php\';">Switches</button> ';
+                    echo '<button onclick="window.location.href=\'/mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
+                    echo '<button onclick="window.location.href=\'/IPs.php\';" style="white-space: nowrap;">IP Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/IPhistory.php\';" style="white-space: nowrap;">IP Historie</button> ';
                 }
                 if ($agName === 'Vorstand') {                                        
-                    echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
+                    echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
                     if ($_SESSION['Schrift']) {
-                        echo '<button onclick="window.location.href=\'ProtokollUpload.php\';" style="white-space: nowrap;">Protokoll hochladen</button> ';
+                        echo '<button onclick="window.location.href=\'/ProtokollUpload.php\';" style="white-space: nowrap;">Protokoll hochladen</button> ';
                     }
-                    echo '<button onclick="window.location.href=\'Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
-                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
-                    echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
-                    echo '<button onclick="window.location.href=\'Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
-                    echo '<button onclick="window.location.href=\'EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
-                    echo '<button onclick="window.location.href=\'Waschmarken.php\';" style="white-space: nowrap;">Waschmarken verteilen</button> ';
+                    echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
+                    echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
+                    echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+                    echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken verteilen</button> ';
                 }
                 if ($agName === 'TvK-Sprecher') {                                        
-                    echo '<button onclick="window.location.href=\'House.php\';">Haus</button> ';
-                    echo '<button onclick="window.location.href=\'Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
-                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
-                    echo '<button onclick="window.location.href=\'Sperre.php\';">Sperren</button> ';
-                    echo '<button onclick="window.location.href=\'EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
-                    echo '<button onclick="window.location.href=\'NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
+                    echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
+                    echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
+                    echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+                    echo '<button onclick="window.location.href=\'/NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
                 }
                 if ($agName === 'Kassenwart') {
-                    echo '<button onclick="window.location.href=\'Kassenwart.php\';">Konten-Übersicht</button> ';
-                    echo '<button onclick="window.location.href=\'Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
-                    echo '<button onclick="window.location.href=\'CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
-                    echo '<button onclick="window.location.href=\'AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
-                    echo '<button onclick="window.location.href=\'Kassenprüfer.php\';">Kassenprüfer</button> ';
+                    echo '<button onclick="window.location.href=\'/Kassenwart.php\';">Konten-Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+                    echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
+                    echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/Kassenprüfer.php\';">Kassenprüfer</button> ';
                 }
                 if ($agName === 'WEH-BA') {                                        
-                    echo '<button onclick="window.location.href=\'BA-Administration.php\';" style="white-space: nowrap;">Belegung</button> ';
-                    echo '<button onclick="window.location.href=\'BA-Voting.php\';" style="white-space: nowrap;">Neueinzieher Voting</button> ';
-                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/BA-Administration.php\';" style="white-space: nowrap;">Belegung</button> ';
+                    echo '<button onclick="window.location.href=\'/BA-Voting.php\';" style="white-space: nowrap;">Neueinzieher Voting</button> ';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                 }
                 if ($agName === 'TvK-BA') {                                        
-                    echo '<button onclick="window.location.href=\'Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                 }
                 if ($agName === 'WEH-WaschAG') {
-                    echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
-                    echo '<button onclick="window.location.href=\'Waschmarken.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
+                    echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
+                    echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
                 }
                 if ($agName === 'SportAG') {                                        
-                    echo '<button onclick="window.location.href=\'FitnessNew.php\';" style="white-space: nowrap;">Fitness-Introduction</button>';
-                    echo '<button onclick="window.location.href=\'FitnessUsers.php\';" style="white-space: nowrap;">Liste Fitness-User</button> ';
+                    echo '<button onclick="window.location.href=\'/FitnessNew.php\';" style="white-space: nowrap;">Fitness-Introduction</button>';
+                    echo '<button onclick="window.location.href=\'/FitnessUsers.php\';" style="white-space: nowrap;">Liste Fitness-User</button> ';
                 }
                 if ($agName === 'WerkzeugAG') {
-                    echo '<button onclick="window.location.href=\'WerkzeugAdministration.php\';">Buchungen</button> ';
-                    echo '<button onclick="window.location.href=\'WerkzeugBuchen.php\';">Buchen</button> ';
+                    echo '<button onclick="window.location.href=\'/WerkzeugAdministration.php\';">Buchungen</button> ';
+                    echo '<button onclick="window.location.href=\'/WerkzeugBuchen.php\';">Buchen</button> ';
                 }
                 if ($agName === 'FahrradAG') {
-                    echo '<button onclick="window.location.href=\'FahrradAdministration.php\';">Stellplatz Administration</button> ';
-                    echo '<button onclick="window.location.href=\'Fahrradmail.php\';">Nachricht an Stellplatzuser</button> ';
-                    echo '<button onclick="window.location.href=\'Fahrrad.php\';">Fahrradstellplatz</button> ';
+                    echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
+                    echo '<button onclick="window.location.href=\'/Fahrradmail.php\';">Nachricht an Stellplatzuser</button> ';
+                    echo '<button onclick="window.location.href=\'/Fahrrad.php\';">Fahrradstellplatz</button> ';
                 }
                 if ($agName === 'PartyAG') {
-                    echo '<button onclick="window.location.href=\'AlumniListe.php\';" style="white-space: nowrap;">Alumni Liste</button> ';
-                    echo '<button onclick="window.location.href=\'NEPmail.php\';">NEP-Mail</button> ';
+                    echo '<button onclick="window.location.href=\'/AlumniListe.php\';" style="white-space: nowrap;">Alumni Liste</button> ';
+                    echo '<button onclick="window.location.href=\'/NEPmail.php\';">NEP-Mail</button> ';
                 }
                 if ($agName === 'SpieleAG') {
-                    echo '<button onclick="window.location.href=\'SpieleAGCode.php\';" style="white-space: nowrap;">Code setzen</button> ';
+                    echo '<button onclick="window.location.href=\'/SpieleAGCode.php\';" style="white-space: nowrap;">Code setzen</button> ';
                 }
                 echo '</div>';
                 echo '</div>';
@@ -551,12 +551,12 @@ function load_menu() {
         echo '<div class="header-menu-item">';
         echo '<button class="center-btn">Links</button>';
         echo '<div class="header-submenu">';
-        echo '<button onclick="window.location.href=\'https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
-        echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
+        echo '<button onclick="window.location.href=\'/https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
+        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
+        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
+        echo '<button onclick="window.location.href=\'/Printer.php\';">Web-Printer</button> ';
+        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
+        echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
         echo '</div>';
         echo '</div>';
         echo '</div>';

@@ -6,6 +6,7 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   body {
     background-color: #181717;
     margin: 0;
+    padding-bottom: 40px;
   }
   
   a {
