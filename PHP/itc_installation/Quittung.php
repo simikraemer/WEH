@@ -71,7 +71,7 @@ while ($r = mysqli_fetch_assoc($res)) {
 
 <div class="container" style="max-width: 500px; margin-top: 50px;">
     <h2 style="text-align: center; margin-bottom: 30px;"><?= htmlspecialchars($titel) ?></h2>
-    <form method="post" action="quittung_generate.php" target="_blank">
+    <form method="post" action="quittung_generate.php" target="_blank" style="display: flex; flex-direction: column; align-items: center;">
         <input type="hidden" name="id" value="<?= $id ?>">
         <input type="hidden" name="typ" value="<?= htmlspecialchars($typ) ?>">
         <label for="admin">Ausgebende Person:</label>
