@@ -5,8 +5,9 @@ require_once("template.php");
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Verwaltung</title>
+    <title>ITA Verwaltung</title>
     <link rel="stylesheet" href="ITC.css">
+    <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
 <?php

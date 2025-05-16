@@ -5,8 +5,9 @@ require_once("template.php");
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Installationsübersicht</title>
+    <title>ITA Übersicht</title>
     <link rel="stylesheet" href="ITC.css">
+    <link rel="icon" type="image/png" href="favicon.png">
     <script>
         async function toggleProgress(id, field, currentlyChecked) {
             const response = await fetch('update_progress.php', {
@@ -44,14 +45,15 @@ HTML;
 <div class="container">
 
     <?php
-    $time_week_ago = time() - 7 * 86400;
+    $time_day_ago = time() - 24 * 60 * 60;
+    $time_week_ago = time() - 7 * 24 * 60 * 60;
     $query = "
     SELECT * FROM installation
     WHERE status > -1 AND (
         status < 8 OR (
             status = 8 AND (
-                prog_ausgabe > $time_week_ago
-                OR (altgerät IS NOT NULL AND prog_altgerät > $time_week_ago)
+                prog_ausgabe > $time_day_ago
+                OR (altgerät IS NOT NULL AND prog_altgerät > $time_day_ago)
             )
         )
     )
@@ -100,12 +102,12 @@ HTML;
         echo "<div class='action-buttons'>";
         echo "<form method='post' action='Edit.php' style='display:inline;'>";
         echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
-        echo "<button type='submit' class='edit-button'>Bearbeiten</button>";
+        echo "<button type='submit' class='icon-button edit-button' title='Bearbeiten'>🔨</button>";
         echo "</form>";
-        echo "<button class='quittung-button'>Quittung</button>";
-        echo "</div>";
+        echo "<button class='icon-button quittung-button' title='Quittung'>🧾</button>";
         echo "</div>";
         
+        echo "</div>";
         echo "<hr>";
 
         // Zweite Etage: Fortschritt

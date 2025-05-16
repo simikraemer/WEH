@@ -5,8 +5,9 @@ require_once("template.php");
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Archiv</title>
+    <title>ITA Archiv</title>
     <link rel="stylesheet" href="ITC.css">
+    <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
 <?php
@@ -19,7 +20,7 @@ $startDate = "$jahr-01-01";
 $endDate = "$jahr-12-31";
 
 // Query vorbereiten
-$query = "SELECT * FROM installation WHERE datum BETWEEN ? AND ? ORDER BY datum DESC";
+$query = "SELECT * FROM installation WHERE datum BETWEEN ? AND ? ORDER BY datum ASC";
 $stmt = mysqli_prepare($conn, $query);
 mysqli_stmt_bind_param($stmt, 'ss', $startDate, $endDate);
 mysqli_stmt_execute($stmt);
@@ -40,7 +41,7 @@ $result = mysqli_stmt_get_result($stmt);
     <form method="get" class="jahr-selector">
         <select name="jahr" id="jahr" onchange="this.form.submit()">
             <?php
-            for ($y = date('Y'); $y >= 2021; $y--) {
+            for ($y = date('Y'); $y >= 2024; $y--) {
                 $sel = ($jahr === $y) ? 'selected' : '';
                 echo "<option value=\"$y\" $sel>$y</option>";
             }

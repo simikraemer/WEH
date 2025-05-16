@@ -30,8 +30,9 @@ function formatUnix($ts) {
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Eintrag editieren</title>
+    <title>ITA Bearbeiten</title>
     <link rel="stylesheet" href="ITC.css">
+    <link rel="icon" type="image/png" href="favicon.png">
     <script>
         async function updateField(field, value) {
             const response = await fetch('update_field.php', {
