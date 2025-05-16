@@ -57,7 +57,6 @@
 .nav-link.active {
     background-color: #ffffff;
     color: #1c7ed6;
-    font-weight: 600;
     box-shadow: inset 0 0 0 1px #176ab4;
 }
 
@@ -65,6 +64,20 @@
     background-color: #e8f2fc;
     color: #1c7ed6;
 }
+
+.nav-link.deactive {
+    color: #ffffffaa; /* etwas transparenteres Weiß */
+    pointer-events: none; /* macht sie wirklich nicht klickbar */
+    opacity: 0.5;
+    cursor: default;
+    background-color: transparent;
+}
+
+.nav-link.deactive:hover {
+    transform: none;
+    background-color: transparent;
+}
+
 
 
 
@@ -199,12 +212,12 @@ h1 {
 }
 
 .quittung-button {
-    background-color: #555;
+    background-color: #444;
     margin-left: 8px;
 }
 
 .quittung-button:hover {
-    background-color: #777;
+    background-color: #666;
 }
 
 
@@ -241,7 +254,7 @@ h1 {
 }
 
 .prog-item.checked:hover {
-    background-color: #4a944a;
+    background-color: #383838;
 }
 
 .prog-title {
@@ -587,3 +600,84 @@ h1 {
 .btn.danger:hover {
     background-color: #7a0000;
 }
+
+/* Stats */
+
+
+.bar-chart {
+    display: flex;
+    align-items: flex-end;
+    height: 300px;
+    gap: 20px;
+    padding: 30px;
+    border-left: 4px solid #1c7ed6;
+    border-bottom: 4px solid #1c7ed6;
+}
+
+.bar {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.bar-rect {
+    width: 28px;
+    background-color: #1c7ed6;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+}
+
+.bar-rect:hover {
+    background-color: #4e9fff;
+}
+
+.bar-rect-prev {
+    position: absolute;
+    bottom: 20px;
+    width: 20px;
+    background-color: #4e9fff;
+    opacity: 0.3;
+    border-radius: 4px 4px 0 0;
+    left: 4px; /* leicht nach links versetzt */
+    z-index: 0;
+    transform: translateY(-3px) !important;
+}
+
+.bar-label {
+    margin-top: 6px;
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+.bar-value {
+    font-size: 0.8em;
+    color: #eee;
+    margin-bottom: 4px;
+}
+
+.chart-legend {
+    text-align: center;
+    margin: 20px auto -10px;
+    font-size: 0.95em;
+    color: #ccc;
+}
+
+.chart-legend span {
+    display: inline-block;
+    margin: 0 10px;
+}
+
+.color-box {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    vertical-align: middle;
+    margin-right: 5px;
+    border-radius: 2px;
+}
+
+.farbe-aktuell { background-color: #4e9fff; }
+.farbe-vorjahr { background-color: #4e9fff; opacity: 0.3; }

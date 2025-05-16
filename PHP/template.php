@@ -221,6 +221,8 @@ function load_menu() {
         }
     }
     
+    $rangestring = 'Unknown [' . htmlspecialchars($userIP) . ']';
+
     // if-Baum
     if ($inEduroam) {
         $rangestring = 'Eduroam [' . htmlspecialchars($userIP) . ']';

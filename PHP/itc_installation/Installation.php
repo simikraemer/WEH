@@ -34,9 +34,12 @@ echo <<<HTML
 <div class="main-header">
     <div class="logo-title">💻 IT-Administration Neugeräte</div>
     <nav class="main-nav">
+        <a class="nav-link deactive">✏️ Quittung</a>
+        <a class="nav-link deactive">🔨 Bearbeiten</a>
         <a href="Installation.php" class="nav-link active">📋 Übersicht</a>
         <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
         <a href="Archiv.php" class="nav-link">📁 Archiv</a>
+        <a href="Statistik.php" class="nav-link">📊 Statistik</a>
         <a href="Admin.php" class="nav-link">⚙️ Einstellungen</a>
     </nav>
 </div>
@@ -100,12 +103,32 @@ HTML;
         echo "</div>";
 
         echo "<div class='action-buttons'>";
+
+        // Bearbeiten-Button
         echo "<form method='post' action='Edit.php' style='display:inline;'>";
         echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
         echo "<button type='submit' class='icon-button edit-button' title='Bearbeiten'>🔨</button>";
         echo "</form>";
-        echo "<button class='icon-button quittung-button' title='Quittung'>🧾</button>";
+
+        // Quittung für NEUGERÄT
+        echo "<form method='post' action='Quittung.php' style='display:inline;'>";
+        echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
+        echo "<input type='hidden' name='typ' value='ausgabe'>";
+        echo "<button type='submit' class='icon-button quittung-button' title='Quittung für Ausgabe'>🆕</button>";
+        echo "</form>";
+
+        // Quittung für RÜCKGABE – nur wenn Altgerät vorhanden
+        if (!empty($row['altgerät'])) {
+            echo "<form method='post' action='Quittung.php' style='display:inline;'>";
+            echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
+            echo "<input type='hidden' name='typ' value='rueckgabe'>";
+            echo "<button type='submit' class='icon-button quittung-button' title='Quittung für Rückgabe'>🔙</button>";
+            echo "</form>";
+        }
+
         echo "</div>";
+
+
         
         echo "</div>";
         echo "<hr>";
