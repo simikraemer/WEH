@@ -53,7 +53,7 @@ $result = mysqli_stmt_get_result($stmt);
     </form>
 </div>
 
-<div class="container">
+<div class="archiv-table-container">
     <table class="archiv-table">
         <thead>
             <tr>
