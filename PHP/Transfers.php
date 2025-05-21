@@ -444,16 +444,10 @@ echo '<hr>';
 
 
 if ($admin) {    
-
     echo '<form id="transfer-form" method="post" enctype="multipart/form-data">';
-    echo '<div class="transfer-form-grid">';
+    echo '<div class="transfer-form-grid">'; // angenommen: 3-Spalten-Grid via CSS
 
-    // Zeile 1
-    echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
-    echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
-    echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
-
-    // Zeile 2
+    // Zeile 1: Sucheingabe, Betrag, Upload
     echo '<div style="display: flex; gap: 6px; align-items: center;">';
     echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)" style="flex:1;">';
     echo '<div style="display: flex; gap: 4px;">';
@@ -462,17 +456,23 @@ if ($admin) {
     echo '</div>';
     echo '</div>';
 
+    echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
+    echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
+
+    // Zeile 2: Suchausgabe, Beschreibung, Speichern
     echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444; min-height: 75px;"></div>';
+    echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
     echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
+
+    // Versteckte Felder
     echo '<input type="hidden" name="uid_neu" id="uid_neu">';
     echo '<input type="hidden" name="kasse_id" value="' . intval($kid) . '">';
 
-    echo '</div>';
+    echo '</div>'; // .transfer-form-grid
     echo '</form>';
-
-
     echo '<hr>';
 }
+
 
 
 $sql = "
