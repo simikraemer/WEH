@@ -20,18 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $data = [];
     foreach ($fields as $field) {
-        $data[$field] = $_POST[$field] ?? null;
+        $value = $_POST[$field] ?? null;
 
         // Zeit leeren
-        if ($field === 'zeit' && ($v === '' || $v === '00:00' || $v === '00:00:00')) {
-            $data[$field] = null;
+        if ($field === 'zeit' && ($value === '' || $value === '00:00' || $value === '00:00:00')) {
+            $value = null;
         }
 
         // Datum leeren
-        if ($field === 'datum' && ($v === '' || $v === '0000-00-00')) {
-            $data[$field] = null;
+        if ($field === 'datum' && ($value === '' || $value === '0000-00-00')) {
+            $value = null;
         }
+
+        $data[$field] = $value;
     }
+
 
     // SQL vorbereiten
     $placeholders = implode(',', array_fill(0, count($data), '?'));
@@ -130,11 +133,16 @@ function textareaInput($label, $name) {
 function selectInput($label, $name, $options, $default = null) {
     $html = "<div class='edit-field'><label for='$name'>$label</label><select name='$name' id='$name'>";
     foreach ($options as $k => $v) {
-        $v = is_array($v) ? $v['label'] : $v;
-        $sel = ((string)$k === (string)$default) ? 'selected' : '';
-        $html .= "<option value='$k' $sel>" . htmlspecialchars($v) . "</option>";
+        $labelText = is_array($v) ? $v['label'] : $v;
+
+        // Nur bei 'abteilung' soll der Text als value verwendet werden
+        $value = ($name === 'abteilung') ? $labelText : $k;
+
+        $sel = ((string)$value === (string)$default) ? 'selected' : '';
+        $html .= "<option value='" . htmlspecialchars($value) . "' $sel>" . htmlspecialchars($labelText) . "</option>";
     }
     $html .= "</select></div>";
     return $html;
 }
+
 ?>
