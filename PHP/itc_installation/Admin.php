@@ -54,13 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Daten abfragen
 $result = mysqli_query($conn, "SELECT * FROM $table ORDER BY id ASC");
 ?>
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Verwaltung</title>
-    <link rel="stylesheet" href="ITC.css">
-</head>
 <body>
 <div class="main-header">
     <div class="logo-title">💻 IT-Administration Neugeräte</div>
