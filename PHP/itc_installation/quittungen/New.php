@@ -1,5 +1,5 @@
 <?php
-require_once("template.php");
+require_once("../template.php");
 ?>
 
 <!DOCTYPE html>
@@ -7,12 +7,12 @@ require_once("template.php");
 <head>
     <meta charset="UTF-8">
     <title>ITA Quittung</title>
-    <link rel="stylesheet" href="ITA.css">
-    <link rel="stylesheet" href="HEADER.css">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="../ITA.css">
+    <link rel="stylesheet" href="../HEADER.css">
+    <link rel="icon" type="image/png" href="../favicon.png">
     <script>
         async function updateField(field, value) {
-            const response = await fetch('update_field.php', {
+            const response = await fetch('../update_field.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: <?= $id ?>, field: field, value: value })
@@ -27,7 +27,7 @@ require_once("template.php");
 <body>
 
 <?php 
-include("header.php");
+include("../header.php");
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id']) || !is_numeric($_POST['id'])) {
     echo "<div class='container'><h2>Kein gültiger Eintrag ausgewählt.</h2></div>";

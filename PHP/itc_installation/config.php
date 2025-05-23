@@ -41,3 +41,20 @@ $res = mysqli_query($conn, "SELECT name FROM administratoren ORDER BY name ASC")
 while ($row = mysqli_fetch_assoc($res)) {
     $admins[] = $row['name'];
 }
+
+$DBtableConfig = [
+    'installation' => [
+        'fields' => [
+            'status', 'ticket', 'datum', 'zeit', 'neugerät', 'name', 'abteilung', 'mastatus',
+            'altgerät', 'dock', 'monitor', 'software', 'notiz',
+            'prog_sp', 'prog_dhcp', 'prog_pxe', 'prog_bios', 'prog_software',
+            'prog_updates', 'prog_dock', 'prog_monitor', 'prog_ausgabe', 'prog_altgerät'
+        ],
+        'timestamps' => [
+            'prog_sp', 'prog_dhcp', 'prog_pxe', 'prog_bios', 'prog_software',
+            'prog_updates', 'prog_dock', 'prog_monitor', 'prog_ausgabe', 'prog_altgerät'
+        ],
+        'redirect' => 'installation/Installation.php'
+    ],
+    // weitere Tabellen …
+];

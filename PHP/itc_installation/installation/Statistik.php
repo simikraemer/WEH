@@ -1,5 +1,5 @@
 <?php
-require_once("template.php");
+require_once("../template.php");
 
 $jahr = isset($_GET['jahr']) && is_numeric($_GET['jahr']) ? (int)$_GET['jahr'] : (int)date('Y');
 $monatsnamen = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -40,25 +40,19 @@ if ($vorjahr) {
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>ITA Statistik</title>
-    <link rel="stylesheet" href="ITC.css">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Installation Statistik</title>
+    <link rel="stylesheet" href="../ITA.css">
+    <link rel="stylesheet" href="../HEADER.css">
+    <link rel="stylesheet" href="../LIST.css">
+    <link rel="stylesheet" href="INSTALLATION.css">
+    <link rel="icon" type="image/png" href="../favicon.png">
 </head>
 <body>
-<div class="main-header">
-    <div class="logo-title">💻 IT-Administration Neugeräte</div>
-    <nav class="main-nav">
-        <a class="nav-link deactive">✏️ Quittung</a>
-        <a class="nav-link deactive">🔨 Bearbeiten</a>
-        <a href="Installation.php" class="nav-link">📋 Übersicht</a>
-        <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
-        <a href="Archiv.php" class="nav-link">📁 Archiv</a>
-        <a href="Statistik.php" class="nav-link active">📊 Statistik</a>
-        <a href="Admin.php" class="nav-link">⚙️ Einstellungen</a>
-    </nav>
-</div>
+<?php
+include("../header.php");
+?>
 
-<div class="archiv-header">
+<div class="list-header">
     <form method="get" class="jahr-selector">
         <select name="jahr" id="jahr" onchange="this.form.submit()">
             <?php for ($y = date('Y'); $y >= 2024; $y--): ?>

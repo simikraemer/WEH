@@ -45,6 +45,13 @@
   --table-even: #2a2a2a;
   --table-odd: #1f1f1f;
 
+  --yearselector-hover: #3a3a3a;
+
+  
+
+  --box-width: 80vw !important;
+  --box-margin-top: 20px;
+
   --box-shadow: 0 1px 4px var(--shadow-deep);
 }
 
@@ -74,6 +81,7 @@
     --text-grey: #424242;
     --text-faded: #3d3d3d;
     
+    --yearselector-hover: #fff;  
     
     --table-head: #b0d3ec;        /* heller Kopfbereich */
     --table-even: #e7f3fc;        /* fast weiß-blau für gerade Zeilen */
@@ -81,6 +89,19 @@
   }
 }
 
+body {
+    background-color: var(--bg);
+    color: var(--text-light);
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: fit-content;
+    margin: 0 auto;
+    padding: 20px 10px;
+}
 
 .icon-button {
     width: 36px;

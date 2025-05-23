@@ -1,13 +1,15 @@
 <?php
-require_once("template.php");
+require_once("../template.php");
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>ITA Übersicht</title>
-    <link rel="stylesheet" href="ITC.css">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <title>ITA Installation</title>
+    <link rel="stylesheet" href="../ITA.css">
+    <link rel="stylesheet" href="../HEADER.css">
+    <link rel="stylesheet" href="INSTALLATION.css">
+    <link rel="icon" type="image/png" href="../favicon.png">
     <script>
         async function toggleProgress(id, field, currentlyChecked) {
             const response = await fetch('update_progress.php', {
@@ -30,20 +32,7 @@ require_once("template.php");
 </head>
 <body>
 <?php
-echo <<<HTML
-<div class="main-header">
-    <div class="logo-title">💻 IT-Administration Neugeräte</div>
-    <nav class="main-nav">
-        <a class="nav-link deactive">✏️ Quittung</a>
-        <a class="nav-link deactive">🔨 Bearbeiten</a>
-        <a href="Installation.php" class="nav-link active">📋 Übersicht</a>
-        <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
-        <a href="Archiv.php" class="nav-link">📁 Archiv</a>
-        <a href="Statistik.php" class="nav-link">📊 Statistik</a>
-        <a href="Admin.php" class="nav-link">⚙️ Einstellungen</a>
-    </nav>
-</div>
-HTML;
+include("../header.php");
 ?>
 <div class="container">
 
@@ -107,11 +96,11 @@ HTML;
         // Bearbeiten-Button
         echo "<form method='post' action='Edit.php' style='display:inline;'>";
         echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
-        echo "<button type='submit' class='icon-button edit-button' title='Bearbeiten'>🔨</button>";
+        echo "<button type='submit' class='icon-button edit-button' title='Bearbeiten'>✏️</button>";
         echo "</form>";
 
         // Quittung für NEUGERÄT
-        echo "<form method='post' action='Quittung.php' style='display:inline;'>";
+        echo "<form method='post' action='../quittungen/New.php' style='display:inline;'>";
         echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
         echo "<input type='hidden' name='typ' value='ausgabe'>";
         echo "<button type='submit' class='icon-button quittung-button' title='Quittung für Ausgabe'>🆕</button>";
@@ -119,7 +108,7 @@ HTML;
 
         // Quittung für RÜCKGABE – nur wenn Altgerät vorhanden
         if (!empty($row['altgerät'])) {
-            echo "<form method='post' action='Quittung.php' style='display:inline;'>";
+            echo "<form method='post' action='../quittungen/New.php' style='display:inline;'>";
             echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
             echo "<input type='hidden' name='typ' value='rueckgabe'>";
             echo "<button type='submit' class='icon-button quittung-button' title='Quittung für Rückgabe'>🔙</button>";

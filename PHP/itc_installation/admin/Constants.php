@@ -1,16 +1,19 @@
 <?php
-require_once("template.php");
+require_once("../template.php");
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>ITA Verwaltung</title>
-    <link rel="stylesheet" href="ITC.css">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Konfiguration</title>
+    <link rel="stylesheet" href="../ITA.css">
+    <link rel="stylesheet" href="../HEADER.css">
+    <link rel="stylesheet" href="ADMIN.css">
+    <link rel="icon" type="image/png" href="../favicon.png">
 </head>
 <body>
 <?php
+include("../header.php");
 
 $tables = [
     'abteilungen' => ['label' => 'Abteilungen', 'columns' => ['name']],
@@ -55,18 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $result = mysqli_query($conn, "SELECT * FROM $table ORDER BY id ASC");
 ?>
 <body>
-<div class="main-header">
-    <div class="logo-title">💻 IT-Administration Neugeräte</div>
-    <nav class="main-nav">
-        <a class="nav-link deactive">✏️ Quittung</a>
-        <a class="nav-link deactive">🔨 Bearbeiten</a>
-        <a href="Installation.php" class="nav-link">📋 Übersicht</a>
-        <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
-        <a href="Archiv.php" class="nav-link">📁 Archiv</a>
-        <a href="Statistik.php" class="nav-link">📊 Statistik</a>
-        <a href="Admin.php" class="nav-link active">⚙️ Einstellungen</a>
-    </nav>
-</div>
 
 <div class="container">
     <div class="admin-wrapper">

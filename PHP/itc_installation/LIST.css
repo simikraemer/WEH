@@ -8,8 +8,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 20px;
-    background-color: var(--bg);
+    gap: 20px;    
+    background-color: var(--table-head);
+    margin-bottom: 20px;
+    
+    position: sticky;
 }
 
 .list-header h2 {
@@ -18,6 +21,21 @@
     color: var(--text-light-strong);
     font-weight: 600;
 }
+
+.table-search {
+    padding: 8px 12px;
+    font-size: 1em;
+    border: 1px solid var(--border-dark);
+    border-radius: 6px;
+    background-color: var(--bg-mid);
+    color: var(--text-light);
+    width: 250px;
+}
+
+.table-search::placeholder {
+    color: var(--text-grey);
+}
+
 
 .jahr-selector {
     display: flex;
@@ -39,19 +57,23 @@
 
 .jahr-selector select:hover,
 .jahr-selector select:focus {
-    background-color:  var(--bg-midhover);
+    background-color: var(--yearselector-hover);
     border-color: var(--border-light);
     outline: none;
 }
 
 .list-table-container {
-    overflow-x: auto;
     border: 4px solid var(--border-dark);
     border-radius: 10px;
     box-shadow: var(--box-shadow);
     width: fit-content;
     margin: 0 auto;
     margin-bottom: 40px;
+    width: var(--box-width);
+    overflow-y: auto;
+    max-height: 75vh;
+    overflow-x: auto;
+    max-width: 80vw;
 }
 
 .list-table {
@@ -65,9 +87,10 @@
     padding: 10px 28px 10px 12px;
     text-align: left;
     border-bottom: 1px solid var(--border-dark);
-    position: relative;
     cursor: pointer;
     user-select: none;
+    top: 0;
+    position: sticky !important;
 }
 
 .list-table tr:nth-child(even) {
@@ -109,4 +132,26 @@
 
 .list-table th.sorted-desc::after {
     border-top-color: var(--primary-hover);
+}
+
+.list-header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.csv-export-button {
+    padding: 8px 14px;
+    background-color: var(--primary);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+
+.csv-export-button:hover {
+    background-color: var(--primary-hover);
 }

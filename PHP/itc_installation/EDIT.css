@@ -1,13 +1,13 @@
 /* Edit */
 
 .edit-section {
-    margin-bottom: 30px;
+    margin: var(--box-margin-top) auto 30px auto;
     padding: 15px 20px;
     background-color: var(--bg-block);
     border: 4px solid var(--border-dark);
     border-radius: 8px;
     box-shadow: var(--box-shadow);
-    width: 900px;
+    width: var(--box-width);
 }
 
 .edit-section h3 {
