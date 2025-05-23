@@ -1,0 +1,122 @@
+/* Admin */
+
+.admin-wrapper {
+    width: 1000px !important;
+    margin: 40px auto;
+}
+
+.admin-tabs {
+    display: flex;
+    background-color: var(--bg-mid);
+    border-bottom: 1px solid var(--border-dark);
+    border-top: 4px solid var(--border-dark);
+    border-left: 4px solid var(--border-dark);
+    border-right: 4px solid var(--border-dark);
+    border-top-left-radius: 150px;
+    border-top-right-radius: 150px;
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+}
+
+.admin-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
+    text-decoration: none;
+    color: var(--text-grey);
+    font-weight: bold;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    border-right: 1px solid var(--border-dark);
+}
+
+.admin-tab:last-child {
+    border-right: none;
+}
+
+.admin-tab:hover {
+    background-color: var(--bg-midhover);
+    color: var(--text-light);
+}
+
+.admin-tab.active {
+    background-color: var(--border-dark);
+    color: #fff;
+}
+
+.admin-tab.active:hover {
+    background-color: var(--border-mid);
+}
+
+.admin-table-container {
+    overflow-x: auto;
+    box-shadow: var(--box-shadow);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 4px solid var(--border-dark);
+    border-radius: 8px;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-dark);
+    color: var(--text-light); /* Dark = weiß, Light = schwarz */
+}
+
+.admin-table th {
+    background-color: var(--table-head);
+    text-align: left;
+    font-weight: bold;
+}
+
+.admin-table tr:nth-child(even) {
+    background-color: var(--table-even);
+}
+
+.admin-table tr:nth-child(odd) {
+    background-color: var(--table-odd);
+}
+
+.admin-table tr:hover {
+    background-color: var(--primary);
+    color: var(--text-light);
+}
+
+.admin-input {
+    width: 100%;
+    padding: 6px 10px;
+    background-color: var(--bg-mid);
+    border: 1px solid var(--border-mid);
+    border-radius: 4px;
+    color: var(--text-light);
+}
+
+.admin-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-btn.add {
+    background-color: var(--primary);
+    color: #fff;
+}
+
+.admin-btn.add:hover {
+    background-color: var(--primary-hover);
+}
+
+.admin-btn.danger {
+    background-color: #a10000; /* 🔧 Optional: --danger */
+    color: var(--text-light);
+}
+
+.admin-btn.danger:hover {
+    background-color: #7a0000; /* 🔧 Optional: --danger-hover */
+}

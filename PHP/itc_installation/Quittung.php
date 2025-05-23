@@ -7,7 +7,8 @@ require_once("template.php");
 <head>
     <meta charset="UTF-8">
     <title>ITA Quittung</title>
-    <link rel="stylesheet" href="ITC.css">
+    <link rel="stylesheet" href="ITA.css">
+    <link rel="stylesheet" href="HEADER.css">
     <link rel="icon" type="image/png" href="favicon.png">
     <script>
         async function updateField(field, value) {
@@ -24,21 +25,9 @@ require_once("template.php");
     </script>
 </head>
 <body>
-<?php
-echo <<<HTML
-<div class="main-header">
-    <div class="logo-title">💻 IT-Administration Neugeräte</div>
-    <nav class="main-nav">
-        <a class="nav-link active">✏️ Quittung</a>
-        <a class="nav-link deactive">🔨 Bearbeiten</a>
-        <a href="Installation.php" class="nav-link">📋 Übersicht</a>
-        <a href="New.php" class="nav-link">➕ Neuer Eintrag</a>
-        <a href="Archiv.php" class="nav-link">📁 Archiv</a>
-        <a href="Statistik.php" class="nav-link">📊 Statistik</a>
-        <a href="Admin.php" class="nav-link">⚙️ Einstellungen</a>
-    </nav>
-</div>
-HTML;
+
+<?php 
+include("header.php");
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id']) || !is_numeric($_POST['id'])) {
     echo "<div class='container'><h2>Kein gültiger Eintrag ausgewählt.</h2></div>";
