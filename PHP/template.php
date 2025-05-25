@@ -555,7 +555,8 @@ function load_menu() {
         echo '<div class="header-submenu">';
         echo '<button onclick="window.location.href=\'https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
+        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';" style="white-space: nowrap;">WEH-Waschsystem</button> ';
+        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen-tvk\';" style="white-space: nowrap;">TvK-Waschsystem</button> ';
         echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
