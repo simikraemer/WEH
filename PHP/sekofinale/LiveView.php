@@ -216,20 +216,29 @@
       const scoreboard = document.getElementById("scoreboard");
       if (scoreboard) {
         const playerCount = (data.players || []).filter(p => !p.out).length;
-        if (playerCount === 3) {
-          scoreboard.style.bottom = "200px";
-        } else if (playerCount === 4) {
-          scoreboard.style.bottom = "150px";
-        } else {
-          scoreboard.style.bottom = "100px";
-        }
+        // if (playerCount === 1) {
+        //   scoreboard.style.bottom = "300px";
+        // } else if (playerCount === 2) {
+        //   scoreboard.style.bottom = "250px";
+        // } else if (playerCount === 3) {
+        //   scoreboard.style.bottom = "200px";
+        // } else if (playerCount === 4) {
+        //   scoreboard.style.bottom = "150px";
+        // } else {
+        //   scoreboard.style.bottom = "100px";
+        // }
+        scoreboard.style.bottom = "150px";
       }
 
       // Dynamisch den oberen Abstand des Player-Stacks anpassen
       const playerStack = document.getElementById("player-stack");
       if (playerStack) {
         const playerCount = (data.players || []).filter(p => !p.out).length;
-        if (playerCount === 3) {
+        if (playerCount === 1) {
+          playerStack.style.marginTop = "220px";
+        } else if (playerCount === 2) {
+          playerStack.style.marginTop = "170px";
+        } else if (playerCount === 3) {
           playerStack.style.marginTop = "120px";
         } else if (playerCount === 4) {
           playerStack.style.marginTop = "70px";
