@@ -3,7 +3,7 @@ session_start();
 require('conn.php');
 
 // Query, um die Pfade der aktiven Bilder aus der Datenbank zu holen
-$sql = "SELECT pfad FROM infopics WHERE aktiv = 1 AND turm = 'weh'";
+$sql = "SELECT pfad FROM infopics WHERE aktiv = 1 AND turm = 'tvk'";
 $result = mysqli_query($conn, $sql);
 
 // Pfade sammeln

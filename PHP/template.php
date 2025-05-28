@@ -395,6 +395,7 @@ function load_menu() {
             echo '<button onclick="window.location.href=\'/Notaus.php\';" style="white-space: nowrap;">Notaus</button>';
             echo '<button onclick="window.location.href=\'/WaschmarkenExchange.php\';" style="white-space: nowrap;">Waschmarken Exchange</button> ';
             echo '<button onclick="window.location.href=\'/loki.php\';" style="white-space: nowrap;">Loki View</button> ';
+            echo '<button onclick="window.location.href=\'/sigyn.php\';" style="white-space: nowrap;">Sigyn View</button> ';
             echo '<button onclick="window.location.href=\'/Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
             echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
             echo '<button onclick="window.location.href=\'/GuesstheMess.php\';" style="white-space: nowrap;">Guess the Mess</button>';
@@ -441,11 +442,21 @@ function load_menu() {
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'/AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
             echo '<button onclick="window.location.href=\'/AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
-            if ($_SESSION["turm"] != "weh") {
-                echo '<button style="white-space: nowrap; color: gray; cursor: not-allowed;" disabled>Infoterminal</button> ';
-            } else {
-                echo '<button onclick="window.location.href=\'/LokiManagement.php\';" style="white-space: nowrap;">Infoterminal</button> ';
+
+            $infoterminalbuttons = [
+                'weh' => ['label' => 'WEH Infoterminal', 'link' => '/LokiManagement.php'],
+                'tvk' => ['label' => 'TvK Infoterminal', 'link' => '/SigynManagement.php']
+            ];
+            $hasOverrideAccess = !empty($_SESSION['Webmaster']) || !empty($_SESSION['NetzAG']);
+            foreach ($infoterminalbuttons as $key => $data) {
+                $isActive = ($hasOverrideAccess || $_SESSION["turm"] === $key);
+                $style = 'white-space: nowrap;' . ($isActive ? '' : ' color: gray; cursor: not-allowed;');
+                $disabled = $isActive ? '' : 'disabled';
+                $onclick = $isActive ? "onclick=\"window.location.href='{$data['link']}';\"" : '';
+                
+                echo "<button $onclick style=\"$style\" $disabled>{$data['label']}</button> ";
             }
+
             echo '</div>';
             echo '</div>';
             echo '</div>';

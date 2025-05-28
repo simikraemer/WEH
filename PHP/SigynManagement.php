@@ -68,7 +68,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["a
                 }
             
                 $insert_sql = "INSERT INTO infopics (uid, tstamp, aktiv, beschreibung, pfad, turm) VALUES (?,?,?,?,?,?)";
-                $insert_var = array($uid, $zeit, $aktiv, $beschreibung, $file_path, 'weh');
+                $insert_var = array($uid, $zeit, $aktiv, $beschreibung, $file_path, 'tvk');
                 $stmt = mysqli_prepare($conn, $insert_sql);
                 mysqli_stmt_bind_param($stmt, "iiisss", ...$insert_var);
                 mysqli_stmt_execute($stmt);
@@ -148,7 +148,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["a
     echo "<br><br><hr><br><br>";
 
     
-    $sql = "SELECT id, beschreibung, aktiv, pfad, changelog FROM infopics WHERE aktiv > -1 AND turm = 'weh'";
+    $sql = "SELECT id, beschreibung, aktiv, pfad, changelog FROM infopics WHERE aktiv > -1 AND turm = 'tvk'";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);

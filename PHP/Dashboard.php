@@ -1515,7 +1515,9 @@ updateCountdowns();
             echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["name"]) . '\')">' . htmlspecialchars($user["name"]) . '</button>';
 
             // Betrag Button
-            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . number_format((float)$user["betrag"], 2, ',', '.') . '\')">' . htmlspecialchars($user["betrag"]) . ' €</button>';
+            $betrag_formatiert = number_format((float)$user["betrag"], 2, ',', '.');
+            echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . $betrag_formatiert . '\')">' . $betrag_formatiert . ' €</button>';
+
 
             // Überweisungsbetreff Button
             echo '<button type="button" class="copy-btn" onclick="copyToClipboard(this, \'Abmeldung WEH e.V.\')">Abmeldung WEH e.V.</button>';
