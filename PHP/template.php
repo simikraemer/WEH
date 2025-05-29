@@ -956,7 +956,7 @@ function displayRundmails($conn) {
                   FROM rundmails r 
                   JOIN users u ON r.uid = u.uid 
                   WHERE r.tstamp >= ? AND r.address NOT LIKE '%fiji%' AND (
-                    (r.address = 'essential' OR r.address = 'important')";
+                    (r.address = 'essential' OR r.address = 'important' OR r.address = 'community')";
 
     // Filtere basierend auf dem Turm - aktuell auskommentiert, sodass alle alles sehen können
     // if ($_SESSION['turm'] == 'weh' || $_SESSION["Vorstand"] || $_SESSION['sprecher'] != 0 || $_SESSION["NetzAG"] || $_SESSION["Webmaster"]) {
