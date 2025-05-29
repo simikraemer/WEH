@@ -13,7 +13,6 @@ require('../template.php');
 if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
     header("Location: denied.php");
 }
-load_menu();
 
 $csvFile = '/WEH/PHP/sekofinale/kategorien.csv';
 $categories = [];
@@ -229,80 +228,79 @@ if (($handle = fopen($csvFile, "r")) !== false) {
 <body>
     
 
-
 <div class="ersatzbody">
+    <div style="display: flex; gap: 40px; align-items: flex-start; padding: 20px;" class="hidden">
+        <div style="flex-grow: 1;">
+            <div class="container">
+                <div style="align-items: center;">
+                    <h1 style="margin: 0;">Frühstücksmeeting-Finale</h1>
+                    <h2 style="margin: 0;">Gamemaster Ansicht</h2>
+                </div>
+                
+                <button class="top-btn" onclick="resetGame()">🔁 Reset</button>
 
-<div class="container">
-    <div style="align-items: center;">
-  <h1 style="margin: 0;">Frühstücksmeeting-Finale</h1>
-  <h2 style="margin: 0;">Gamemaster Ansicht</h2>
-</div>
-  <button class="top-btn" onclick="resetGame()">🔁 Reset</button>
+                <div id="player-count-selector">
+                    <div class="hold-btn" data-count="3">
+                        <button class="top-btn">3</button>
+                        <div class="progress-bar"></div>
+                    </div>
+                    <div class="hold-btn" data-count="4">
+                        <button class="top-btn">4</button>
+                        <div class="progress-bar"></div>
+                    </div>
+                    <div class="hold-btn" data-count="5">
+                        <button class="top-btn">5</button>
+                        <div class="progress-bar"></div>
+                    </div>
+                </div>
 
-    <div id="player-count-selector">
-    <div class="hold-btn" data-count="3">
-        <button class="top-btn">3</button>
-        <div class="progress-bar"></div>
-    </div>
-    <div class="hold-btn" data-count="4">
-        <button class="top-btn">4</button>
-        <div class="progress-bar"></div>
-    </div>
-    <div class="hold-btn" data-count="5">
-        <button class="top-btn">5</button>
-        <div class="progress-bar"></div>
-    </div>
-    </div>
+                <div class="player-setup" style="margin-bottom: 30px;">
+                    <h2>Spieler</h2>
+                    <div id="player-controls"></div>
+                </div>
 
+                <div style="position: relative; display: inline-block; margin-top: 20px;">
+                    <button class="back-btn" id="back-btn-hold">🔙 Zurück zur Auswahl</button>
+                    <div id="back-progress" style="
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        height: 4px;
+                        background-color: #4caf50;
+                        width: 0%;
+                        transition: width 1s linear;">
+                    </div>
+                </div>
 
-    <div class="player-setup" style="margin-bottom: 30px;">
-        <h2>Spieler</h2>
-        <div id="player-controls"></div>
-    </div>
+                <h2 id="category-title"></h2>
 
-    <div id="category-view"> 
-        <p>Wähle eine Kategorie:</p>       
-
-        <div class="category-list">
-        <?php foreach ($categories as $cat => $items): ?>
-            <div class="category-item" onclick="selectCategory('<?= htmlspecialchars($cat) ?>')">
-                <?= htmlspecialchars($cat) ?>
+                <div class="top-controls" style="margin-top: 10px;">
+                    <button class="top-btn" onclick="playSound('countdown')">⏳ Countdown</button>
+                    <button class="top-btn" onclick="playSound('incorrect')">❌ Falsch</button>
+                </div>
             </div>
-        <?php endforeach; ?>
         </div>
 
+        <div id="category-view" style="width: 60%; flex-shrink: 0; margin-left: auto;"> 
 
-    </div>
-
-    <div id="game-view" class="hidden">
-        <div style="position: relative; display: inline-block;">
-            <button class="back-btn" id="back-btn-hold">🔙 Zurück zur Auswahl</button>
-            <div id="back-progress" style="
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                height: 4px;
-                background-color: #4caf50;
-                width: 0%;
-                transition: width 1s linear;
-            "></div>
-        </div>
-        <h2 id="category-title"></h2>
-
-        <div class="top-controls">
-            <button class="top-btn" onclick="playSound('countdown')">⏳ Countdown</button>
-            <button class="top-btn" onclick="playSound('incorrect')">❌ Falsch</button>
+            <div class="category-list">
+            <?php foreach ($categories as $cat => $items): ?>
+                <div class="category-item" onclick="selectCategory('<?= htmlspecialchars($cat) ?>')">
+                    <?= htmlspecialchars($cat) ?>
+                </div>
+            <?php endforeach; ?>
+            </div>
         </div>
 
-        <input type="text" id="search" class="search-input" placeholder="Suchbegriff..." oninput="updateList()">
-        <div id="item-list" class="grid"></div>
-        <p id="done-msg" class="hidden"><strong>Alle Optionen ausgewählt!</strong></p>
-
-        <!-- Sound-Player (dynamisch) -->
-        <audio id="audio-player"></audio>
+        <div id="game-view" class="hidden" style="width: 60%; flex-shrink: 0; margin-left: auto;">
+            <input type="text" id="search" class="search-input" placeholder="Suchbegriff..." oninput="updateList()" style="width: 100%; margin-bottom: 10px;">
+            <div id="item-list" class="grid"></div>
+            <p id="done-msg" class="hidden"><strong>Alle Optionen ausgewählt!</strong></p>
+            <audio id="audio-player"></audio>
+        </div>
     </div>
 </div>
-</div>
+
 
 <script>
     const categories = JSON.parse(<?= json_encode(json_encode($categories, JSON_UNESCAPED_UNICODE)) ?>);
@@ -386,18 +384,16 @@ function playSound(key) {
 
 
 
-
-
-    function selectCategory(cat) {
-        currentCategory = cat;
-        usedItems = [];
-        document.getElementById("category-view").classList.add("hidden");
-        document.getElementById("game-view").classList.remove("hidden");
-        document.getElementById("category-title").textContent = cat;
-        document.getElementById("search").value = "";
-        updateList();
-        syncState(); // hier hinzufügen
-    }
+function selectCategory(cat) {
+    currentCategory = cat;
+    usedItems = [];
+    document.getElementById("category-view").classList.add("hidden");
+    document.getElementById("game-view").classList.remove("hidden");
+    document.getElementById("category-title").textContent = cat;
+    document.getElementById("search").value = "";
+    updateList();
+    syncState(); // hier hinzufügen
+}
 
 
 function backToMenu() {
@@ -485,6 +481,9 @@ function markUsed(item) {
         document.getElementById("search").value = "";
         updateList();
         syncState();
+
+        // Fokus zurück ins Suchfeld
+        document.getElementById("search").focus();
     }
 }
 
