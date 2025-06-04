@@ -22,7 +22,7 @@ from fpdf.enums import XPos, YPos
 import os
 import datetime
 
-DEBUG = True
+DEBUG = False
 
 ## Grundprogramm ##
 
