@@ -68,31 +68,38 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             u.turm,
             u.room,            
             u.pid,
-            COALESCE(SUM(t.betrag), 0) AS gesamt_betrag,
+            COALESCE(t.gesamt_betrag, 0) AS gesamt_betrag,
             CASE 
-                WHEN u.groups LIKE '1' OR u.groups LIKE '1,19' THEN 0
+                WHEN u.groups IN ('1', '1,19') THEN 0
                 ELSE 1
             END AS aktiv,
             CASE 
-                WHEN u.groups LIKE '%,7%' THEN 1 
+                WHEN u.groups LIKE '%,7%' OR u.groups = '7' THEN 1 
                 ELSE 0 
             END AS netzag,
             CASE 
-                WHEN EXISTS (
-                    SELECT 1 
-                    FROM sperre s 
-                    WHERE u.uid = s.uid 
-                      AND s.missedpayment = 1 
-                      AND s.starttime <= UNIX_TIMESTAMP() 
-                      AND s.endtime >= UNIX_TIMESTAMP()
-                ) THEN 1 
+                WHEN s.uid IS NOT NULL THEN 1 
                 ELSE 0 
             END AS gesperrt
-        FROM users u 
-        LEFT JOIN transfers t ON u.uid = t.uid
+        FROM users u
+        LEFT JOIN (
+            SELECT uid, SUM(betrag) AS gesamt_betrag
+            FROM transfers
+            WHERE uid IN (SELECT uid FROM users WHERE pid IN (11,12))
+            GROUP BY uid
+        ) t ON u.uid = t.uid
+        LEFT JOIN (
+            SELECT DISTINCT s.uid
+            FROM sperre s
+            JOIN users u2 ON u2.uid = s.uid
+            WHERE u2.pid IN (11,12)
+            AND s.missedpayment = 1
+            AND s.starttime <= UNIX_TIMESTAMP()
+            AND s.endtime >= UNIX_TIMESTAMP()
+        ) s ON u.uid = s.uid
         WHERE u.pid IN (11,12)
-        GROUP BY u.uid, u.name
         ORDER BY gesamt_betrag ASC;
+
         ";
             
         $result = mysqli_query($conn, $sql_users);
