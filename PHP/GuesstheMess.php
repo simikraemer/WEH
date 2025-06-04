@@ -1,17 +1,17 @@
 <?php
 session_start();
 require('template.php');
-if (auth($conn) && (!$_SESSION["Webmaster"]) ) {
+if (auth($conn) && (!$_SESSION["valid"]) ) {
     header("Location: denied.php");
 }
 
 // Standardwerte setzen
 $mode = $_POST['mode'] ?? 'Beispiel';
 switch ($mode) {
-    case 'Beispiel':
-        $videoDir = "videos/beispiel/";
-        $unmuteTime = 30;
-        break;
+//    case 'Beispiel':
+//        $videoDir = "videos/beispiel/";
+//        $unmuteTime = 30;
+//        break;
     case 'Spot the Shot':
         $videoDir = "videos/spottheshot/";
         $unmuteTime = 30;
@@ -116,10 +116,10 @@ $totalVideos = count($videoFiles);
 <body>
 
     <form method="POST" id="gameModeButtons">        
-        <button type="submit" name="mode" value="Beispiel" class="weh-btn" 
+        <!-- <button type="submit" name="mode" value="Beispiel" class="weh-btn" 
             style="<?php echo ($mode == 'Beispiel') ? 'background:green; color:white;' : ''; ?>">
             Beispiel
-        </button>
+        </button> -->
 
         <button type="submit" name="mode" value="Name the Game" class="weh-btn" 
             style="<?php echo ($mode == 'Name the Game') ? 'background:green; color:white;' : ''; ?>">
