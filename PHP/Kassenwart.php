@@ -29,13 +29,19 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
 
     $sum_beiträge = $hausbeitrag + $netzbeitrag;
 
+    $selected = $_POST["action"] ?? "wehkonten";
+
+    function KassenwartButtonStyle($name, $selectedName) {
+        $base = "font-size:30px; margin-right:10px; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;";
+        $bg = $name === $selectedName ? "background-color:#11a50d;" : "background-color:#fff;";
+        return $base . $bg;
+    }
+
     echo '<form method="post" style="display:flex; justify-content:center; align-items:center;">';
-    echo '<button type="submit" name="action" value="wehkonten" class="house-button" style="font-size:50px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">Vereins-Konten';
-    echo '</button>';
-    echo '<button type="submit" name="action" value="userkonten" class="house-button" style="font-size:50px; margin-right:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">User-Konten';
-    echo '</button>';
+    echo '<button type="submit" name="action" value="wehkonten" class="house-button" style="' . KassenwartButtonStyle("wehkonten", $selected) . '">Vereins-Konten</button>';
+    echo '<button type="submit" name="action" value="userkonten" class="house-button" style="' . KassenwartButtonStyle("userkonten", $selected) . '">User-Konten</button>';
     echo '</form>';
-    echo "<br><br>";    
+    echo "<br>";
 
     if (isset($_POST["action"]) && $_POST["action"] == "userkonten") {
         
@@ -70,11 +76,11 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             u.pid,
             COALESCE(t.gesamt_betrag, 0) AS gesamt_betrag,
             CASE 
-                WHEN u.groups IN ('1', '1,19') THEN 0
+                WHEN u.groups IN ('1', '1,19', '1,20') THEN 0
                 ELSE 1
             END AS aktiv,
             CASE 
-                WHEN u.groups LIKE '%,7%' OR u.groups = '7' THEN 1 
+                WHEN u.groups LIKE '%,7%' THEN 1 
                 ELSE 0 
             END AS netzag,
             CASE 
@@ -267,25 +273,24 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
         $stmt->close();
             
             
-        echo '<div style="text-align: center; color: white; padding: 10px;">';
-        echo '<div style="font-size: 60px;">Gesamt</div>';
+        echo '<div style="text-align: center; color: white; padding: 5px;">';
+        echo '<div style="font-size: 50px;">Gesamt</div>';
         echo '</div>';
 
         echo '<div style="display: flex; justify-content: space-around;">';  
         echo '<div style="text-align: center; color: white;">';
-        echo '<div style="font-size: 70px;">' . number_format($gesamtsumme, 2, ',', '.') . ' €' . '</div>';
+        echo '<div style="font-size: 60px;">' . number_format($gesamtsumme, 2, ',', '.') . ' €' . '</div>';
         echo '</div>';
         echo '</div>';
 
-        echo "<br>";
         echo "<br>";
         echo "<br>";
             
         echo '<div style="display: flex; justify-content: space-around;">';   
         foreach ($onlinekassen as $key => $kasse) {
-            echo '<div style="text-align: center; color: white; padding: 10px; flex: 1;">';
-            echo '<div style="font-size: 40px;">' . $kasse["name"] . '</div>';
-            echo '<div style="font-size: 50px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €' . '</div>';
+            echo '<div style="text-align: center; color: white; padding: 5px; flex: 1;">';
+            echo '<div style="font-size: 30px;">' . $kasse["name"] . '</div>';
+            echo '<div style="font-size: 40px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €' . '</div>';
             echo '</div>';
         }
         echo '</div>';
@@ -295,7 +300,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
 
         echo '<div style="display: flex; justify-content: space-around;">';   
         foreach ($barkassen as $key => $kasse) {
-            echo '<div style="text-align: center; color: white; padding: 10px; flex: 1;">';
+            echo '<div style="text-align: center; color: white; padding:5px; flex: 1;">';
             echo '<div style="font-size: 25px;">' . $kasse["name"] . '</div>';
             echo '<div style="font-size: 20px;">' . $kasse["username"] . '</div>';
             echo '<div style="font-size: 35px;">' . number_format($kasse["summe"], 2, ',', '.') . ' €' . '</div>';
@@ -335,41 +340,40 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
 
         echo '<div style="display: flex; justify-content: space-around;">';   
 
-        echo '<div style="text-align: center; color: white; padding: 10px; flex: 1;">';
-        echo '<div style="text-align: center; font-size: 40px; color: white;">';
+        echo '<div style="text-align: center; color: white; padding: 5px; flex: 1;">';
+        echo '<div style="text-align: center; font-size: 35px; color: white;">';
         echo 'Netzwerk-AG Budget';
         echo '</div>';
         echo '<div style="text-align: center; font-size: 20px; color: white;">';
         echo number_format($userboundsumme, 2, ',', '.') . '€ Userkonten + ' . number_format($rücklagen_netz, 0, ',', '.') . '€ Rücklagen';
         echo '</div>';
-        echo '<div style="text-align: center; font-size: 50px; color: white;">';
+        echo '<div style="text-align: center; font-size: 40px; color: white;">';
         echo number_format($netzbudget, 2, ',', '.') . ' €';
         echo '</div>';   
         echo '</div>';
 
-        echo '<div style="text-align: center; color: white; padding: 10px; flex: 1;">';
-        echo '<div style="text-align: center; font-size: 50px; color: white;">';
+        echo '<div style="text-align: center; color: white; padding: 5px; flex: 1;">';
+        echo '<div style="text-align: center; font-size: 40px; color: white;">';
         echo 'Gesamt Budget';
         echo '</div>';
-        echo '<div style="text-align: center; font-size: 60px; color: white;">';
+        echo '<div style="text-align: center; font-size: 50px; color: white;">';
         echo number_format($gesamtbudget, 2, ',', '.') . ' €';
         echo '</div>';   
         echo '</div>';
 
-        echo '<div style="text-align: center; color: white; padding: 10px; flex: 1;">';
+        echo '<div style="text-align: center; color: white; padding: 5px; flex: 1;">';
         echo '<div style="text-align: center; font-size: 40px; color: white;">';
         echo 'Haus Budget';
         echo '</div>';
         echo '<div style="text-align: center; font-size: 20px; color: white;">';
         echo number_format($rücklagen_haus, 0, ',', '.') . '€ Rücklagen';
         echo '</div>';
-        echo '<div style="text-align: center; font-size: 50px; color: white;">';
+        echo '<div style="text-align: center; font-size: 40px; color: white;">';
         echo number_format($hausbudget, 2, ',', '.') . ' €';
         echo '</div>';   
         echo '</div>';
 
         echo '</div>';
-        echo "<br><br>";
     }
 
 }
