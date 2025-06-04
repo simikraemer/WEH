@@ -212,7 +212,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             
             $gesamtsumme = 0;
             $rücklagen_haus = 10000;
-            $rücklagen_netz = 35000;
+            $rücklagen_netz = 30000;
             
             // Onlinekassen-Summen
             foreach ($onlinekassen as $key => &$kasse) {
