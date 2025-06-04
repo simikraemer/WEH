@@ -10,7 +10,7 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
-if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION["TvK-Sprecher"]) ) {
+if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION["TvK-Sprecher"] || $_SESSION["TvK-Kasse"]) ) {
     load_menu();
 
     
@@ -212,7 +212,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             
             $gesamtsumme = 0;
             $rücklagen_haus = 10000;
-            $rücklagen_netz = 30000;
+            $rücklagen_netz = 35000;
             
             // Onlinekassen-Summen
             foreach ($onlinekassen as $key => &$kasse) {
