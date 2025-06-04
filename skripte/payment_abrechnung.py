@@ -141,17 +141,24 @@ def abrechnung():
     if DEBUG:
         print(f"DEBUG: Waschmarkenbetrag für Kassenausgleich: {waschmarkenbetrag:.2f}€")
     kassenausgleichbetrag += waschmarkenbetrag
+
+    # Wohnzimmerabos abziehen (gehen eigentlich auf Hauskasse, wurden aber übers Netzkonto gezahlt)
+    wohnzimmerabos = get_constant("wohnzimmerabos")
+    if DEBUG:
+        print(f"DEBUG: Wohnzimmerabos werden abgezogen: {wohnzimmerabos:.2f}€")
+    kassenausgleichbetrag -= wohnzimmerabos
+
     kassenausgleichbetrag_2nachkommastellen = round(kassenausgleichbetrag, 2)
 
     pdfpfad = export_kassenausgleich_pdf(
         zeit,
-        kassenausgleichbetrag_2nachkommastellen - waschmarkenbetrag,
+        kassenausgleichbetrag_2nachkommastellen - waschmarkenbetrag + wohnzimmerabos,
         bezahlter_netzbeitrag,
-        waschmarkenbetrag
+        waschmarkenbetrag,
+        wohnzimmerabos
     )
 
     kassenausgleichinsert(zeit, kassenausgleichbetrag_2nachkommastellen, pdfpfad)
-
 
     infomail(
         kassenausgleichbetrag_2nachkommastellen,
@@ -159,9 +166,10 @@ def abrechnung():
         sperrcount,
         insolventcount,
         warncount,
-        kassenausgleichbetrag_2nachkommastellen - waschmarkenbetrag,
+        kassenausgleichbetrag_2nachkommastellen - waschmarkenbetrag + wohnzimmerabos,
         bezahlter_netzbeitrag,
-        waschmarkenbetrag
+        waschmarkenbetrag,
+        wohnzimmerabos
     )
 
     if DEBUG:
@@ -212,12 +220,13 @@ def insolvent(uid,zeit):
         cnx.commit()
 
 ## Funktionen für Mails ##
-    
+
 def infomail(kassenausgleichbetrag, truenormalcount, sperrcount, insolventcount, warncount,
-             bezahlter_hausbeitrag, bezahlter_netzbeitrag, waschmarkenbetrag):
+             bezahlter_hausbeitrag, bezahlter_netzbeitrag, waschmarkenbetrag, wohnzimmerabos):
 
     gesamtbetrag = bezahlter_hausbeitrag + bezahlter_netzbeitrag + waschmarkenbetrag
-    hausgesamt = bezahlter_hausbeitrag + waschmarkenbetrag
+    hausgesamt = bezahlter_hausbeitrag + waschmarkenbetrag - wohnzimmerabos
+    netzgesamt = bezahlter_netzbeitrag + wohnzimmerabos
 
     if DEBUG:
         subject = "[DEBUG] WEH Abrechnung"
@@ -244,13 +253,16 @@ def infomail(kassenausgleichbetrag, truenormalcount, sperrcount, insolventcount,
         f"  Hauskonto:             {hausgesamt:.2f} €\n"
         f"    ↳ Hausbeitrag:             {bezahlter_hausbeitrag:.2f} €\n"
         f"    ↳ Waschmarken:             {waschmarkenbetrag:.2f} €\n"
+        f"    ↳ Wohnzimmerabos:          - {wohnzimmerabos:.2f} €\n"
         "\n"
-        f"  Netzkonto:             {bezahlter_netzbeitrag:.2f} €\n"
+        f"  Netzkonto:             {netzgesamt:.2f} €\n"
+        f"    ↳ Netzbeitrag:             {bezahlter_netzbeitrag:.2f} €\n"
+        f"    ↳ Wohnzimmerabos:          {wohnzimmerabos:.2f} €\n"
         "\n"
         "────────────────────────────────────────\n\n"
         "👥 Nutzerstatistik:\n"
         f"  Gezahlt:          {truenormalcount} User\n"
-        f"  Vorgewarnt:       {warncount} User\n"
+        f"    ↳ Vorgewarnt:       {warncount} User\n"
         f"  Gesperrt:         {sperrcount} User\n"
         f"  Insolvent:        {insolventcount} User\n"
         "\n"
@@ -261,7 +273,6 @@ def infomail(kassenausgleichbetrag, truenormalcount, sperrcount, insolventcount,
         "Viele Grüße,\n"
         "payment_abrechnung.py und Fiji"
     )
-
 
     to_email = "webmaster@weh.rwth-aachen.de" if DEBUG else "vorstand@weh.rwth-aachen.de"
     send_mail(subject, message, to_email)
@@ -433,7 +444,7 @@ def get_waschmarkensumme_fuer_monat(cursor, zeit):
     summe = (-1) * neg_summe if neg_summe is not None else 0
     return summe
 
-def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenbetrag, pfad="/WEH/PHP/kassenausgleich/"):
+def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenbetrag, wohnzimmerabos, pfad="/WEH/PHP/kassenausgleich/"):
     date = datetime.datetime.fromtimestamp(timestamp)
     jahr = date.year
     monat = f"{date.month:02d}"
@@ -442,7 +453,8 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
     full_path = os.path.join(pfad, filename)
 
     gesamt = hausbeitrag + netzbeitrag + waschmarkenbetrag
-    hausgesamt = hausbeitrag + waschmarkenbetrag
+    hausgesamt = hausbeitrag + waschmarkenbetrag - wohnzimmerabos
+    netzgesamt = netzbeitrag + wohnzimmerabos
 
     pdf = FPDF()
     pdf.add_page()
@@ -457,14 +469,14 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
     pdf.cell(0, 10, f"Monat: {monat}.{jahr}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(5)
 
-    def table_row(label, amount, bold=False, indent=0):
+    def table_row(label, amount, bold=False, indent=0, prefix=""):
         if bold:
             pdf.set_font("DejaVu", "B", 12)
         else:
             pdf.set_font("DejaVu", "", 12)
         spacing = " " * indent
         pdf.cell(100, 10, spacing + label, border=0)
-        pdf.cell(0, 10, f"{amount:.2f} €", border=0, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 10, f"{prefix}{amount:.2f} €", border=0, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 10, "Finanzübersicht", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
@@ -479,13 +491,15 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
     table_row("→ Hauskonto", hausgesamt, bold=True)
     table_row("Hausbeitrag", hausbeitrag, indent=4)
     table_row("Waschmarken", waschmarkenbetrag, indent=4)
+    table_row("Wohnzimmerabos", wohnzimmerabos, indent=4, prefix="- ")
     pdf.ln(5)
 
-    table_row("→ Netzkonto verbleibend", netzbeitrag, bold=True)
+    table_row("→ Netzkonto verbleibend", netzgesamt, bold=True)
+    table_row("Netzbeitrag", netzbeitrag, indent=4)
+    table_row("Wohnzimmerabos", wohnzimmerabos, indent=4)
+    pdf.ln(5)
 
-    # Trenner + Erläuterungstext
     pdf.set_font("DejaVu", "", 12)
-    pdf.ln(5)
     pdf.cell(0, 8, "────────────────────────────────────────", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(2)
 
@@ -493,8 +507,9 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
         "Die Mitglieder des WEH e.V. verfügen über Prepaid-Konten. Das darauf eingezahlte Guthaben befindet sich vollständig auf dem Netzkonto.\n\n"
         "Im Rahmen der monatlichen Abrechnung werden für jedes Mitglied der Hausbeitrag und der Netzbeitrag rechnerisch vom jeweiligen Prepaid-Guthaben abgezogen.\n"
         "Auch die im Vormonat gekauften Waschmarken werden berücksichtigt – ihr Gegenwert wurde den Nutzerkonten bereits beim Kauf abgezogen und soll nun dem Hauskonto gutgeschrieben werden.\n\n"
-        "Für den Kassenausgleich wird nun der Anteil, der dem Hauskonto zusteht – also die Summe aller Hausbeiträge und des Waschmarkenumsatzes – vom Netzkonto auf das Hauskonto überwiesen.\n"
-        "Der verbleibende Teil auf dem Netzkonto entspricht der Summe der gezahlten Netzbeiträge."
+        "Zusätzlich wird der Umsatz aus den Wohnzimmerabos, die über das Netzkonto bezahlt wurden, aus dem Ausgleich an das Hauskonto wieder herausgerechnet.\n\n"
+        "Für den Kassenausgleich wird nun der Anteil, der dem Hauskonto zusteht – also die Summe aller Hausbeiträge und des Waschmarkenumsatzes abzüglich Wohnzimmerabos – vom Netzkonto auf das Hauskonto überwiesen.\n"
+        "Der verbleibende Teil auf dem Netzkonto entspricht der Summe der gezahlten Netzbeiträge sowie der Wohnzimmerabos."
     )
 
     pdf.multi_cell(0, 8, text)
@@ -505,6 +520,7 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
     if DEBUG:
         print(f"DEBUG: PDF gespeichert unter {full_path}")
     return rel_path
+
 
 
 
