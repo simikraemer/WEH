@@ -55,14 +55,20 @@
 require('template.php');
 mysqli_set_charset($conn, "utf8");
 
-// 🔐 Zugriffsschutz: nur NetzAG, Vorstand oder Kassenprüfer
+// 🔐 Zugriffsrecht
 $berechtigt = auth($conn)
     && !empty($_SESSION['valid'])
     && (
         !empty($_SESSION["NetzAG"])
         || !empty($_SESSION["Vorstand"])
         || !empty($_SESSION["Kassenpruefer"])
+        || !empty($_SESSION["TvK-Sprecher"])
+        || !empty($_SESSION["TvK-Kasse"])
+        || !empty($_SESSION["Webmaster"])
     );
+
+// ✏️ Bearbeitungsrecht
+$admin = !empty($_SESSION["NetzAG"]) || !empty($_SESSION["Vorstand"]);
 
 if (!$berechtigt) {
     header("Location: denied.php");
@@ -293,9 +299,6 @@ if (isset($_POST['save_transfer_id'])) {
 }
 
 load_menu();
-
-// ✏️ Bearbeitungsrecht: nur NetzAG oder Vorstand
-$admin = !empty($_SESSION["NetzAG"]) || !empty($_SESSION["Vorstand"]);
 
 
 if (isset($_POST['kasse_id'])) {

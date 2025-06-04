@@ -513,8 +513,12 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
                     echo '<button onclick="window.location.href=\'/NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
                 }
+                if ($agName === 'TvK-Kasse') {                                        
+                    echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+                }
                 if ($agName === 'Kassenwart') {
-                    echo '<button onclick="window.location.href=\'/Kassenwart.php\';">Konten-Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
                     echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
