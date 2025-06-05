@@ -1,42 +1,18 @@
 <?php
 session_start();
-
-$kassen = [
-    'netz1' => ['name' => 'Netzbarkasse I', 'id' => 1],
-    'netz2' => ['name' => 'Netzbarkasse II', 'id' => 2],
-    'haus1' => ['name' => 'Kassenwart I', 'id' => 93],
-    'haus2' => ['name' => 'Kassenwart II', 'id' => 94],
-];
-
-$werte = [500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
-
-$active = $_GET['tab'] ?? 'netz1';
-if (!isset($kassen[$active])) $active = 'netz1';
-
-require('template.php');
-mysqli_set_charset($conn, "utf8");
-if (!(auth($conn) && $_SESSION['valid'] && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION['Kassenpruefer']))) {
-    header("Location: denied.php");
-    exit;
-}
-load_menu();
-
-// Kassenstand laden
-$kontostand = berechneKontostand($conn, $kassen[$active]['id']);
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="WEH.css" media="screen">
+    <link rel="stylesheet" href="WEH.css">
     <style>
         body { color: white; text-align: center; }
 
         .tabs {
-            margin: 0px auto;
             display: flex;
-            justify-content: center;
             gap: 10px;
+            align-items: flex-start;
         }
 
         .tab-button {
@@ -99,7 +75,7 @@ $kontostand = berechneKontostand($conn, $kassen[$active]['id']);
 
         .bargeld-table {
             width: 50%;
-            margin: 0 auto 30px auto;
+            margin: 0 auto 0px auto;
             border-collapse: collapse;
             border: 1px solid #444;
             table-layout: fixed;
@@ -127,23 +103,62 @@ $kontostand = berechneKontostand($conn, $kassen[$active]['id']);
             text-align: right;
             border-radius: 4px;
         }
+        .flexbereich {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+    
     </style>
 </head>
 <body>
-<div class="tabs">
-<?php foreach ($kassen as $key => $info): ?>
-    <button class="tab-button <?= $active === $key ? 'active' : '' ?>" onclick="wechselTab('<?= $key ?>')"><?= $info['name'] ?></button>
-<?php endforeach; ?>
-</div>
+    
+<?php 
+$kassen = [
+    'netz1' => ['name' => 'Netzbarkasse I', 'id' => 1],
+    'netz2' => ['name' => 'Netzbarkasse II', 'id' => 2],
+    'haus1' => ['name' => 'Kassenwart I', 'id' => 93],
+    'haus2' => ['name' => 'Kassenwart II', 'id' => 94],
+];
 
-<div class="vergleich-wrapper">
-    <div class="vergleich-box">
-        <div><strong>Soll:</strong><br><span id="vergleich_soll"><?= number_format($kontostand, 2, ',', '.') ?> €</span></div>
-        <div><strong>Differenz:</strong><br><span id="vergleich_diff">0,00 €</span></div>
-        <div><strong>Ist:</strong><br><span id="vergleich_ist">0,00 €</span></div>
-        <div><strong>Korrekt:</strong><br><span id="vergleich_status" class="status-falsch">❌</span></div>
+$werte = [500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
+
+$active = $_GET['tab'] ?? 'netz1';
+if (!isset($kassen[$active])) $active = 'netz1';
+
+require('template.php');
+mysqli_set_charset($conn, "utf8");
+if (!(auth($conn) && $_SESSION['valid'] && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION['Kassenpruefer']))) {
+    header("Location: denied.php");
+    exit;
+}
+
+load_menu(); 
+
+// Kassenstand laden
+$kontostand = berechneKontostand($conn, $kassen[$active]['id']);
+?>
+
+<div class="flexbereich">
+    <div class="tabs">
+        <?php foreach ($kassen as $key => $info): ?>
+            <button class="tab-button <?= $active === $key ? 'active' : '' ?>" onclick="wechselTab('<?= $key ?>')"><?= $info['name'] ?></button>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="vergleich-wrapper" style="margin: 0;">
+        <div class="vergleich-box">
+            <div><strong>Soll:</strong><br><span id="vergleich_soll"><?= number_format($kontostand, 2, ',', '.') ?> €</span></div>
+            <div><strong>Differenz:</strong><br><span id="vergleich_diff">0,00 €</span></div>
+            <div><strong>Ist:</strong><br><span id="vergleich_ist">0,00 €</span></div>
+            <div><strong>Korrekt:</strong><br><span id="vergleich_status" class="status-falsch">❌</span></div>
+        </div>
     </div>
 </div>
+
 
 
 <!-- <div class="gesamt-summe" id="gesamtwert">0,00 €</div> -->
@@ -228,8 +243,11 @@ function aktualisiereAnzeige() {
     const soll = Math.round(sollwert * 100) / 100;
     const diff = Math.round((ist - soll) * 100) / 100;
 
-    document.getElementById('vergleich_ist').textContent = ist.toFixed(2).replace('.', ',') + " €";
-    document.getElementById('vergleich_diff').textContent = diff.toFixed(2).replace('.', ',') + " €";
+    const format = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    document.getElementById('vergleich_ist').textContent = format.format(ist) + " €";
+    document.getElementById('vergleich_diff').textContent = format.format(diff) + " €";
+
 
     const status = document.getElementById('vergleich_status');
     if (Math.abs(diff) <= 0.01) {
