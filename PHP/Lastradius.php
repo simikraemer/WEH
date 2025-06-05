@@ -91,7 +91,7 @@ function printRoomCell($roomnumber, $user_by_id, $roomtype, $hausbeitrag, $netzb
         }
         
         
-        echo '<td style="width: 40px; height: 30px; cursor: pointer; color: black; background-color: ' . $backgroundcolor . '; text-align: center; vertical-align: middle;"';
+        echo '<td style="width: 40px; height: 25px; cursor: pointer; color: black; background-color: ' . $backgroundcolor . '; text-align: center; vertical-align: middle;"';
         echo ' onmouseover="this.style.backgroundColor=\'#0ffa0f\'" onmouseout="this.style.backgroundColor=\'' . $backgroundcolor . '\'" onclick="submitForm(this)" title="' . $firstname .' '. $lastname .'">';
         echo '<form method="post">';
         echo '<input type="hidden" name="menu_show" value="1">';
@@ -221,8 +221,8 @@ if (auth($conn) && $_SESSION['NetzAG']) {
     $tvk_button_color = ($turm === 'tvk') ? 'background-color:#FFA500;' : 'background-color:#fff;';
     echo '<div style="display:flex; justify-content:center; align-items:center;">';
     echo '<form method="post" style="display:flex; justify-content:center; align-items:center; gap:0px;">';
-    echo '<button type="submit" name="action" value="turmchoice_weh" class="house-button" style="font-size:50px; width:200px; ' . $weh_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">WEH</button>';
-    echo '<button type="submit" name="action" value="turmchoice_tvk" class="house-button" style="font-size:50px; width:200px; ' . $tvk_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">TvK</button>';
+    echo '<button type="submit" name="action" value="turmchoice_weh" class="house-button" style="font-size:30px; width:200px; ' . $weh_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">WEH</button>';
+    echo '<button type="submit" name="action" value="turmchoice_tvk" class="house-button" style="font-size:30px; width:200px; ' . $tvk_button_color . ' color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">TvK</button>';
     echo '</form>';
     echo '</div>';
     echo "<br><br>";
@@ -292,8 +292,6 @@ if (auth($conn) && $_SESSION['NetzAG']) {
     
     echo '</table>';
     echo '</div>';
-
-    echo '<br><br><br><br>';
 
   
     if (isset($_POST["menu_empty"])) {
