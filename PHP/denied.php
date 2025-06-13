@@ -337,7 +337,7 @@ if (isset($_POST["logout"])) {
                     "\n\nIf you didn't try to log in, please contact the Netzwerk-AG.\n\n" .
                     "Best Regards\n" .
                     "Netzwerk-AG WEH e.V.";
-                    $subject = "WEH Backend - TAN";
+                    $subject = $tan . " - WEH Backend TAN";
                     $headers = "From: " . $sender . "\r\n";
                     $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
                     mail($to, $subject, $message, $headers);
