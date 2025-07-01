@@ -118,33 +118,35 @@ if (auth($conn) && $_SESSION['valid']) {
             $second_choice = $_POST['choice_2'];
             $third_choice = $_POST['choice_3'];
 
-            // Überprüfen, ob die Kandidaten unterschiedlich sind
-            if ($first_choice == $second_choice || $first_choice == $third_choice || $second_choice == $third_choice) {
+            // Kandidaten in Array speichern und Duplikate sowie leere Einträge entfernen
+            $choices = array_filter([$first_choice, $second_choice, $third_choice], fn($v) => $v !== '');
+            if (count($choices) !== count(array_unique($choices))) {
                 echo "<div style='text-align: center;'>";
-                echo "<p style='color:red; text-align:center;'>ERROR: Choose three different candidates!</p>";
+                echo "<p style='color:red; text-align:center;'>ERROR: Please do not select the same candidate multiple times.</p>";
+                echo "</div>";
+            } elseif (count($choices) === 0) {
+                echo "<div style='text-align: center;'>";
+                echo "<p style='color:red; text-align:center;'>ERROR: Please select at least one candidate.</p>";
                 echo "</div>";
             } else {
                 // Kandidaten und Prioritäten in die Datenbank einfügen
                 $insert_sql = "INSERT INTO bavotes (uid, tstamp, pollid, kandidat, count) VALUES (?, ?, ?, ?, ?)";
                 $stmt = mysqli_prepare($conn, $insert_sql);
 
-                // Erster Kandidat (1. Prio -> count = 3)
-                $kandidat = $first_choice;
-                $count = 3;
-                mysqli_stmt_bind_param($stmt, "iiiii", $uid, $tstamp, $pollid, $kandidat, $count);
-                mysqli_stmt_execute($stmt);
+                $prio_map = [
+                    1 => $first_choice,
+                    2 => $second_choice,
+                    3 => $third_choice
+                ];
+                $prio_to_count = [1 => 3, 2 => 2, 3 => 1];
 
-                // Zweiter Kandidat (2. Prio -> count = 2)
-                $kandidat = $second_choice;
-                $count = 2;
-                mysqli_stmt_bind_param($stmt, "iiiii", $uid, $tstamp, $pollid, $kandidat, $count);
-                mysqli_stmt_execute($stmt);
+                foreach ($prio_map as $prio => $kandidat) {
+                    if ($kandidat === '' || $kandidat === null) continue;
 
-                // Dritter Kandidat (3. Prio -> count = 1)
-                $kandidat = $third_choice;
-                $count = 1;
-                mysqli_stmt_bind_param($stmt, "iiiii", $uid, $tstamp, $pollid, $kandidat, $count);
-                mysqli_stmt_execute($stmt);
+                    $count = $prio_to_count[$prio];
+                    mysqli_stmt_bind_param($stmt, "iiiii", $uid, $tstamp, $pollid, $kandidat, $count);
+                    mysqli_stmt_execute($stmt);
+                }
 
                 if (mysqli_stmt_affected_rows($stmt) > 0) {
                     echo "<div style='text-align: center;'>";
@@ -163,6 +165,8 @@ if (auth($conn) && $_SESSION['valid']) {
 
                 mysqli_stmt_close($stmt);
             }
+
+
         } elseif (isset($_POST["update_neues_voting"])) {
             
             $uid = $_SESSION['user'];
@@ -172,35 +176,76 @@ if (auth($conn) && $_SESSION['valid']) {
             $second_choice = $_POST['choice_2'];
             $third_choice = $_POST['choice_3'];
 
-            // Überprüfen, ob die Kandidaten unterschiedlich sind
-            if ($first_choice == $second_choice || $first_choice == $third_choice || $second_choice == $third_choice) {
+            // Kandidaten in Array speichern und Duplikate sowie leere Einträge entfernen
+            $choices = array_filter([$first_choice, $second_choice, $third_choice], fn($v) => $v !== '');
+            if (count($choices) !== count(array_unique($choices))) {
                 echo "<div style='text-align: center;'>";
-                echo "<p style='color:red; text-align:center;'>ERROR: Choose three different candidates!</p>";
+                echo "<p style='color:red; text-align:center;'>ERROR: Please do not select the same candidate multiple times.</p>";
+                echo "</div>";
+            } elseif (count($choices) === 0) {
+                echo "<div style='text-align: center;'>";
+                echo "<p style='color:red; text-align:center;'>ERROR: Please select at least one candidate.</p>";
                 echo "</div>";
             } else {
-                // Update der bestehenden Einträge in der Datenbank
-                $update_sql = "UPDATE bavotes SET kandidat = ?, tstamp = ?, count = ? WHERE uid = ? AND pollid = ? AND count = ?";
-                $stmt = mysqli_prepare($conn, $update_sql);
-    
-                // Erster Kandidat (1. Prio -> count = 3)
-                $kandidat = $first_choice;
-                $count = 3;
-                mysqli_stmt_bind_param($stmt, "iiiiii", $kandidat, $tstamp, $count, $uid, $pollid, $count);
-                mysqli_stmt_execute($stmt);
-    
-                // Zweiter Kandidat (2. Prio -> count = 2)
-                $kandidat = $second_choice;
-                $count = 2;
-                mysqli_stmt_bind_param($stmt, "iiiiii", $kandidat, $tstamp, $count, $uid, $pollid, $count);
-                mysqli_stmt_execute($stmt);
-    
-                // Dritter Kandidat (3. Prio -> count = 1)
-                $kandidat = $third_choice;
-                $count = 1;
-                mysqli_stmt_bind_param($stmt, "iiiiii", $kandidat, $tstamp, $count, $uid, $pollid, $count);
-                mysqli_stmt_execute($stmt);
-    
-                if (mysqli_stmt_affected_rows($stmt) > 0) {
+                $prio_map = [
+                    1 => $first_choice,
+                    2 => $second_choice,
+                    3 => $third_choice
+                ];
+                $prio_to_count = [1 => 3, 2 => 2, 3 => 1];
+
+                // Alle vorhandenen count-Werte abrufen
+                $all_counts = [1, 2, 3];
+                $keep_counts = [];
+
+                $success = false;
+
+                foreach ($prio_map as $prio => $kandidat) {
+                    $count = $prio_to_count[$prio];
+
+                    if ($kandidat === '' || $kandidat === null) continue;
+
+                    $keep_counts[] = $count;
+
+                    // Prüfen ob Eintrag existiert
+                    $check_sql = "SELECT 1 FROM bavotes WHERE uid = ? AND pollid = ? AND count = ?";
+                    $check_stmt = mysqli_prepare($conn, $check_sql);
+                    mysqli_stmt_bind_param($check_stmt, "iii", $uid, $pollid, $count);
+                    mysqli_stmt_execute($check_stmt);
+                    mysqli_stmt_store_result($check_stmt);
+
+                    if (mysqli_stmt_num_rows($check_stmt) > 0) {
+                        // UPDATE
+                        $update_sql = "UPDATE bavotes SET kandidat = ?, tstamp = ? WHERE uid = ? AND pollid = ? AND count = ?";
+                        $update_stmt = mysqli_prepare($conn, $update_sql);
+                        mysqli_stmt_bind_param($update_stmt, "iiiii", $kandidat, $tstamp, $uid, $pollid, $count);
+                        mysqli_stmt_execute($update_stmt);
+                        $success = $success || (mysqli_stmt_affected_rows($update_stmt) > 0);
+                        mysqli_stmt_close($update_stmt);
+                    } else {
+                        // INSERT
+                        $insert_sql = "INSERT INTO bavotes (uid, tstamp, pollid, kandidat, count) VALUES (?, ?, ?, ?, ?)";
+                        $insert_stmt = mysqli_prepare($conn, $insert_sql);
+                        mysqli_stmt_bind_param($insert_stmt, "iiiii", $uid, $tstamp, $pollid, $kandidat, $count);
+                        mysqli_stmt_execute($insert_stmt);
+                        $success = $success || (mysqli_stmt_affected_rows($insert_stmt) > 0);
+                        mysqli_stmt_close($insert_stmt);
+                    }
+
+                    mysqli_stmt_close($check_stmt);
+                }
+
+                // Nicht mehr verwendete Prioritäten löschen
+                $delete_counts = array_diff($all_counts, $keep_counts);
+                foreach ($delete_counts as $del_count) {
+                    $delete_sql = "DELETE FROM bavotes WHERE uid = ? AND pollid = ? AND count = ?";
+                    $delete_stmt = mysqli_prepare($conn, $delete_sql);
+                    mysqli_stmt_bind_param($delete_stmt, "iii", $uid, $pollid, $del_count);
+                    mysqli_stmt_execute($delete_stmt);
+                    mysqli_stmt_close($delete_stmt);
+                }
+
+                if ($success || !empty($delete_counts)) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:green; text-align:center;'>Voting erfolgreich aktualisiert.</p>";
                     echo "</div>";
@@ -214,11 +259,16 @@ if (auth($conn) && $_SESSION['valid']) {
                     echo "<p style='color:red; text-align:center;'>Fehler beim Aktualisieren des Votings.</p>";
                     echo "</div>";
                 }
-
-                mysqli_stmt_close($stmt);
             }
         }
+
+
+
+
+
+
     }
+
 
 
 
@@ -392,7 +442,9 @@ if (auth($conn) && $_SESSION['valid']) {
     
             echo '<div style="margin-top: 20px;">
                     <label for="choice_' . $priority . '" style="margin-right: 10px;">' . $priority . 'st Choice:</label>
-                    <select name="choice_' . $priority . '" id="choice_' . $priority . '" style="padding: 5px; font-size: 16px;">';
+                    <select name="choice_' . $priority . '" id="choice_' . $priority . '" style="padding: 5px; font-size: 16px;">
+                    <option value="">-- keine Auswahl --</option>';
+
     
             // Optionen für alle Kandidaten (Integer)
             for ($i = 1; $i <= $anzahl_kandidaten; $i++) {
