@@ -205,9 +205,6 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
         mysqli_free_result($result);
 
     } else {
-        echo "<br>";
-        echo '<hr style="border-top: 1px solid white;">';
-        echo "<br>";
 
         $onlinekassen = [
                 72 => ["name" => "Netzkonto"],
@@ -225,7 +222,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             
             $gesamtsumme = 0;
             $rücklagen_haus = 10000;
-            $rücklagen_netz = 30000;
+            $rücklagen_netz = 35000;
             
             // Onlinekassen-Summen
             foreach ($onlinekassen as $key => &$kasse) {
@@ -274,17 +271,20 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             
             
         echo '<div style="text-align: center; color: white; padding: 5px;">';
-        echo '<div style="font-size: 50px;">Gesamt</div>';
+            echo '<div style="font-size: 50px;">Gesamt</div>';
         echo '</div>';
 
         echo '<div style="display: flex; justify-content: space-around;">';  
-        echo '<div style="text-align: center; color: white;">';
-        echo '<div style="font-size: 60px;">' . number_format($gesamtsumme, 2, ',', '.') . ' €' . '</div>';
-        echo '</div>';
+            echo '<div style="text-align: center; color: white;">';
+            echo '<div style="font-size: 60px;">' . number_format($gesamtsumme, 2, ',', '.') . ' €' . '</div>';
+            echo '</div>';
         echo '</div>';
 
+        # -------------------------------------------------
         echo "<br>";
+        echo '<hr style="border-top: 1px solid white;">';
         echo "<br>";
+        # -------------------------------------------------
             
         echo '<div style="display: flex; justify-content: space-around;">';   
         foreach ($onlinekassen as $key => $kasse) {
@@ -295,7 +295,6 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
         }
         echo '</div>';
 
-        echo "<br>";
         echo "<br>";
 
         echo '<div style="display: flex; justify-content: space-around;">';   
