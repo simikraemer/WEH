@@ -88,7 +88,8 @@ function setupUserSession($user, $isRoaming = true) {
     $_SESSION['user'] = $user['uid'];
     $_SESSION['agent'] = ($user['uid'] == 2136) ? 'fiji' : $user['uid'];
     $_SESSION['username'] = $user['username'];
-    $_SESSION['sprecher'] = intval($user['sprecher']);
+    $_SESSION['sprecher'] = intval($user['sprecher']); # AG-Sprecher
+    $_SESSION['etagensprecher'] = intval($user['etagensprecher']); # Etagensprecher
     $_SESSION['userroom'] = $user['room'];
     $_SESSION['firstname'] = $user['firstname'];
     $_SESSION['name'] = $user['name'];
@@ -135,7 +136,7 @@ function auth($conn) {
         $ip = $_SERVER['REMOTE_ADDR'];
 
         $subnet = getNATSubnet($conn, $ip);
-        $sql = "SELECT users.uid, users.username, users.groups, users.sprecher, users.firstname, users.room, users.name, users.email, users.turm
+        $sql = "SELECT users.uid, users.username, users.groups, users.sprecher, users.firstname, users.room, users.name, users.email, users.turm, users.etagensprecher
         FROM users INNER JOIN macauth
         ON macauth.uid = users.uid 
         WHERE ((macauth.ip = ? and macauth.sublet = 0) OR users.subnet = ?) AND users.pid IN (11,12,13) LIMIT 1;";
@@ -166,7 +167,7 @@ function auth_from_outside($conn, $uid) {
     global $ag_complete;
     echo "<title>WEH Backend</title>";
 
-    $sql = "SELECT users.uid, users.username, users.groups, users.sprecher, users.firstname, users.room, users.name, users.turm
+    $sql = "SELECT users.uid, users.username, users.groups, users.sprecher, users.firstname, users.room, users.name, users.turm, users.etagensprecher
     FROM users
     WHERE uid = ? LIMIT 1;";
     $stmt = mysqli_prepare($conn, $sql);
@@ -378,11 +379,12 @@ function load_menu() {
 
 
             # Seiten im Aufbau ##
-            // echo '<div class="header-menu">';
-            // echo '<div class="header-menu-item">';
-            // echo '<button class="center-btn" onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button>';
-            // echo '</div>';
-            // echo '</div>';
+            echo '<div class="header-menu">';
+            echo '<div class="header-menu-item">';
+            echo '<button class="center-btn" onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">Antrag</button>';
+            echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Erstattung</button>';
+            echo '</div>';
+            echo '</div>';
 
 
             echo '<div class="header-menu">';
@@ -434,6 +436,14 @@ function load_menu() {
             echo '</div>';
         }
 
+        if (!$_SESSION["aktiv"] && $_SESSION["etagensprecher"] > 0) {
+            echo '<div class="header-menu">';
+            echo '<div class="header-menu-item">';
+            echo '<button class="center-btn" onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">Etagensprecher</button>';
+            echo '</div>';
+            echo '</div>';
+        }
+
         if ($_SESSION["aktiv"]) {            
             echo '<span class="vertical-line"></span>';                    
             echo '<div class="header-menu">';
@@ -442,6 +452,27 @@ function load_menu() {
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'/AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
             echo '<button onclick="window.location.href=\'/AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
+
+            // Nur anzeigen, wenn der User einer AG mit agessen=1 angehört
+            $stmt = mysqli_prepare($conn, "
+                SELECT session 
+                FROM `groups` 
+                WHERE active = 1 
+                AND agessen = 1
+            ");
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $agSessionKey);
+            $showErstattung = false;
+            while (mysqli_stmt_fetch($stmt)) {
+                if (!empty($_SESSION[$agSessionKey])) {
+                    $showErstattung = true;
+                    break;
+                }
+            }
+            mysqli_stmt_close($stmt);
+            if ($showErstattung) {
+                echo '      <button onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
+            }
 
             $infoterminalbuttons = [
                 'weh' => ['label' => 'WEH Infoterminal', 'link' => '/LokiManagement.php'],
@@ -499,6 +530,7 @@ function load_menu() {
                         echo '<button onclick="window.location.href=\'/ProtokollUpload.php\';" style="white-space: nowrap;">Protokoll hochladen</button> ';
                     }
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
                     echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
@@ -520,6 +552,7 @@ function load_menu() {
                 if ($agName === 'Kassenwart') {
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
+                    echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
                     echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/Kassenprüfer.php\';">Kassenprüfer</button> ';
@@ -1750,6 +1783,31 @@ function berechneKontostand(mysqli $conn, int $kasse_id): float {
     return round($summe ?? 0, 2);
 }
 
+
+function formatEinrichtung(string $raw, mysqli $conn): string {
+    // AG-Fall: "ag:<id>"
+    if (strpos($raw, 'ag:') === 0) {
+        $agId = intval(substr($raw, 3));
+        $stmt = mysqli_prepare($conn, "SELECT name FROM `groups` WHERE id = ?");
+        mysqli_stmt_bind_param($stmt, "i", $agId);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $agName);
+        mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+        return $agName ?: $raw;
+    }
+
+    // Etagen-Fall: "etage:<turm>_<nummer>"
+    if (strpos($raw, 'etage:') === 0) {
+        $parts = explode(':', $raw, 2);
+        list($turmCode, $floor) = explode('_', $parts[1], 2);
+        $turmLabel = formatTurm($turmCode);
+        return sprintf("%s %d. Etage", $turmLabel, intval($floor));
+    }
+
+    // Fallback
+    return $raw;
+}
     
 
 echo '<script>
