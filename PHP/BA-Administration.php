@@ -331,8 +331,8 @@ if (auth($conn) && ($_SESSION["WEH-BA"] || $_SESSION["Webmaster"])) {
       $room = $_POST["room"];
       $formatted_turm = ( $_POST['turm'] == 'tvk') ? 'TvK' : strtoupper( $_POST['turm']);
       $pfad = $_POST["pfad"];
-      $starttime = date('d.m.Y', $_POST["tstamp"]);
-      $endtime = date('d.m.Y', $_POST["endtime"]);
+      $starttime = date('d.m.Y h:i', $_POST["tstamp"]);
+      $endtime = date('d.m.Y h:i', $_POST["endtime"]);
 
       if ($_POST["beendet"] == 0) { # Voting läuft noch          
         echo ('<div class="overlay"></div>
