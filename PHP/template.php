@@ -533,7 +533,7 @@ function load_menu() {
                     echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
                     echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
-                    echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
+                    //echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
                     echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken verteilen</button> ';
                 }
@@ -603,8 +603,11 @@ function load_menu() {
         echo '<div class="header-submenu">';
         echo '<button onclick="window.location.href=\'https://www2.weh.rwth-aachen.de\';" style="white-space: nowrap;">Frontend</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/buchen\';">Buchungssystem</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';" style="white-space: nowrap;">WEH-Waschsystem</button> ';
-        echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen-tvk\';" style="white-space: nowrap;">TvK-Waschsystem</button> ';
+        if ($_SESSION['turm'] === 'weh') {
+            echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';" style="white-space: nowrap;">WEH-Waschsystem</button> ';
+        } elseif ($_SESSION['turm'] === 'tvk') {
+            echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen-tvk\';" style="white-space: nowrap;">TvK-Waschsystem</button> ';
+        }
         echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
