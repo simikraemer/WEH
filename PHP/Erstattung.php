@@ -240,7 +240,7 @@ load_menu();
 if (isset($_POST['view_request'])):
     $id = intval($_POST['view_request']);
     $sql = "
-        SELECT e.id, e.uid, u.name, e.tstamp, e.einrichtung, e.betrag, e.iban, e.pfad
+        SELECT e.id, e.uid, u.name, e.tstamp, e.einrichtung, e.betrag, e.iban, e.pfad, u.username, u.turm
         FROM erstattung e
         JOIN users u ON e.uid = u.uid
         WHERE e.id = ? AND e.status = 0
@@ -253,7 +253,8 @@ if (isset($_POST['view_request'])):
     mysqli_stmt_close($stmt);
 
     ?>
-    <!-- Overlay und Modal ohne echo-Strings -->
+
+    <!-- Overlay -->
     <div class="overlay" style="
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.7); z-index: 1000;
@@ -264,6 +265,7 @@ if (isset($_POST['view_request'])):
         background: #1c1c1c; padding: 2em; border: 2px solid #11a50d;
         border-radius: 8px; z-index: 1001; min-width: 400px;
     ">
+        <!-- Close Button -->
         <form method="post" style="text-align: right; margin-bottom: 1em;">
             <button type="submit" name="close_modal" value="1" style="
                 background: transparent; border: none; color: #fff; font-size: 1.2em;
@@ -271,12 +273,68 @@ if (isset($_POST['view_request'])):
             ">✕</button>
         </form>
 
+        <?php
+            // Nutzer-Email bauen
+            $mailto = $req['username'] . '@' . $req['turm'] . '.rwth-aachen.de';
+            // formatiertes Einrichtung-Label
+            $formatted = formatEinrichtung($req['einrichtung'], $conn);
+        ?>
+
         <div style="color: #e0ffe0; font-size: 1em; margin-bottom: 1em;">
-            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($req['name']) ?>')" style="
+            
+            <div style="display: flex; gap: 0.5em; margin-bottom: 1em;">
+                <!-- Link-Button Rechnung -->
+                <a href="<?= htmlspecialchars($req['pfad'], ENT_QUOTES, 'UTF-8') ?>"
+                target="_blank"
+                style="
+                    flex: 1;
+                    padding: 0.5em;
+                    background: #252525;
+                    border: 1px solid #11a50d;
+                    color: #fff;
+                    font-weight: bold;
+                    text-align: center;
+                    text-decoration: none;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    transition: background 0.2s;
+                "
+                onmouseover="this.style.background='#11a50d';"
+                onmouseout="this.style.background='#252525';"
+                >Rechnung ansehen</a>
+
+                <!-- Mailto-Button -->
+                <a href="mailto:<?= htmlspecialchars($mailto, ENT_QUOTES, 'UTF-8') ?>"
+                style="
+                    flex: 1;
+                    padding: 0.5em;
+                    background: #252525;
+                    border: 1px solid #11a50d;
+                    color: #fff;
+                    font-weight: bold;
+                    text-align: center;
+                    text-decoration: none;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    transition: background 0.2s;
+                "
+                onmouseover="this.style.background='#11a50d';"
+                onmouseout="this.style.background='#252525';"
+                >Mail an Nutzer</a>
+            </div>
+
+            <!-- Copy-Buttons in neuer Reihenfolge -->
+            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($req['name'], ENT_QUOTES, 'UTF-8') ?>')" style="
                 display: block; width: 100%; margin-bottom: 0.5em; padding: 0.5em;
                 background: #252525; border: 1px solid #11a50d; color: #fff; font-weight: bold;
                 cursor: pointer;
-            "><?= htmlspecialchars($req['name']) ?></button>
+            "><?= htmlspecialchars($req['name'], ENT_QUOTES, 'UTF-8') ?></button>
+
+            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($req['iban'], ENT_QUOTES, 'UTF-8') ?>')" style="
+                display: block; width: 100%; margin-bottom: 0.5em; padding: 0.5em;
+                background: #252525; border: 1px solid #11a50d; color: #fff; font-weight: bold;
+                cursor: pointer;
+            "><?= htmlspecialchars($req['iban'], ENT_QUOTES, 'UTF-8') ?></button>
 
             <button type="button" onclick="copyToClipboard(this,'<?= number_format($req['betrag'],2,',','.') ?> €')" style="
                 display: block; width: 100%; margin-bottom: 0.5em; padding: 0.5em;
@@ -284,35 +342,14 @@ if (isset($_POST['view_request'])):
                 cursor: pointer;
             "><?= number_format($req['betrag'],2,',','.') ?> €</button>
 
-            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($req['iban']) ?>')" style="
-                display: block; width: 100%; margin-bottom: 0.5em; padding: 0.5em;
+            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') ?>')" style="
+                display: block; width: 100%; margin-bottom: 1em; padding: 0.5em;
                 background: #252525; border: 1px solid #11a50d; color: #fff; font-weight: bold;
                 cursor: pointer;
-            "><?= htmlspecialchars($req['iban']) ?></button>
-
-            <?php
-                // vor dem Button einmalig das Label ermitteln
-                $formatted = formatEinrichtung($req['einrichtung'], $conn);
-            ?>
-            <button
-                type="button"
-                onclick="copyToClipboard(this,'<?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') ?>')"
-                style="
-                    display: block;
-                    width: 100%;
-                    margin-bottom: 1em;
-                    padding: 0.5em;
-                    background: #252525;
-                    border: 1px solid #11a50d;
-                    color: #fff;
-                    font-weight: bold;
-                    cursor: pointer;
-                ">
-                <?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') ?>
-            </button>
-
+            "><?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') ?></button>
         </div>
 
+        <!-- Accept/Decline Formular -->
         <form method="post" style="display: flex; justify-content: space-between;">
             <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
             <input type="hidden" name="reload" value="1">
@@ -613,11 +650,3 @@ makeBarChart('chartAG',  agLabels,  agData,  'AG-Erstattungen (€)', '#007bff')
 
 </script>
 
-<script>
-function copyToClipboard(btn, text) {
-    navigator.clipboard.writeText(text).then(function(){
-        btn.textContent = "✅ " + text;
-        setTimeout(() => btn.textContent = text, 2000);
-    });
-}
-</script>

@@ -48,6 +48,14 @@
             color: #a0ffa0;
         }
 
+        .form-wrapper input,
+        .form-wrapper select,
+        .form-wrapper button {
+            box-sizing: border-box;
+            display: block;
+        }
+
+
         .form-wrapper input[type="file"],
         .form-wrapper input[type="text"],
         .form-wrapper input[type="number"],
@@ -186,16 +194,10 @@ load_menu();
 ?>
 
 <div class="form-wrapper">
-    <h1>Rückerstattung Anschaffungen Etage/AG</h1>
+    <h1>Erstattung Anschaffungen Etage/AG</h1>
     <p>
         <strong>Arbeitsgemeinschaften (AGs)</strong> dürfen ausschließlich Ausgaben geltend machen, die direkt dem Zweck ihrer jeweiligen AG dienen.<br><br>
-        <strong>Etagensprecherinnen und -sprecher</strong> sind berechtigt, Rückerstattungen für Anschaffungen zu beantragen, die auf der genehmigten Whitelist für ihre Etage stehen. Zu den zugelassenen Gegenständen gehören:
-        <ul>
-            <li>Staubsauger</li>
-            <li>Mikrowelle</li>
-            <li>Wasserkocher</li>
-            <li>...</li>
-        </ul>
+        <strong>Etagensprecherinnen und -sprecher</strong> sind berechtigt, Erstattungen für Anschaffungen von Utensilien zu beantragen, die explizit vom Vorstand genehmigt wurden.
     </p>
 
 
@@ -210,7 +212,7 @@ load_menu();
         <input type="number" step="0.01" min="0" name="betrag" id="betrag" placeholder="€" required>
 
 
-        <label for="iban">IBAN für Rückerstattung:</label>
+        <label for="iban">IBAN für Erstattung:</label>
         <input type="text" name="iban" id="iban" placeholder="DE90 3905 0000 1070 3346 00" required>
 
         <label for="einheit">Für welche AG/Etage ist der Kauf?</label>
@@ -231,7 +233,7 @@ load_menu();
             while (mysqli_stmt_fetch($stmt)) {
                 if (!empty($agSessionKey) && !empty($_SESSION[$agSessionKey])) {
                     $label = htmlspecialchars($agName);
-                    echo "<option value=\"ag:$agId\">AG: $label</option>";
+                    echo "<option value=\"ag:$agId\">$label</option>";
                 }
             }
             mysqli_stmt_close($stmt);
@@ -241,7 +243,7 @@ load_menu();
                 $code = $_SESSION["etagensprecher"];
                 $etage = substr($code, 0, -1); // letzte Ziffer abschneiden (1=1. Sprecher, 2=2. Sprecher)
                 $turm = $_SESSION["turm"];
-                $turm_label = formatTurm($turm); // z.B. "Nordturm"
+                $turm_label = formatTurm($turm);
 
                 $value = "etage:{$turm}_{$etage}";
                 $label = "{$turm_label} Etage {$etage}";
