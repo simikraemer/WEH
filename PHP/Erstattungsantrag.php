@@ -194,29 +194,47 @@ load_menu();
 ?>
 
 <div class="form-wrapper">
-    <h1>Erstattung Anschaffungen Etage/AG</h1>
-    <p>
-        <strong>Arbeitsgemeinschaften (AGs)</strong> dürfen ausschließlich Ausgaben geltend machen, die direkt dem Zweck ihrer jeweiligen AG dienen.<br><br>
-        <strong>Etagensprecherinnen und -sprecher</strong> sind berechtigt, Erstattungen für Anschaffungen von Utensilien zu beantragen, die explizit vom Vorstand genehmigt wurden.
+
+    <div style="text-align: center;">
+    <h1 style="color: #11a50d; font-size: 1.8em;">
+        Überweisung beantragen
+    </h1>
+
+    <p style="color: #cccccc; margin-bottom: 1em;">
+        <strong>AGs</strong> dürfen nur zweckgebundene Ausgaben geltend machen.<br>
+        Bei Unsicherheit oder Ausgaben über 50 € vorab den Vorstand kontaktieren.
     </p>
 
+    <p style="color: #cccccc; margin-bottom: 1em;">
+        <strong>Etagensprecher</strong> dürfen nur Erstattungen für die unten aufgeführten Utensilien beantragen und nur wenn der Vorstand zuvor ein Budget freigegeben hat.
+    </p>
+    </div>
+
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5em;">
+      <div style="padding: 0.5em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Wasserkocher</div>
+      <div style="padding: 0.5em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Mikrowelle</div>
+      <div style="padding: 0.5em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Staubsauger</div>
+      <div style="padding: 0.5em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Kaffeemaschine</div>
+      <div style="padding: 0.5em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Insektennetz</div>
+      <div style="padding: 0.5em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Toaster</div>
+    </div>
+
+    <hr style="border: none; border-top: 2px solid #11a50d; margin: 1.3em 0;">
 
     <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="reload" value="1">
+    <input type="hidden" name="reload" value="1">
 
-        <label for="rechnung">Rechnung hochladen (PDF oder Bild):</label>
-        <input type="file" name="rechnung" id="rechnung" accept=".pdf,.jpg,.jpeg,.png" required>
-
+    <div style="display: flex; gap: 1em; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+        <label for="rechnung" style="display: block;">Rechnung hochladen (PDF oder Bild):</label>
+        <input type="file" name="rechnung" id="rechnung" accept=".pdf,.jpg,.jpeg,.png" required
+                style="width: 100%; box-sizing: border-box;">
+        </div>
         
-        <label for="betrag">Preis in Euro:</label>
-        <input type="number" step="0.01" min="0" name="betrag" id="betrag" placeholder="€" required>
-
-
-        <label for="iban">IBAN für Erstattung:</label>
-        <input type="text" name="iban" id="iban" placeholder="DE90 3905 0000 1070 3346 00" required>
-
-        <label for="einheit">Für welche AG/Etage ist der Kauf?</label>
-        <select name="einheit" id="einheit" required>
+        <div style="flex: 1; min-width: 200px;">
+        <label for="einheit" style="display: block;">Für welche AG/Etage ist der Kauf?</label>
+        <select name="einheit" id="einheit" required style="width: 100%; box-sizing: border-box;">
             <option value="">-- Bitte wählen --</option>
             <?php
             // AG-Zugehörigkeiten direkt aus DB holen (active + agessen)
@@ -241,7 +259,7 @@ load_menu();
             // Etagensprecher-Zugriff
             if (!empty($_SESSION["etagensprecher"]) && !empty($_SESSION["turm"])) {
                 $code = $_SESSION["etagensprecher"];
-                $etage = substr($code, 0, -1); // letzte Ziffer abschneiden (1=1. Sprecher, 2=2. Sprecher)
+                $etage = substr($code, 0, -1);
                 $turm = $_SESSION["turm"];
                 $turm_label = formatTurm($turm);
 
@@ -251,9 +269,28 @@ load_menu();
             }
             ?>
         </select>
+        </div>
+    </div>
 
-        <button type="submit">Einreichen</button>
+    <div style="display: flex; gap: 1em; flex-wrap: wrap;">        
+        <div style="flex: 1; min-width: 200px;">
+        <label for="betrag" style="display: block;">Preis in Euro:</label>
+        <input type="number" step="0.01" min="0" name="betrag" id="betrag" placeholder="€" required
+                style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+        <label for="iban" style="display: block;">IBAN für Erstattung:</label>
+        <input type="text" name="iban" id="iban" placeholder="DE90 3905 0000 1070 3346 00" required
+                style="width: 100%; box-sizing: border-box;">
+        </div>
+    </div>
+
+    <button type="submit">
+        Einreichen
+    </button>
     </form>
+
+
 </div>
 </body>
 </html>
