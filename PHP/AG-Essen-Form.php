@@ -145,7 +145,11 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Es müssen mindestens $mindestteilnehmer Teilnehmer an einem AG-Essen teilnehmen!</p>";
                     echo "</div>";
-                } elseif ($betrag > $limit) {                
+                } elseif ($betrag <= 0) {
+                    echo "<div style='text-align: center;'>";
+                    echo "<p style='color:red; text-align:center;'>Der Betrag muss größer als 0 sein!</p>";
+                    echo "</div>";
+                } elseif ($betrag > $limit) {               
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Der Betrag ist zu hoch!
                     <br>Für $count_teilnehmer Teilnehmer ist das Betragslimit bei $limitstring!</p>";
