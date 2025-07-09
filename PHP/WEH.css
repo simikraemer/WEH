@@ -1917,3 +1917,40 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   width: 80%;
   white-space: nowrap;
 }
+
+
+
+
+
+
+
+.ag-toggle-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin: 20px auto;
+    width: 70vw;
+}
+
+.ag-toggle-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    transition: background-color 0.3s ease;
+    min-width: 210px;
+    text-align: center;
+    background-color: #a00; /* default rot */
+}
+
+.ag-toggle-btn.on {
+    background-color: #11a50d;
+}
+
+.ag-toggle-btn:hover {
+    filter: brightness(1.1);
+}

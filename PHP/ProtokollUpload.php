@@ -1,13 +1,102 @@
 <?php
-  session_start();
+session_start();
 ?>
 <!DOCTYPE html>
-<!-- Fiji  -->
+<!-- Fiji -->
 <!-- Für den WEH e.V. -->
 <html>
-    <head>
+<head>
+    <meta charset="UTF-8">
     <link rel="stylesheet" href="WEH.css" media="screen">
-    </head>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .uploadproto-container {
+            max-width: 700px;
+            margin: 40px auto;
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #11a50d;
+        }
+
+        .uploadproto-title {
+            font-size: 30px;
+            text-align: center;
+            color: #11a50d;
+            margin-bottom: 15px;
+        }
+
+        .uploadproto-subtitle {
+            font-size: 22px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .uploadproto-form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .uploadproto-label {
+            display: block;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .uploadproto-input,
+        .uploadproto-select {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background-color: #2a2a2a;
+            color: white;
+        }
+
+        .uploadproto-input[type="file"] {
+            padding: 8px;
+        }
+
+        .uploadproto-button {
+            background-color: #11a50d;
+            color: white;
+            border: none;
+            padding: 14px 26px;
+            font-size: 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: block;
+            margin: 40px auto 0 auto;
+        }
+
+        .uploadproto-button:hover {
+            background-color: #0e8b0a;
+        }
+
+        .uploadproto-message {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        .uploadproto-message.error {
+            color: red;
+        }
+
+        .uploadproto-message.success {
+            color: #11a50d;
+        }
+    </style>
+</head>
+<body>
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
@@ -102,34 +191,33 @@ if (auth($conn) && ($_SESSION["Schrift"] || $_SESSION["Webmaster"])) {
     
 
 
-    echo '<div style="width: 70%; margin: 0 auto; text-align: center;">';
-    echo '<h2 style="text-align: center; font-size: 30px;">Hier kannst du die Protokolle von Versammlungen hochladen.</h2>';
-    echo '<span style="color: white; text-align: center; font-size: 25px;">Nach dem Upload wird das Protokoll direkt veröffentlicht!</span><br><br><br><br>';
-    
-    echo '<form method="post" enctype="multipart/form-data">';
-    echo '<div style="text-align: center; margin-bottom: 15px;">';
-    echo '<label for="type" style="display: inline-block; width: 350px; color: white; font-size: 30px; text-align: left; margin-bottom: 10px;">Versammlungsart:</label>';
-    echo '<select id="type" name="type" style="width: 350px; font-size: 25px;" required>';
-    foreach ($typeStrings as $key => $value) {
-        echo '<option value="' . $key . '">' . $value . '</option>';
-    }
-    echo '</select><br>';
-    echo '</div>';
-    echo '<div style="text-align: center; margin-bottom: 15px;">';
-    echo '<label for="vzeit" style="display: inline-block; width: 350px; color: white; font-size: 30px; text-align: left; margin-bottom: 10px;">Datum der Versammlung:</label>';
-    echo '<input type="date" id="vzeit" name="vzeit" style="width: 350px; font-size: 25px;" required><br>';
-    echo '</div>';
-    echo '<div style="text-align: center; margin-bottom: 15px;">';
-    echo '<label for="file" style="display: inline-block; width: 350px; color: white; font-size: 30px; text-align: left; margin-bottom: 10px;">PDF:</label>';
-    echo '<input type="file" id="file" name="file" style="width: 350px; font-size: 25px;">';
-    echo '</div>';
-    echo '<br><br>';
-    echo '<div style="text-align: center; margin-bottom: 15px;">';
-    echo '<button type="submit" name="sendpost" class="center-btn" style="display: block; margin: 0 auto; font-size: 30px;">Hochladen</button>';
-    echo '</div>';
-    echo '</form>';
-    echo '</div>';
+    ?>
 
+    <div class="uploadproto-container">
+        <h2 class="uploadproto-title">Protokoll hochladen</h2>
+        <p class="uploadproto-subtitle">Nach dem Upload wird das Protokoll direkt veröffentlicht!</p>
+        <form method="post" enctype="multipart/form-data">
+            <div class="uploadproto-form-group">
+                <label for="type" class="uploadproto-label">Versammlungsart:</label>
+                <select id="type" name="type" class="uploadproto-select" required>
+                    <?php foreach ($typeStrings as $key => $value): ?>
+                        <option value="<?php echo $key; ?>"><?php echo $value; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="uploadproto-form-group">
+                <label for="vzeit" class="uploadproto-label">Datum der Versammlung:</label>
+                <input type="date" id="vzeit" name="vzeit" class="uploadproto-input" required>
+            </div>
+            <div class="uploadproto-form-group">
+                <label for="file" class="uploadproto-label">PDF-Datei:</label>
+                <input type="file" id="file" name="file" class="uploadproto-input" required>
+            </div>
+            <button type="submit" name="sendpost" class="uploadproto-button">Hochladen</button>
+        </form>
+    </div>
+
+<?php
 }
 else {
   header("Location: denied.php");

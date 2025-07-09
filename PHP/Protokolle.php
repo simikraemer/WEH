@@ -52,54 +52,89 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
 
     
-    $typeStrings = [
+$typeStrings = [
     0 => "Ordentliche Vollversammlung",
     1 => "Außerordentliche Vollversammlung",
     2 => "Ordentlicher Haussenat",
     3 => "Außerordentlicher Haussenat"
-    ];
+];
 
-    $sql = "SELECT id, type, versammlungszeit, pfad FROM protokolle ORDER BY versammlungszeit DESC";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $id, $type, $vzeit, $path);
+$sql = "SELECT id, type, versammlungszeit, pfad FROM protokolle ORDER BY versammlungszeit DESC";
+$stmt = mysqli_prepare($conn, $sql);
+mysqli_stmt_execute($stmt);
+mysqli_stmt_bind_result($stmt, $id, $type, $vzeit, $path);
+?>
 
-    echo '<table class="grey-table">
+<style>
+    .uploadproto-table {
+        width: 90%;
+        max-width: 900px;
+        margin: 40px auto;
+        border-collapse: collapse;
+        background-color: #1e1e1e;
+        color: white;
+        border: 2px solid #11a50d;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .uploadproto-table th,
+    .uploadproto-table td {
+        padding: 14px 20px;
+        text-align: left;
+        border-bottom: 1px solid #333;
+        font-size: 16px;
+    }
+
+    .uploadproto-table th {
+        background-color: #11a50d;
+        color: #1e1e1e;
+        font-size: 18px;
+    }
+
+    .uploadproto-table tr:hover {
+        background-color: #292929;
+    }
+
+    .uploadproto-trash-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .uploadproto-trash-icon {
+        width: 24px;
+        height: 24px;
+    }
+</style>
+
+<table class="uploadproto-table">
     <tr>
-      <th>Veranstaltung</th>
-      <th>Datum</th>';
-    if ($_SESSION["Schrift"]) {
-        echo '<th></th>';
-    }
-    echo '</tr>';
-    
+        <th>Veranstaltung</th>
+        <th>Datum</th>
+        <?php if ($_SESSION["Schrift"]) echo '<th></th>'; ?>
+    </tr>
 
-    while (mysqli_stmt_fetch($stmt)) {
-      echo '<tr onclick="window.open(\'' . $path . '\', \'_blank\')" style="cursor: pointer;">';
-      echo '<td>' . $typeStrings[$type] . '</td>';
-      echo '<td>' . date('d.m.Y', $vzeit) . '</td>';
-      
-      if ($_SESSION["Schrift"]) {
-        echo '<td>';
-        echo '<form method="post" action="" onClick="event.stopPropagation();" style="margin: 0;">';
-        echo '<button type="submit" name="delete_protokoll" value="' . $id . '" style="background: none; border: none; cursor: pointer;">';
-        echo '<img src="images/trash_white.png" 
-          class="animated-trash-icon" 
-          style="width: 24px; height: 24px;">';
-        echo '</button>';
-        echo '</form>';
-        echo '</td>';
-    }
-    
-      
-      echo '</tr>';
-  }
-  
-  
+    <?php while (mysqli_stmt_fetch($stmt)) : ?>
+        <tr onclick="window.open('<?php echo $path; ?>', '_blank')" style="cursor: pointer;">
+            <td><?php echo $typeStrings[$type]; ?></td>
+            <td><?php echo date('d.m.Y', $vzeit); ?></td>
+            <?php if ($_SESSION["Schrift"]) : ?>
+                <td>
+                    <form method="post" action="" onClick="event.stopPropagation();" style="margin: 0;">
+                        <button type="submit" name="delete_protokoll" value="<?php echo $id; ?>" class="uploadproto-trash-button">
+                            <img src="images/trash_white.png" class="uploadproto-trash-icon">
+                        </button>
+                    </form>
+                </td>
+            <?php endif; ?>
+        </tr>
+    <?php endwhile; ?>
+</table>
 
-    echo '</table>';
-
-    mysqli_stmt_close($stmt);
+<?php
+mysqli_stmt_close($stmt);
 
 }
 else {

@@ -16,11 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: " . $_SERVER['PHP_SELF']);
         exit;
     }
-    if (isset($_POST["agsession"]) && isset($_POST["reload"]) && $_POST["reload"] == 1) {
-        $selectedAG = $_POST["ag"];
-        $_SESSION[$selectedAG] = true;
+    if (isset($_POST["toggle_ag"])) {
+        $sessionKey = $_POST["toggle_ag"];
+        $_SESSION[$sessionKey] = !isset($_SESSION[$sessionKey]) || !$_SESSION[$sessionKey];
 
-        // Umleitung, um das erneute Senden von POST-Daten zu verhindern
+        // Umleitung zur Vermeidung von POST-Resubmission
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     }
@@ -101,29 +101,37 @@ if (auth($conn) && $_SESSION["Webmaster"]) {
     <div style="margin-top: 40px;"></div>
 
     <body>
-        <div style="margin: 0 auto; text-align: center;">            
-            <h2 style="color: white;">AG-Session aktivieren</h2>
-        </div><br>
+
     
-        <!-- Auswahl für AG-Zugehörigkeit -->
-        <div style="text-align: center;display: flex; justify-content: center;">
-            <form method="POST" action="">
-                <select name="ag" style="font-size:20px; text-align: center;" id="ag">
-                    <?php foreach ($ag_complete as $num => $data) : ?>
-                        <option value="<?php echo $data["session"]; ?>"><?php echo $data["name"]; ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <input type="hidden" name="reload" value="1">
-                <br><br>
-                <button type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;" name="agsession">Session setzen</button>
-            </form>
-        </div>
+
+
+
+
+<div class="ag-toggle-container">
+    <?php foreach ($ag_complete as $num => $data) : 
+        $isActive = isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] === true;
+        ?>
+        <form method="POST" action="">
+            <input type="hidden" name="toggle_ag" value="<?php echo htmlspecialchars($data["session"]); ?>">
+            <button 
+                type="submit" 
+                class="ag-toggle-btn <?php echo $isActive ? 'on' : ''; ?>">
+                <?php echo htmlspecialchars($data["name"]); ?>
+            </button>
+        </form>
+    <?php endforeach; ?>
+</div>
+
+
+
+
+
 
         <div style="margin-bottom: 30px;"></div>
         <hr>
         <div style="margin-top: 40px;"></div>
 
-        <!-- Tabelle mit allen aktiven Sessions und Button zum Zurücksetzen -->
+        <!-- Tabelle mit allen aktiven Sessions und Button zum Zurücksetzen
         <div style="text-align: center;">
             <h2 style="color: white;">AG-Sessions deaktivieren</h2>
             <table style="margin: 0 auto; color: white; font-size: 18px; border-collapse: collapse; text-align: center;">
@@ -156,7 +164,7 @@ if (auth($conn) && $_SESSION["Webmaster"]) {
 
         <div style="margin-bottom: 30px;"></div>
         <hr>
-        <div style="margin-top: 40px;"></div>
+        <div style="margin-top: 40px;"></div> -->
 
         <div style="text-align: center;">
             <h2 style="color: white;">Nonchalante Übersicht aller Session Variablen</h2>

@@ -282,20 +282,106 @@ if (auth($conn) && $_SESSION['valid']) {
 
 
 
-   
-    // Dropdown nur für das Jahr mit GET-Methode
-    echo '<div style="text-align: center;">';
+    ?>
+    <style>
+        .bapolls-dropdown-wrapper {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-    $datedropdownsize = "25px";
+        .bapolls-year-select {
+            font-size: 25px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #11a50d;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
 
-    // Aktuelles Jahr
-    $currentYear = date('Y');
+.bapolls-table {
+    width: 90%;
+    max-width: 1000px;
+    margin: 40px auto;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: #181818;
+    color: #ffffff;
+    border: 2px solid #11a50d;
+    border-radius: 12px;
+    table-layout: fixed;
+}
 
-    // Ausgewähltes Jahr festlegen
-    $selectedYear = isset($_GET['year']) ? $_GET['year'] : $currentYear;
+.bapolls-table th,
+.bapolls-table td {
+    padding: 20px;
+    font-size: 18px;
+    text-align: center;
+    border-bottom: 1px solid #2c2c2c;
+    word-wrap: break-word;
+}
 
+.bapolls-table th {
+    background-color: #11a50d;
+    color: #181818;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Feste Spaltenbreiten für perfekte Zentrierung */
+.bapolls-table th:nth-child(1),
+.bapolls-table td:nth-child(1) {
+    width: 33.3%;
+}
+.bapolls-table th:nth-child(2),
+.bapolls-table td:nth-child(2) {
+    width: 33.3%;
+}
+.bapolls-table th:nth-child(3),
+.bapolls-table td:nth-child(3) {
+    width: 33.3%;
+}
+
+.bapolls-table tr:last-child td {
+    border-bottom: none;
+}
+
+.bapolls-table tr:hover td {
+    background-color: #2e2e2e;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.bapolls-row-open td {
+    background-color: rgba(17, 165, 13, 0.12);
+}
+
+.bapolls-row-closed td {
+    background-color: #202020;
+}
+
+.bapolls-table th:first-child {
+    border-top-left-radius: 10px;
+}
+.bapolls-table th:last-child {
+    border-top-right-radius: 10px;
+}
+.bapolls-table tr:last-child td:first-child {
+    border-bottom-left-radius: 10px;
+}
+.bapolls-table tr:last-child td:last-child {
+    border-bottom-right-radius: 10px;
+}
+
+
+
+
+    </style>
+
+    <?php
+    echo '<div class="bapolls-dropdown-wrapper">';
     echo '<form method="get">';
-    echo '<select name="year" onchange="this.form.submit()" style="font-size: ' . $datedropdownsize . '; padding: 5px;">';
+    echo '<select name="year" onchange="this.form.submit()" class="bapolls-year-select">';
+    $currentYear = date('Y');
+    $selectedYear = isset($_GET['year']) ? $_GET['year'] : $currentYear;
     for ($y = $currentYear - 5; $y <= $currentYear; $y++) {
         $selected = ($y == $selectedYear) ? 'selected' : '';
         echo "<option value='$y' $selected>$y</option>";
@@ -304,23 +390,15 @@ if (auth($conn) && $_SESSION['valid']) {
     echo '</form>';
     echo '</div>';
 
-    // Abstand zwischen dem Dropdown und der Tabelle mit Inline-CSS
-    echo '<div style="margin-top: 20px;"></div>';
-
-    // Datenbankabfrage und Tabelle anzeigen
-    if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($selectedYear)) {
-        $year = (int) $selectedYear;
-    } else {
-        $year = (int) $currentYear;
-    }
+    // Query & Darstellung
+    $year = (int) $selectedYear;
 
     $sql = "SELECT id, uid, tstamp, anzahl_kandidaten, endtime, room, turm, pfad, beendet 
-        FROM bapolls 
-        WHERE YEAR(FROM_UNIXTIME(tstamp)) = ? AND turm = ? AND room BETWEEN ? AND ?
-        ORDER BY beendet, room, tstamp";
+            FROM bapolls 
+            WHERE YEAR(FROM_UNIXTIME(tstamp)) = ? AND turm = ? AND room BETWEEN ? AND ?
+            ORDER BY beendet, room, tstamp";
     $stmt = mysqli_prepare($conn, $sql);
 
-    // Berechne den Zimmerbereich für die Etage
     $room_start = $floor * 100;
     $room_end = ($floor * 100) + 99;
 
@@ -328,43 +406,39 @@ if (auth($conn) && $_SESSION['valid']) {
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
 
-      
-      echo '<table class="grey-table" style="margin: 0 auto; text-align: center;">';
-      echo "<tr>
-              <th>Turm</th>
-              <th>Raum</th>
-              <th>Datum</th>
-          </tr>";
-      
-      while ($row = mysqli_fetch_assoc($result)) {
-          $date = date('d.m.Y', $row['tstamp']);
-          $formatted_turm = ($row['turm'] == 'tvk') ? 'TvK' : strtoupper($row['turm']);
-          $row_color = ($row['beendet'] == 1) ? '#333' : '#0b7309';
-          $id = $row['id']; // Benötigt, um das Formular zu identifizieren
-          
-          echo "<tr style='cursor: pointer;' onclick='document.getElementById(\"form_$id\").submit();'>";
-          
-          echo "<td style='background-color: $row_color;'>$formatted_turm</td>";
-          echo "<td style='background-color: $row_color;'>{$row['room']}</td>";
-          echo "<td style='background-color: $row_color;'>$date</td>";
-          
-          echo "</tr>";
-          
-      
-          // Das unsichtbare Formular direkt nach der Zeile einfügen
-          echo "<form method='POST' style='display: none;' id='form_$id'>
-              <input type='hidden' name='selected_belegung' value='{$row['id']}'>
-              <input type='hidden' name='uid' value='{$row['uid']}'>
-              <input type='hidden' name='tstamp' value='{$row['tstamp']}'>
-              <input type='hidden' name='endtime' value='{$row['endtime']}'>
-              <input type='hidden' name='anzahl_kandidaten' value='{$row['anzahl_kandidaten']}'>
-              <input type='hidden' name='room' value='{$row['room']}'>
-              <input type='hidden' name='turm' value='{$row['turm']}'>
-              <input type='hidden' name='pfad' value='{$row['pfad']}'>
-              <input type='hidden' name='beendet' value='{$row['beendet']}'>
-          </form>";
-      }
-      echo "</table>";
+    echo '<table class="bapolls-table">';
+    echo "<tr>
+            <th>Turm</th>
+            <th>Raum</th>
+            <th>Datum</th>
+        </tr>";
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        $date = date('d.m.Y', $row['tstamp']);
+        $formatted_turm = ($row['turm'] == 'tvk') ? 'TvK' : strtoupper($row['turm']);
+        $id = $row['id'];
+        $rowClass = $row['beendet'] == 1 ? 'bapolls-row-closed' : 'bapolls-row-open';
+
+        echo "<tr class='$rowClass' style='cursor: pointer;' onclick='document.getElementById(\"form_$id\").submit();'>";
+        echo "<td>$formatted_turm</td>";
+        echo "<td>{$row['room']}</td>";
+        echo "<td>$date</td>";
+        echo "</tr>";
+
+        echo "<form method='POST' style='display: none;' id='form_$id'>
+            <input type='hidden' name='selected_belegung' value='{$row['id']}'>
+            <input type='hidden' name='uid' value='{$row['uid']}'>
+            <input type='hidden' name='tstamp' value='{$row['tstamp']}'>
+            <input type='hidden' name='endtime' value='{$row['endtime']}'>
+            <input type='hidden' name='anzahl_kandidaten' value='{$row['anzahl_kandidaten']}'>
+            <input type='hidden' name='room' value='{$row['room']}'>
+            <input type='hidden' name='turm' value='{$row['turm']}'>
+            <input type='hidden' name='pfad' value='{$row['pfad']}'>
+            <input type='hidden' name='beendet' value='{$row['beendet']}'>
+        </form>";
+    }
+    echo "</table>";
+    mysqli_stmt_close($stmt);
       
 
 
