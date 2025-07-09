@@ -69,13 +69,13 @@ def happybirthday():
                 print(f"🎉 Benutzer {username} hat heute Geburtstag!")
 
                 try:
-#                    mail(firstname, username, turm)
+                    mail(firstname, username, turm)
                     print(f"✅ Geburtstagsmail an {username} gesendet.")
                 except Exception as e:
                     print(f"⚠️ Fehler beim Senden der Mail an {username}: {e}")
 
                 try:
-#                    waschmarke(uid)
+                    waschmarke(uid)
                     print(f"✅ Waschmarke für {username} vergeben.")
                 except Exception as e:
                     print(f"⚠️ Fehler beim Setzen der Waschmarke für {username}: {e}")
