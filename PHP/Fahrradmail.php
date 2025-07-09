@@ -20,7 +20,7 @@ if (auth($conn) && ($_SESSION["FahrradAG"] || $_SESSION["Webmaster"])) {
     $mailserverIP = $mailconfig['ip'];
     
     if (isset($_POST["sendmail"])) {
-        $sql = "SELECT CONCAT(users.username, '@weh.rwth-aachen.de') AS email FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.platz > 0";
+        $sql = "SELECT CONCAT(users.username, '@weh.rwth-aachen.de') AS email FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.platz > 0 AND turm = 'weh'";
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_store_result($stmt);
