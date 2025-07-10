@@ -8,7 +8,7 @@ import random
 from fcol import send_mail
 from fcol import connect_weh
 
-DEBUG = True
+DEBUG = False
     
 def clean_bike_storage(ends, turm):
     if DEBUG:
