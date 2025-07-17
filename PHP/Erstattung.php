@@ -342,11 +342,11 @@ if (isset($_POST['view_request'])):
                 cursor: pointer;
             "><?= number_format($req['betrag'],2,',','.') ?> €</button>
 
-            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') ?>')" style="
+            <button type="button" onclick="copyToClipboard(this,'<?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') . ' Erstattung' ?>')" style="
                 display: block; width: 100%; margin-bottom: 1em; padding: 0.5em;
                 background: #252525; border: 1px solid #11a50d; color: #fff; font-weight: bold;
                 cursor: pointer;
-            "><?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') ?></button>
+            "><?= htmlspecialchars($formatted, ENT_QUOTES, 'UTF-8') . ' Erstattung' ?></button>
         </div>
 
         <!-- Accept/Decline Formular -->
