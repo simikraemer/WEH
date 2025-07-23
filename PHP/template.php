@@ -435,7 +435,7 @@ function load_menu() {
             echo '</div>';
         }
 
-        if (!$_SESSION["aktiv"] && $_SESSION["etagensprecher"] > 0) {
+        if (!$_SESSION["aktiv"] && $_SESSION["etagensprecher"] > 0 && $_SESSION["turm"] == 'weh' ) {
             echo '<div class="header-menu">';
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn" onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">Etagensprecher</button>';
