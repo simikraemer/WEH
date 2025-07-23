@@ -120,12 +120,14 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     $iban = '';
                 }
                 
-                if(isset($_POST['bar'])) {
-                    $bar = $_POST['bar'];
-                    if ($bar != "Bar 0") {
-                        $iban = $bar;
+                if (isset($_POST['barkasseCheckbox']) && $_POST['barkasseCheckbox'] == '1') {
+                    if (isset($_POST['bar']) && $_POST['bar'] != "") {
+                        $iban = $_POST['bar']; // z.B. "Bar 93"
+                    } else {
+                        $iban = ''; // leer lassen → führt zur Fehlermeldung unten
                     }
                 }
+
                 $betrag = $_POST['betrag'];
                 $betragstring = number_format($betrag, 2, ',', '.') . ' €';
                 $teilnehmer_array = $_POST['selected_users'];
@@ -364,7 +366,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '</select>';
             echo '</div>';            
 
-            echo '<input type="checkbox" id="barkasseCheckbox" onclick="toggleIBAN()" style="color: white;"> <label for="barkasseCheckbox" style="color: white;">Von Barkasse bezahlt</label>';
+            echo '<input type="checkbox" id="barkasseCheckbox" name="barkasseCheckbox" value="1" onclick="toggleIBAN()" style="color: white;"> <label for="barkasseCheckbox" style="color: white;">Von Barkasse bezahlt</label>';
             echo "<br><br>";
         }
 
