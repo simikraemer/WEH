@@ -219,6 +219,8 @@ load_menu();
       <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Insektennetz</div>
       <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Toaster</div>
       <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Airfryer/Fritteuse</div>
+      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Mixer</div>
+      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Wischmopp</div>
     </div>
 
     <hr style="border: none; border-top: 2px solid #11a50d; margin: 1.3em 0;">
