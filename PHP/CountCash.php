@@ -65,6 +65,11 @@ session_start();
             color: #e11d48;
         }
 
+        .status-unsicher {
+            color: #eab308; /* Gelb */
+        }
+
+
 
         .gesamt-summe {
             font-size: 50px;
@@ -248,18 +253,21 @@ function aktualisiereAnzeige() {
     document.getElementById('vergleich_ist').textContent = format.format(ist) + " €";
     document.getElementById('vergleich_diff').textContent = format.format(diff) + " €";
 
-
     const status = document.getElementById('vergleich_status');
+    status.classList.remove('status-falsch', 'status-richtig', 'status-unsicher');
+
     if (Math.abs(diff) <= 0.01) {
         status.textContent = "✔️";
-        status.classList.remove('status-falsch');
         status.classList.add('status-richtig');
+    } else if (Math.abs(diff) <= 1.00) {
+        status.textContent = "🧐";
+        status.classList.add('status-unsicher');
     } else {
         status.textContent = "❌";
-        status.classList.remove('status-richtig');
         status.classList.add('status-falsch');
     }
 }
+
 
 function updateWert(w) {
     const feld = document.getElementById('anzahl_' + w);
