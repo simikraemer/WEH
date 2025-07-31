@@ -449,8 +449,23 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
     jahr = date.year
     monat = f"{date.month:02d}"
 
-    filename = f"kassenausgleich_{jahr}_{monat}.pdf"
-    full_path = os.path.join(pfad, filename)
+    base_filename = f"kassenausgleich_{jahr}_{monat}.pdf"
+    if DEBUG:
+        base_filename = f"DEBUG_{base_filename}"
+
+    full_path = os.path.join(pfad, base_filename)
+    filename = base_filename
+
+    # Wenn Datei existiert, Nummer anhängen (_1, _2, ...)
+    if os.path.exists(full_path):
+        name, ext = os.path.splitext(base_filename)
+        counter = 1
+        while True:
+            filename = f"{name}_{counter}{ext}"
+            full_path = os.path.join(pfad, filename)
+            if not os.path.exists(full_path):
+                break
+            counter += 1
 
     gesamt = hausbeitrag + netzbeitrag + waschmarkenbetrag
     hausgesamt = hausbeitrag + waschmarkenbetrag - wohnzimmerabos
