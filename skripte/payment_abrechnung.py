@@ -434,15 +434,33 @@ def kassenausgleichinsert(zeit, betrag, pfad):
 
 
 def get_waschmarkensumme_fuer_monat(cursor, zeit):
-    # Monatsanfang berechnen
     lt = time.localtime(zeit)
-    anfang_monat = time.mktime((lt.tm_year, lt.tm_mon, 1, 0, 0, 0, 0, 0, -1))
+
+    # Wenn aktueller Monat ist Januar → zurück ins Vorjahr
+    if lt.tm_mon == 1:
+        jahr = lt.tm_year - 1
+        monat = 12
+    else:
+        jahr = lt.tm_year
+        monat = lt.tm_mon - 1
+
+    anfang_vormonat = time.mktime((jahr, monat, 1, 0, 0, 0, 0, 0, -1))
+    anfang_vormonat_int = int(anfang_vormonat)
+
     sql = "SELECT SUM(betrag) FROM transfers WHERE konto = 6 AND tstamp >= %s"
-    var = (int(anfang_monat),)
+    var = (anfang_vormonat_int,)
     cursor.execute(sql, var)
     neg_summe = cursor.fetchone()[0]
     summe = (-1) * neg_summe if neg_summe is not None else 0
+
+    if DEBUG:
+        readable = datetime.datetime.fromtimestamp(anfang_vormonat_int).strftime("%Y-%m-%d %H:%M:%S")
+        print(f"DEBUG: Waschmarken-SQL: tstamp >= {anfang_vormonat_int} ({readable})")
+        print(f"DEBUG: Waschmarken-Summe: {summe:.2f} €")
+
     return summe
+
+
 
 def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenbetrag, wohnzimmerabos, pfad="/WEH/PHP/kassenausgleich/"):
     date = datetime.datetime.fromtimestamp(timestamp)
