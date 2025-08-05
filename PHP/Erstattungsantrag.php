@@ -101,7 +101,54 @@ if (!$berechtigt) {
 }
 
 
+$turm = $_SESSION['turm'] ?? null;
+$floor = $_SESSION['floor'] ?? null;
+$betragGenehmigt = 0.0;
+$betragInBearbeitung = 0.0;
 
+if (in_array($turm, ['weh', 'tvk']) && is_numeric($floor)) {
+    $einrichtungsKey = sprintf('etage:%s_%d', $turm, intval($floor));
+
+    // Genehmigte Beträge (status = 1)
+    $sql = "
+        SELECT SUM(e.betrag) AS summe
+        FROM erstattung e
+        WHERE e.status = 1
+          AND e.einrichtung = ?
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, 's', $einrichtungsKey);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $betragGenehmigt);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    // In Bearbeitung (status = 0)
+    $sql = "
+        SELECT SUM(e.betrag) AS summe
+        FROM erstattung e
+        WHERE e.status = 0
+          AND e.einrichtung = ?
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, 's', $einrichtungsKey);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $betragInBearbeitung);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+}
+
+
+$sql = "
+    SELECT wert
+    FROM constants
+    WHERE name = 'flooractionbudget'
+    LIMIT 1
+";
+$res = mysqli_query($conn, $sql);
+if ($row = mysqli_fetch_assoc($res)) {
+    $flooractionbudget = (float)$row['wert'];
+}
 
   
 if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
@@ -196,32 +243,72 @@ load_menu();
 <div class="form-wrapper">
 
     <div style="text-align: center;">
-    <h1 style="color: #11a50d; font-size: 1.8em;">
-        Überweisung beantragen
-    </h1>
+    
+    <h1> Kostenerstattung beantragen </h1>
 
-    <p style="color: #cccccc; margin-bottom: 1em;">
-        <strong>AGs</strong> dürfen nur zweckgebundene Ausgaben geltend machen.<br>
-        Bei Unsicherheit oder Ausgaben über 50 € vorab den Vorstand kontaktieren.
-    </p>
+    <?php
+    $isEtagensprecher = !empty($_SESSION['etagensprecher']) && $_SESSION['etagensprecher'] > 0;
+    $isAG = !empty($_SESSION['aktiv']) && $_SESSION['aktiv'] === true;
+    ?>
 
-    <p style="color: #cccccc; margin-bottom: 1em;">
-        <strong>Etagensprecher</strong> dürfen nur Erstattungen für die unten aufgeführten Utensilien beantragen und nur wenn der Vorstand zuvor ein Budget freigegeben hat.
-    </p>
-    </div>
+    <?php if ($isAG): ?>
+        <!-- AB HIER AG -->
+        <p style="color: #cccccc; margin-bottom: 1em;">
+            <strong>AGs</strong> dürfen nur zweckgebundene Ausgaben geltend machen.<br>
+            Bei Unsicherheit bitte vorab den Vorstand kontaktieren.
+        </p>
+    <?php endif; ?>
 
+    <?php if ($isEtagensprecher || $_SESSION["uid"] == 2136): ?>
+        <!-- AB HIER etagensprecher -->
+        <p style="color: #cccccc; margin-top: -0.5em; margin-bottom: 1.5em;">
+            <strong>Etagensprecher</strong> können ausschließlich diese ausgewählten Artikel beantragen:
+        </p>
 
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5em;">
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Wasserkocher</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Mikrowelle</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Staubsauger</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Kaffeemaschine</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Insektennetz</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Toaster</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Airfryer/Fritteuse</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Mixer</div>
-      <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Wischmopp</div>
-    </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5em;">
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Wasserkocher</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Mikrowelle</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Staubsauger</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Kaffeemaschine</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Fliegengitter</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Toaster</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Airfryer</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Mixer</div>
+            <div style="padding: 0.3em; border: 1px solid #11a50d; border-radius: 4px; text-align: center;">Wischmopp</div>
+        </div>
+
+        <?php $betragOffen = max(0, $flooractionbudget - $betragGenehmigt - $betragInBearbeitung); ?>
+        <br>
+        <p style="color: #cccccc;">
+            <div style="text-align: center;">
+                <div style="margin-bottom: 0.3em; font-weight: bold;">
+                    Etage <?= $floor ?> <?= formatTurm($turm) ?>
+                </div>
+                <table cellspacing="0" style="margin: 0 auto;">
+                    <tr>
+                        <td style="text-align: left; padding-right: 2em;">Gesamt</td>
+                        <td style="text-align: right; padding-left: 2em;"><strong><?= number_format($flooractionbudget, 2, ',', '.') ?> €</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; padding-right: 2em;">Genehmigte Anträge</td>
+                        <td style="text-align: right; padding-left: 2em;">- <?= number_format($betragGenehmigt, 2, ',', '.') ?> €</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; padding-right: 2em;">In Bearbeitung</td>
+                        <td style="text-align: right; padding-left: 2em;">- <?= number_format($betragInBearbeitung, 2, ',', '.') ?> €</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><hr style="border: none; border-top: 1px solid #555;"></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; padding-right: 2em;">Verfügbares Budget</td>
+                        <td style="text-align: right; padding-left: 2em;"><strong><?= number_format($betragOffen, 2, ',', '.') ?> €</strong></td>
+                    </tr>
+                </table>
+
+            </div>
+        </p>
+    <?php endif; ?>
 
     <hr style="border: none; border-top: 2px solid #11a50d; margin: 1.3em 0;">
 
@@ -288,6 +375,7 @@ load_menu();
         </div>
     </div>
 
+    <br>
     <button type="submit">
         Einreichen
     </button>

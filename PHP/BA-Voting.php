@@ -346,12 +346,12 @@ if (auth($conn) && $_SESSION['valid']) {
 }
 
 .bapolls-table tr:hover td {
-    background-color: #2e2e2e;
+    background-color: #11a50d;
     transition: background-color 0.15s ease-in-out;
 }
 
 .bapolls-row-open td {
-    background-color: rgba(17, 165, 13, 0.12);
+    background-color:rgb(70, 70, 70);
 }
 
 .bapolls-row-closed td {
@@ -396,7 +396,7 @@ if (auth($conn) && $_SESSION['valid']) {
     $sql = "SELECT id, uid, tstamp, anzahl_kandidaten, endtime, room, turm, pfad, beendet 
             FROM bapolls 
             WHERE YEAR(FROM_UNIXTIME(tstamp)) = ? AND turm = ? AND room BETWEEN ? AND ?
-            ORDER BY beendet, room, tstamp";
+            ORDER BY beendet, tstamp DESC, room";
     $stmt = mysqli_prepare($conn, $sql);
 
     $room_start = $floor * 100;
