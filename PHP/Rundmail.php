@@ -216,6 +216,10 @@ if (auth($conn) && $_SESSION['valid']) {
       }
       echo '</select><br>';
 
+      echo '<div id="essential-info" style="display: none; margin-top: 10px; color: #ffcc00; font-size: 18px;">
+        Hinweis: Diese Mail wird zusätzlich <strong>auf der öffentlichen Vereinswebseite</strong> publiziert.
+      </div>';
+
       if ($hasAgMembership) {
         echo '<label for="replyto" style="color: white; font-size: 25px; cursor: help;" title="Recipients will send replies to the chosen AG instead of the sender.">Reply-To: </label>';
         echo '<select id="replyto" name="replyto" style="margin-top: 20px; font-size: 20px;" required>';
@@ -279,5 +283,25 @@ function post2frontend($titel, $body) {
 }
 
 ?>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const addressSelect = document.getElementById('address');
+    const infoBox = document.getElementById('essential-info');
+
+    function checkEssentialNotice() {
+      const val = addressSelect.value;
+      if (val === 'essential' || val === 'tvk-essential' || val === 'weh-essential') {
+        infoBox.style.display = 'block';
+      } else {
+        infoBox.style.display = 'none';
+      }
+    }
+
+    addressSelect.addEventListener('change', checkEssentialNotice);
+    checkEssentialNotice(); // Initialer Aufruf für voreingestellten Wert
+  });
+</script>
+
 </body>
 </html>
