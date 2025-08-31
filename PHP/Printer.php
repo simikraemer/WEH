@@ -151,7 +151,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 $output .= '<input type="hidden" name="step" value="dokument_upload">';
 
                 $druckerTurm = strtolower($d["turm"]);
-                $istTurmdesUsers = ($druckerTurm === $nutzerTurm || $_SESSION["uid"] == 2626);
+                #$istTurmdesUsers = ($druckerTurm === $nutzerTurm || $_SESSION["uid"] == 2626);
+                // TEMPORÄR ZUGRIFF FÜR TVK AKTIVIERT, SOLANGE TVK KEINE DRUCKER AKTIV HAT
+                $istTurmdesUsers = true;
                 $style = ($istTurmdesUsers && $printer_ready) ? "" : "opacity: 0.5; pointer-events: none;";
                 
                 $output .= '<button type="submit" class="printer_button printer_flex_button" style="' . $style . '">';
