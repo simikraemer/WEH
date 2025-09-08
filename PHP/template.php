@@ -379,11 +379,11 @@ function load_menu() {
 
 
             # Seiten im Aufbau ##
-            //echo '<div class="header-menu">';
-            //echo '<div class="header-menu-item">';
-            //echo '<button class="center-btn" onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">DEV</button>';
-            //echo '</div>';
-            //echo '</div>';
+            echo '<div class="header-menu">';
+            echo '<div class="header-menu-item">';
+            echo '<button class="center-btn" onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">DEV</button>';
+            echo '</div>';
+            echo '</div>';
 
 
             echo '<div class="header-menu">';
