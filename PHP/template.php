@@ -379,11 +379,11 @@ function load_menu() {
 
 
             # Seiten im Aufbau ##
-            echo '<div class="header-menu">';
-            echo '<div class="header-menu-item">';
-            echo '<button class="center-btn" onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">DEV</button>';
-            echo '</div>';
-            echo '</div>';
+            #echo '<div class="header-menu">';
+            #echo '<div class="header-menu-item">';
+            #echo '<button class="center-btn" onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">DEV</button>';
+            #echo '</div>';
+            #echo '</div>';
 
 
             echo '<div class="header-menu">';
@@ -530,7 +530,8 @@ function load_menu() {
                     }
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
                     echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
-                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
+                    echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
                     //echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
@@ -540,7 +541,8 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
-                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
+                    echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
                     echo '<button onclick="window.location.href=\'/NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
@@ -560,10 +562,12 @@ function load_menu() {
                 if ($agName === 'WEH-BA') {                                        
                     echo '<button onclick="window.location.href=\'/BA-Administration.php\';" style="white-space: nowrap;">Belegung</button> ';
                     echo '<button onclick="window.location.href=\'/BA-Voting.php\';" style="white-space: nowrap;">Neueinzieher Voting</button> ';
-                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
+                    echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                 }
                 if ($agName === 'TvK-BA') {                                        
-                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie</button>';
+                    echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
+                    echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                 }
                 if ($agName === 'WEH-WaschAG') {
                     echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
