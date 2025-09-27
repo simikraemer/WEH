@@ -39,7 +39,7 @@ LOCAL_DIR="/WEH/PHP/anmeldung/"
 
 # Überprüfung, ob das lokale Verzeichnis existiert
 if [ ! -d "$LOCAL_DIR" ]; then
-    echo "[INFO] Lokales Verzeichnis $LOCAL_DIR existiert nicht – wird erstellt..."
+    echo "[INFO] Lokales Verzeichnis $LOCAL_DIR existiert nicht - wird erstellt..."
     mkdir -p "$LOCAL_DIR"
 fi
 
@@ -48,7 +48,7 @@ echo "[INFO] Überprüfe, ob Dateien vorhanden sind auf $HOST..."
 SSH_CHECK=$(ssh -i "$KEYFILE" -p "$PORT" "$USERNAME@$HOST" "ls -1 $REMOTE_DIR 2>/dev/null | wc -l")
 
 if [ "$SSH_CHECK" -eq 0 ]; then
-    echo "[✓] Keine neuen Dateien zum Übertragen – Skript beendet."
+    echo "[✓] Keine neuen Dateien zum Übertragen - Skript beendet."
     exit 0
 fi
 

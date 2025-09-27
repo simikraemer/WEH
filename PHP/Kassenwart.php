@@ -315,7 +315,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
         # -------------------------------------------------
 
 
-        // 💰 Hausbudget (Hauskonto + Barkassen – Rücklagen)
+        // 💰 Hausbudget (Hauskonto + Barkassen - Rücklagen)
         $hausbudget =
             $onlinekassen[92]["summe"]     // Hauskonto
             - $rücklagen_haus              // Rücklagen für Notfälle (Waschmaschinen, etc.)
@@ -323,7 +323,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Vorstand"] || $_SESSION
             + $barkassen[94]["summe"]      // Kassenwart II
             + $barkassen[95]["summe"];     // Tresor
 
-        // 🌐 Netzbudget (Netzkonto + Barkassen + PayPal – Rücklagen – Userguthaben)
+        // 🌐 Netzbudget (Netzkonto + Barkassen + PayPal - Rücklagen - Userguthaben)
         $netzbudget =
             $onlinekassen[72]["summe"]     // Netzkonto
             + $barkassen[1]["summe"]       // Netzkasse I

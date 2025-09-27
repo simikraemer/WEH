@@ -748,7 +748,23 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
   } elseif (isset($_POST["ehre"])) {
 
-    $query = "SELECT uid, CASE WHEN pid = 11 THEN room ELSE oldroom END AS room, turm, firstname, lastname, username, ausgezogen FROM users WHERE honory = 1 ORDER BY ausgezogen";
+$query = "
+SELECT 
+    uid, 
+    CASE WHEN pid = 11 THEN room ELSE oldroom END AS room, 
+    turm, 
+    firstname, 
+    lastname, 
+    username, 
+    ausgezogen AS tstamp
+FROM users
+WHERE honory = 1
+ORDER BY 
+    CASE WHEN pid in (11,12) THEN 0 ELSE 1 END,
+    CASE WHEN pid in (11,12) THEN starttime END ASC,
+    CASE WHEN pid <> 11 THEN ausgezogen END DESC
+";
+
     renderCustomUserTable($conn, $query, "Ausgezogen", true);  
 
   } elseif (isset($_POST["dummy"]) || isset($_POST["createNewDummy"])){

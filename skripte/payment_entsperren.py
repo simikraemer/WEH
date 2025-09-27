@@ -51,12 +51,12 @@ def checkpayment(DEBUG=True):
     for uid, name, username, turm in bewohner:
         rest = guthaben_map.get(uid, 0.0)
         if DEBUG:
-            print(f"[DEBUG] Prüfe UID {uid} – Name: {name}, Guthaben: {rest:.2f}€")
+            print(f"[DEBUG] Prüfe UID {uid} - Name: {name}, Guthaben: {rest:.2f}€")
         if rest + 0.01 > 0:
             if DEBUG:
                 print(f"[DEBUG] → Entsperren vorbereitet: UID {uid}")
             else:
-                print(f"[✓] Entsperrt: {name} (UID {uid}) – Guthaben: {rest:.2f}€")
+                print(f"[✓] Entsperrt: {name} (UID {uid}) - Guthaben: {rest:.2f}€")
 
             if not DEBUG:
                 cursor.execute("""
@@ -72,9 +72,9 @@ def checkpayment(DEBUG=True):
 
             entsperrt += 1
         else:
-            print(f"[✗] Noch gesperrt: {name} (UID {uid}) – Guthaben: {rest:.2f}€")
+            print(f"[✗] Noch gesperrt: {name} (UID {uid}) - Guthaben: {rest:.2f}€")
 
     db.close()
-    print(f"[INFO] Vorgang abgeschlossen – {entsperrt} Nutzer entsperrt.")
+    print(f"[INFO] Vorgang abgeschlossen - {entsperrt} Nutzer entsperrt.")
 
 checkpayment(DEBUG)

@@ -304,12 +304,12 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     $maxPages = 500;
 
                     if ($pageCount === false) {
-                        echo "<p class='printer_error-message'>Fehler: Die Seitenanzahl von '$fileName' konnte nicht ermittelt werden – ungültiges oder beschädigtes PDF?</p>";
+                        echo "<p class='printer_error-message'>Fehler: Die Seitenanzahl von '$fileName' konnte nicht ermittelt werden - ungültiges oder beschädigtes PDF?</p>";
                         continue;
                     }
 
                     if ($pageCount > $maxPages) {
-                        echo "<p class='printer_error-message'>Fehler: '$fileName' hat zu viele Seiten ($pageCount) – maximal erlaubt: $maxPages.</p>";
+                        echo "<p class='printer_error-message'>Fehler: '$fileName' hat zu viele Seiten ($pageCount) - maximal erlaubt: $maxPages.</p>";
                         continue;
                     }
 
@@ -330,15 +330,15 @@ if (auth($conn) && ($_SESSION['valid'])) {
                                 "-sOutputFile=" . escapeshellarg($a4FixedPath) . " " . escapeshellarg($tmp_name);
 
                             shell_exec($convertToA4Cmd);
-                            echo "<!-- DEBUG: PDF war nicht A4 – wurde konvertiert nach $a4FixedPath -->";
+                            echo "<!-- DEBUG: PDF war nicht A4 - wurde konvertiert nach $a4FixedPath -->";
 
                             // tmp_name durch neues File ersetzen
                             $tmp_name = $a4FixedPath;
                         } else {
-                            echo "<!-- DEBUG: PDF ist A4 – keine Konvertierung nötig -->";
+                            echo "<!-- DEBUG: PDF ist A4 - keine Konvertierung nötig -->";
                         }
                     } else {
-                        echo "<!-- WARNUNG: Page size konnte nicht erkannt werden – keine Formatprüfung durchgeführt -->";
+                        echo "<!-- WARNUNG: Page size konnte nicht erkannt werden - keine Formatprüfung durchgeführt -->";
                     }
                 }
 

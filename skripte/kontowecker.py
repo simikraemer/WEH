@@ -54,7 +54,7 @@ def fetch_inbox_mails():
         ### # TODO RICHTIGE KONTOWECKER MAIL ###
         if from_address.lower() != "sparkasse@sparkasse.de": 
 
-            print(f"⚠️ Absender nicht autorisiert: {from_address} – Mail wird verschoben.")
+            print(f"⚠️ Absender nicht autorisiert: {from_address} - Mail wird verschoben.")
             mail.copy(num, "Sonstiges")
             mail.store(num, '+FLAGS', '\\Deleted')  # markiere zum Löschen
             continue  # überspringt den Rest dieser Mail

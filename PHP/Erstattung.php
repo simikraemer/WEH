@@ -455,7 +455,7 @@ while ($ag = mysqli_fetch_assoc($res)) {
 mysqli_free_result($res);
 
 
-// 2) WEH-Etagen 0–17 (Format "etage:weh_<n>")
+// 2) WEH-Etagen 0-17 (Format "etage:weh_<n>")
 $wehSums = array_fill(0, 18, 0.0);
 $sql = "
     SELECT e.einrichtung, SUM(e.betrag) AS summe
@@ -474,7 +474,7 @@ while ($r = mysqli_fetch_assoc($res)) {
     }
 }
 
-// 3) TVK-Etagen 0–15 (Format "etage:tvk_<n>")
+// 3) TVK-Etagen 0-15 (Format "etage:tvk_<n>")
 $tvkSums = array_fill(0, 16, 0.0);
 $sql = "
     SELECT e.einrichtung, SUM(e.betrag) AS summe
@@ -603,8 +603,8 @@ new Chart(document.getElementById('chartWeh').getContext('2d'), {
             y: { beginAtZero: true }
         },
         plugins: {
-            title:    { display: true,  text: 'WEH Etagen 0–17 (€)' },
-            legend:   { display: false }   // <–– Legende aus
+            title:    { display: true,  text: 'WEH Etagen 0-17 (€)' },
+            legend:   { display: false }   // <-- Legende aus
         }
     }
 });
@@ -641,8 +641,8 @@ new Chart(document.getElementById('chartTvk').getContext('2d'), {
             y: { beginAtZero: true }
         },
         plugins: {
-            title:  { display: true, text: 'TVK Etagen 0–15 (€)' },
-            legend: { display: false }   // <–– Legende aus
+            title:  { display: true, text: 'TVK Etagen 0-15 (€)' },
+            legend: { display: false }   // <-- Legende aus
         }
     }
 });

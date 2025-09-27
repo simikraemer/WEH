@@ -391,7 +391,7 @@ foreach ($barkassen as $barkasse) {
     if (mysqli_stmt_fetch($stmt)) {
         $kassen_usernames[$barkasse['id']] = $firstname;
     } else {
-        $kassen_usernames[$barkasse['id']] = '–';
+        $kassen_usernames[$barkasse['id']] = '-';
     }
     mysqli_stmt_free_result($stmt);
 }
@@ -400,7 +400,7 @@ mysqli_stmt_close($stmt);
 echo '<div class="kasse-row">';
 foreach ($barkassen as $btn) {
     $active = ($kid == $btn['id']) ? ' active' : '';
-    $owner = $kassen_usernames[$btn['id']] ?? '–';
+    $owner = $kassen_usernames[$btn['id']] ?? '-';
 
     echo '<button type="submit" name="kasse_id" value="' . $btn['id'] . '" class="kasse-button' . $active . '" style="font-size:13px; width:130px; display: flex; flex-direction: column; align-items: center;">';
     echo '<span>' . $btn['label'] . '</span>';

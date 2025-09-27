@@ -109,7 +109,7 @@ def abrechnung():
             if mailisactive: warnmail(uid, turm, monatsbeitrag)
             warncount += 1
             infostring = "Vorgewarnt"
-        elif restcheck < 0 and pid == 13:
+        elif restcheck < 0.10 and pid == 13:
             insolvent(uid, zeit); insolventcount += 1; infostring = "Insolvent"
         elif restcheck < 0:
             addsperre(uid, zeit)
@@ -539,9 +539,9 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
     text = (
         "Die Mitglieder des WEH e.V. verfügen über Prepaid-Konten. Das darauf eingezahlte Guthaben befindet sich vollständig auf dem Netzkonto.\n\n"
         "Im Rahmen der monatlichen Abrechnung werden für jedes Mitglied der Hausbeitrag und der Netzbeitrag rechnerisch vom jeweiligen Prepaid-Guthaben abgezogen.\n"
-        "Auch die im Vormonat gekauften Waschmarken werden berücksichtigt – ihr Gegenwert wurde den Nutzerkonten bereits beim Kauf abgezogen und soll nun dem Hauskonto gutgeschrieben werden.\n\n"
+        "Auch die im Vormonat gekauften Waschmarken werden berücksichtigt - ihr Gegenwert wurde den Nutzerkonten bereits beim Kauf abgezogen und soll nun dem Hauskonto gutgeschrieben werden.\n\n"
         "Zusätzlich wird der Umsatz aus den Wohnzimmerabos, die über das Netzkonto bezahlt wurden, aus dem Ausgleich an das Hauskonto wieder herausgerechnet.\n\n"
-        "Für den Kassenausgleich wird nun der Anteil, der dem Hauskonto zusteht – also die Summe aller Hausbeiträge und des Waschmarkenumsatzes abzüglich Wohnzimmerabos – vom Netzkonto auf das Hauskonto überwiesen.\n"
+        "Für den Kassenausgleich wird nun der Anteil, der dem Hauskonto zusteht - also die Summe aller Hausbeiträge und des Waschmarkenumsatzes abzüglich Wohnzimmerabos - vom Netzkonto auf das Hauskonto überwiesen.\n"
         "Der verbleibende Teil auf dem Netzkonto entspricht der Summe der gezahlten Netzbeiträge sowie der Wohnzimmerabos."
     )
 
