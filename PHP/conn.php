@@ -30,14 +30,4 @@ $waschconn = mysqli_connect(
 
 $mailconfig = $config['mail'];
 
-function formatTurm(string $turm): string {
-    $turm = strtolower(trim($turm));
-
-    if ($turm === 'tvk') {
-        return 'TvK';
-    }
-
-    return strtoupper($turm);
-}
-
 ?>

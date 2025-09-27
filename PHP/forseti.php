@@ -149,21 +149,34 @@ $dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
             transform: translateY(-50%);
             color: var(--fg); font-size: 16px; font-variant-numeric: tabular-nums; font-weight: bold;
         }
+        .daybody { background: transparent; transition: background 120ms ease-in-out; }
+        .daycol.today .daybody { background: rgba(255,255,255,0.06); } /* HEUTIGER TAG HELLER */
+
+        /* Aktuelle Stunde (heute): kräftige Linie mit Glow */
+        .nowline {
+            position: absolute; left: 0; right: 0; height: 2px;
+            background: #11a50d;
+            border-top: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 0 10px rgba(17,165,13,0.85), 0 0 2px rgba(255,255,255,0.35);
+            z-index: 3; /* über Events */
+            pointer-events: none;
+        }
+
         .event {
             position: absolute; left: 6px; right: 6px;
             border-radius: 8px;
             padding: 1px 2px;
             text-align: center;
             border: 1px solid var(--grid);
-            background: rgba(17,165,13,0.10);
+            background: rgba(5, 44, 4, 0.9);
             backdrop-filter: blur(2px);
             box-shadow: 0 4px 14px rgba(0,0,0,0.25);
             overflow: hidden;
         }
-        .event .time  { color: var(--primary); font-weight: 700; font-size: 12px; margin-bottom: 1px; letter-spacing: 0.2px; }
+        .event .time  { color: var(--muted); font-weight: 700; font-size: 12px; margin-bottom: 1px; letter-spacing: 0.2px; }
         .event .who   { color: var(--fg); font-weight: 700; font-size: 13px; line-height: 1.1; }
         .event .room  { font-size: 12px; font-weight: 700; line-height: 1; margin-top: 2px; }
-        .event .title { color: var(--muted); font-size: 11px; margin-top: 4px; }
+        .event .title { color: var(--muted); font-size: 11px; margin-top: 3px; }
         .daycol.weekend .label { color: var(--accent); }
 
         /* --- Nacht-Ruhe Overlay --- */
@@ -171,25 +184,23 @@ $dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
             position: fixed;
             inset: 0;
             z-index: 9999;
-            display: none;                /* via JS toggeln */
+            display: none;
             align-items: center;
             justify-content: center;
-            pointer-events: none;         /* Bedienelemente dahinter bleiben klickbar, falls nötig */
-            background: rgba(0,0,0,0.25); /* leicht abdunkeln, Plan bleibt sichtbar */
+            pointer-events: none;
+            background: rgba(0,0,0,0.25);
         }
         .curfew-text {
             font-weight: 900;
-            color: #ff2b2b;               /* kräftiges Rot */
+            color: #ff2b2b;
             text-align: center;
             line-height: 1.0;
-            /* Schwarzer Rand/Outline */
             text-shadow:
                 -3px -3px 0 #000,
                  3px -3px 0 #000,
                 -3px  3px 0 #000,
                  3px  3px 0 #000,
                  0px  0px 12px #000;
-            /* Größe responsiv für kleinen Screen */
             font-size: clamp(36px, 12vw, 140px);
             letter-spacing: 1px;
             padding: 0 2vw;
@@ -239,10 +250,11 @@ $dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
         <?php for ($d=0; $d<7; $d++): 
             $dayDate = (clone $weekStart)->modify("+{$d} days");
             $isWeekend = ($d >= 5);
+            $isToday = ($dayDate->format('Y-m-d') === $now->format('Y-m-d'));
         ?>
-        <div class="daycol<?php echo $isWeekend ? ' weekend' : ''; ?>">
+        <div class="daycol<?php echo $isWeekend ? ' weekend' : ''; ?><?php echo $isToday ? ' today' : ''; ?>">
             <div class="label"><?php echo $dayNames[$d] . ' ' . $dayDate->format('d.m.'); ?></div>
-            <div class="daybody">
+            <div class="daybody" <?php if($isToday) echo 'id="today-body"'; ?>>
                 <?php
                 // Linien 12..24
                 for ($h = 12; $h <= 24; $h++) {
@@ -277,6 +289,10 @@ $dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
                         <?php endif; ?>
                     </div>
                 <?php } ?>
+                <?php if ($isToday): ?>
+                    <!-- Marker für aktuelle Stunde (wird per JS positioniert) -->
+                    <div id="nowline" class="nowline" style="top: -9999px;"></div>
+                <?php endif; ?>
             </div>
         </div>
         <?php endfor; ?>
@@ -284,33 +300,64 @@ $dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
 </div>
 
 <script>
-/* Nacht-Ruhe Overlay: 22:00–06:00 Europe/Berlin */
+/* PHP->JS Konstanten für Positionierung */
+const VIEW_START_MIN = <?php echo (int)$VIEW_START_MIN; ?>;
+const VIEW_RANGE_MIN = <?php echo (int)$VIEW_RANGE_MIN; ?>;
+
+/* Lokale Zeit Europe/Berlin */
 function berlinNow() {
-  // Erzeuge Date in Berliner Zeit ohne externe Lib
   const str = new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' });
   return new Date(str);
 }
+
+/* Nacht-Ruhe Overlay: 22:00–06:00 Europe/Berlin */
 function updateCurfewOverlay() {
   const d = berlinNow();
   const h = d.getHours();
   const curfew = (h >= 22 || h < 6);
   const el = document.getElementById('curfew');
   if (el) el.style.display = curfew ? 'flex' : 'none';
-
-  // zum nächsten Minutenwechsel erneut prüfen
   const msToNextMinute = (60 - d.getSeconds())*1000 - d.getMilliseconds();
   setTimeout(updateCurfewOverlay, Math.max(500, msToNextMinute));
 }
 updateCurfewOverlay();
 
-/* Stündlicher Reload: exakt zum nächsten Stundenwechsel */
+/* Aktuelle Stunde markieren (heute) */
+function updateNowLine() {
+  const body = document.getElementById('today-body');
+  const line = document.getElementById('nowline');
+  if (!body || !line) return;
+
+  const d = berlinNow();
+  const minutes = d.getHours() * 60 + d.getMinutes(); // 0..1439
+
+  // nur im Sichtfenster 12:00–24:00
+  if (minutes < VIEW_START_MIN || minutes > 24*60) {
+    line.style.top = '-9999px';
+    return;
+  }
+  const offset = minutes - VIEW_START_MIN; // 0..720
+  const topPct = Math.max(0, Math.min(100, (offset / VIEW_RANGE_MIN) * 100));
+  line.style.top = topPct + '%';
+
+  // zur nächsten Minute nachführen
+  const msToNextMinute = (60 - d.getSeconds())*1000 - d.getMilliseconds();
+  setTimeout(updateNowLine, Math.max(500, msToNextMinute));
+}
+updateNowLine();
+
+/* Reload alle 10 Minuten – exakt zum nächsten 10-Minuten-Tick */
 (function(){
   const d = berlinNow();
-  const msToNextHour = (60 - d.getMinutes())*60000 - d.getSeconds()*1000 - d.getMilliseconds();
+  const min = d.getMinutes();
+  const sec = d.getSeconds();
+  const ms  = d.getMilliseconds();
+  const minsToNext10 = (10 - (min % 10)) % 10 || 10; // 10,20,30...
+  const msToNext = (minsToNext10*60 - sec)*1000 - ms;
   setTimeout(() => {
     location.reload();
-    setInterval(() => location.reload(), 60*60*1000);
-  }, Math.max(1000, msToNextHour));
+    setInterval(() => location.reload(), 10*60*1000);
+  }, Math.max(1000, msToNext));
 })();
 </script>
 </body>

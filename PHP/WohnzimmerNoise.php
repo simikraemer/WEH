@@ -76,7 +76,7 @@ rsort($dayKeys);
 
     <script>
     // schwelle zentral definieren
-    const threshold = -40;
+    const threshold = -60;
 
     // php -> js
     const allData = <?php echo json_encode($days); ?>;
