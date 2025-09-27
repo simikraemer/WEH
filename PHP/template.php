@@ -398,7 +398,7 @@ function load_menu() {
             echo '<button onclick="window.location.href=\'/loki.php\';" style="white-space: nowrap;">Loki View</button> ';
             echo '<button onclick="window.location.href=\'/sigyn.php\';" style="white-space: nowrap;">Sigyn View</button> ';
             echo '<button onclick="window.location.href=\'/Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
-            echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
+            #echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
             echo '<button onclick="window.location.href=\'/GuesstheMess.php\';" style="white-space: nowrap;">Guess the Mess</button>';
             echo '<button onclick="window.location.href=\'/sekofinale/SekoFinale.php\';" style="white-space: nowrap;">Seko Finale</button>';
             echo '<button onclick="window.location.href=\'/sekofinale/LiveView.php\';" style="white-space: nowrap;">Seko Finale - Live View</button>';
@@ -522,6 +522,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
                     echo '<button onclick="window.location.href=\'/IPs.php\';" style="white-space: nowrap;">IP Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/IPhistory.php\';" style="white-space: nowrap;">IP Historie</button> ';
+                    echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'Vorstand') {                                        
                     echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
@@ -536,6 +537,7 @@ function load_menu() {
                     //echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
                     echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken verteilen</button> ';
+                    echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'TvK-Sprecher') {                                        
                     echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
@@ -572,6 +574,9 @@ function load_menu() {
                 if ($agName === 'WEH-WaschAG') {
                     echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
                     echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
+                }
+                if ($agName === 'WohnzimmerAG') {
+                    echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'SportAG') {                                        
                     echo '<button onclick="window.location.href=\'/FitnessNew.php\';" style="white-space: nowrap;">Fitness-Introduction</button>';
