@@ -390,7 +390,7 @@ echo "<br><br>";
 echo '<div style="display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap;">';
 // PDF-Button nur für NetzAG / Vorstand
 if ((!empty($_SESSION['NetzAG']) && $_SESSION['NetzAG'] === true) ||
-    (!empty($_SESSION['Vorstand']) && $_SESSION['Vorstand'] === true)
+    (!empty($_SESSION['Vorstand']) && $_SESSION['Vorstand'] === true) ||
     (!empty($_SESSION['TvK-Sprecher']) && $_SESSION['TvK-Sprecher'] === true)) {
     // target="_blank" -> PDF im NEUEN TAB
     echo '<form method="post" action="AGs.php" style="margin-left:12px;" target="_blank">';
