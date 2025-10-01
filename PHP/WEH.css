@@ -8,7 +8,19 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
     margin: 0;
     padding-bottom: 40px;
   }
-  
+  /*
+  @keyframes wobble {
+    0%   { transform: perspective(800px) rotateX(0deg) rotateY(0deg) }
+    50%  { transform: perspective(800px) rotateX(6deg) rotateY(-6deg) }
+    100% { transform: perspective(800px) rotateX(-6deg) rotateY(6deg) }
+  }
+
+  body {
+    animation: hueShift 8s linear infinite,
+              wobble 6s ease-in-out infinite alternate,
+              cursorChange 10s infinite;
+  }
+  */
   a {
     color: #11a50d; /* Normaler Linktext */
     text-decoration: none;
