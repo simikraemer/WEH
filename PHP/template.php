@@ -394,6 +394,7 @@ function load_menu() {
             echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
             echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
             echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+            echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
             echo '<button onclick="window.location.href=\'/Constants.php\';" style="white-space: nowrap;">Konstanten</button> ';
             #echo '<button onclick="window.location.href=\'/EilendersFluch.php\';" style="white-space: nowrap;">Eilender\'s Fluch</button>';
             echo '<button onclick="window.location.href=\'/WaschmarkenExchange.php\';" style="white-space: nowrap;">Waschmarken Exchange</button> ';
@@ -541,6 +542,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
                     //echo '<button onclick="window.location.href=\'/Schluessel.php\';" style="white-space: nowrap;">Schlüssel</button>';
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+                    echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
                     echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken verteilen</button> ';
                     echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
@@ -552,6 +554,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+                    echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
                     echo '<button onclick="window.location.href=\'/NEPmail.php\';" style="white-space: nowrap;">NEP-Mail</button>';
                 }
                 if ($agName === 'TvK-Kasse') {                                        

@@ -406,6 +406,24 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
                   </div>";
         }
 
+      } elseif($_POST["decision"] == "remove") {
+        // Gleiches DB-Update wie "decline", aber ohne Mailversand
+        $sql = "UPDATE registration SET status = -1 WHERE id = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+        mysqli_stmt_execute($stmt);
+        $stmt->close();
+
+        // Zugehörige Upload-Dateien der Anmeldung löschen (wie bei decline)
+        $uploadDir = "anmeldung/";
+        $userId = $_POST["id"];
+        $files = glob($uploadDir . $userId . "_*");
+
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
 
       } elseif($_POST["decision"] == "psk") {
         $sql = "UPDATE pskonly SET status = 1 WHERE id = ?";
@@ -512,7 +530,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     echo "<script>
       setTimeout(function() {
         document.forms['reload'].submit();
-      }, 2000);
+      }, 500);
     </script>";
 
   }
@@ -1232,6 +1250,10 @@ updateCountdowns();
           <label>
           <input type="radio" name="decision" value="decline">
           <span style="color:red; font-weight: bold;">DECLINE</span>
+          </label>
+          <label>
+            <input type="radio" name="decision" value="remove">
+            <span style="color:#E49B0F; font-weight: bold;">REMOVE</span>
           </label>
           <br>
           <br>
