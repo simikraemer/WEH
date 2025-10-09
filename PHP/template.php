@@ -350,7 +350,7 @@ function load_menu() {
         echo '<button onclick="window.location.href=\'/Troubleshoot.php\';"style="white-space: nowrap;">Troubleshoot</button> ';
         echo '<button onclick="window.location.href=\'/Printer.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'/PSK.php\';"style="white-space: nowrap;">PSK Netz</button> ';
-        echo '<button onclick="window.location.href=\'/Minecraft.php\';"style="white-space: nowrap;">Minecraft Server</button> ';
+        //echo '<button onclick="window.location.href=\'/Minecraft.php\';"style="white-space: nowrap;">Minecraft Server</button> ';
         echo '</div>';
         echo '</div>';
         echo '</div>';
