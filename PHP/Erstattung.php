@@ -84,7 +84,9 @@ $berechtigt = auth($conn)
     && !empty($_SESSION['valid'])
     && (
         (!empty($_SESSION['Vorstand']) && $_SESSION['Vorstand'] > 0)
+        || (!empty($_SESSION['Webmaster']) && $_SESSION['Webmaster'] > 0)
     );
+
 
 if (!$berechtigt) {
     header("Location: denied.php");
