@@ -177,14 +177,15 @@ rsort($dayKeys);
                 pointRadius: 0,
                 tension: 0.1
             },
-            //{
-            //    label: 'Spitze',
-            //    data: maxPoints,
-            //    borderColor: '#11a50d',
-            //    backgroundColor: '#11a50d',
-            //    pointRadius: 0,
-            //    tension: 0.1
-            //},
+            {
+                label: 'Spitze',
+                data: maxPoints,
+                borderColor: '#0A6307',
+                backgroundColor: '#0A6307',
+                pointRadius: 0,
+                tension: 0.1,
+                hidden: true
+            },
         ];
 
         noiseChart.update();
