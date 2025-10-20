@@ -149,6 +149,9 @@ $res = mysqli_query($conn, $sql);
 if ($row = mysqli_fetch_assoc($res)) {
     $flooractionbudget = (float)$row['wert'];
 }
+if ($_SESSION["turm"] != "weh") {
+    $flooractionbudget = 0;
+}
 
   
 if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
