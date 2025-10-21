@@ -159,6 +159,8 @@ def abrechnung():
     )
 
     kassenausgleichinsert(zeit, kassenausgleichbetrag_2nachkommastellen, pdfpfad)
+    
+    wohnzimmerabosinsert(zeit, wohnzimmerabos)
 
     infomail(
         kassenausgleichbetrag_2nachkommastellen,
@@ -460,7 +462,45 @@ def get_waschmarkensumme_fuer_monat(cursor, zeit):
 
     return summe
 
+def wohnzimmerabosinsert(zeit: int, wohnzimmerabos: float) -> None:
+    """
+    Bucht eine Sammelposition für die Streamingabos der Wohnzimmer-AG:
+      uid=492 (Dummy), konto=8, kasse=69 (PayPal), betrag = -wohnzimmerabos
+      beschreibung = "Monatliche Abrechnung Streamingabos WohnzimmerAG"
+    Commit-Verhalten abhängig von DEBUG
+    """
+    db = connect_weh()
+    cursor = db.cursor()
+    try:
+        betrag = -abs(float(wohnzimmerabos or 0.0))
+        if betrag == 0.0:
+            if DEBUG:
+                print("DEBUG: wohnzimmerabos_insert() übersprungen (Betrag = 0,00 €)")
+            return
 
+        insert_sql = (
+            "INSERT INTO transfers (tstamp, uid, beschreibung, konto, kasse, betrag) "
+            "VALUES (%s, %s, %s, %s, %s, %s)"
+        )
+        cursor.execute(
+            insert_sql,
+            (
+                zeit,
+                492,  # Dummy-UID Wohnzimmer-AG
+                "Monatliche Abrechnung Streamingabos WohnzimmerAG",
+                8,    # konto
+                69,   # kasse (PayPal)
+                betrag,
+            ),
+        )
+
+        if DEBUG:
+            print("DEBUG: Hier würde der Wohnzimmerabos-Insert stattfinden")
+        else:
+            db.commit()
+    finally:
+        cursor.close()
+        db.close()
 
 def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenbetrag, wohnzimmerabos, pfad="/WEH/PHP/kassenausgleich/"):
     date = datetime.datetime.fromtimestamp(timestamp)
