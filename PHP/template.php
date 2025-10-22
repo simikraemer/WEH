@@ -580,8 +580,8 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                 }
                 if ($agName === 'WEH-WaschAG') {
-                    echo '<button onclick="window.location.href=\'/https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
-                    echo '<button onclick="window.location.href=\'/Waschmarken.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
+                    echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
+                    echo '<button onclick="window.location.href=\'/WaschRefund.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
                 }
                 if ($agName === 'WohnzimmerAG') {
                     echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
