@@ -134,7 +134,7 @@ if (isset($_GET['action'])) {
         if ($userLabel === '') $userLabel = $userRow['username'];
         json_exit([
             'ok'        => true,
-            'message'   => "Erfolgreich {$amount} Waschmarke(n) an {$userLabel} hinzugefügt.",
+            'message'   => "Erfolgreich {$amount} Waschmarke(n) an {$userLabel} erstattet.",
             'new_total' => $bal
         ]);
     }
@@ -177,7 +177,7 @@ if (isset($_GET['action'])) {
             position: relative;
         }
         .input {
-            width: 100%;
+            width: 90%;
             background: #0f0f0f;
             border: 1px solid var(--border);
             color: var(--text);
@@ -282,7 +282,6 @@ load_menu();
 <div class="wrap">
     <div class="card">
         <h1>Waschmarken erstatten</h1>
-        <p class="lead">1) Nutzer wählen · 2) Anzahl auswählen · 3) Hinzufügen.</p>
 
         <!-- 1) USER SEARCH -->
         <div class="field">
@@ -306,12 +305,11 @@ load_menu();
                     <label for="amount-<?= $i ?>"><?= $i ?></label>
                 <?php endfor; ?>
             </div>
-            <div class="note">Nur ganze Zahlen 1–5.</div>
         </div>
 
         <!-- 3) SUBMIT -->
         <div class="field">
-            <button id="submit" class="btn" disabled>Waschmarken hinzufügen</button>
+            <button id="submit" class="btn" disabled>Waschmarken erstatten</button>
         </div>
     </div>
 </div>
