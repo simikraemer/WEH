@@ -527,7 +527,7 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
 
     gesamt = hausbeitrag + netzbeitrag + waschmarkenbetrag
     hausgesamt = hausbeitrag + waschmarkenbetrag - wohnzimmerabos
-    netzgesamt = netzbeitrag + wohnzimmerabos
+    netzgesamt = netzbeitrag
 
     pdf = FPDF()
     pdf.add_page()
@@ -569,7 +569,6 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
 
     table_row("→ Netzkonto verbleibend", netzgesamt, bold=True)
     table_row("Netzbeitrag", netzbeitrag, indent=4)
-    table_row("Wohnzimmerabos", wohnzimmerabos, indent=4)
     pdf.ln(5)
 
     pdf.set_font("DejaVu", "", 12)
@@ -582,7 +581,7 @@ def export_kassenausgleich_pdf(timestamp, hausbeitrag, netzbeitrag, waschmarkenb
         "Auch die im Vormonat gekauften Waschmarken werden berücksichtigt - ihr Gegenwert wurde den Nutzerkonten bereits beim Kauf abgezogen und soll nun dem Hauskonto gutgeschrieben werden.\n\n"
         "Zusätzlich wird der Umsatz aus den Wohnzimmerabos, die über das Netzkonto bezahlt wurden, aus dem Ausgleich an das Hauskonto wieder herausgerechnet.\n\n"
         "Für den Kassenausgleich wird nun der Anteil, der dem Hauskonto zusteht - also die Summe aller Hausbeiträge und des Waschmarkenumsatzes abzüglich Wohnzimmerabos - vom Netzkonto auf das Hauskonto überwiesen.\n"
-        "Der verbleibende Teil auf dem Netzkonto entspricht der Summe der gezahlten Netzbeiträge sowie der Wohnzimmerabos."
+        "Der verbleibende Teil auf dem Netzkonto entspricht der Summe der gezahlten Netzbeiträge."
     )
 
     pdf.multi_cell(0, 8, text)
