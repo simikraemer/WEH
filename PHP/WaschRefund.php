@@ -153,7 +153,7 @@ if (isset($_GET['action'])) {
     <style>
         :root {
             --primary: #11a50d;
-            --bg-elev: #181818;
+            --bg-elev:rgb(43, 43, 43);
             --text: #f0f0f0;
             --muted: #a6a6a6;
             --border: #2a2a2a;
