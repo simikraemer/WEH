@@ -167,7 +167,11 @@ if (isset($_GET['action'])) {
             padding: 22px;
             box-shadow: 0 6px 24px rgba(0,0,0,0.35);
         }
-        h1 { margin: 0 0 16px; font-size: 22px; color: var(--text); }
+        .title {
+            margin: 0 0 16px;
+            font-size: 22px;
+            color: var(--text);
+        }
         p.lead { color: var(--muted); margin: 0 0 24px; }
 
         .field { margin-bottom: 18px; }
@@ -281,7 +285,7 @@ load_menu();
 ?>
 <div class="wrap">
     <div class="card">
-        <h1>Waschmarken erstatten</h1>
+        <div class="title">Waschmarken erstatten</div>
 
         <!-- 1) USER SEARCH -->
         <div class="field">
