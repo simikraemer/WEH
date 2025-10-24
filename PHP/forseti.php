@@ -214,7 +214,7 @@ $dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
 <body>
 <!-- Nacht-Ruhe Overlay -->
 <div id="curfew" class="curfew-overlay">
-  <div class="curfew-text">Nachtruhe!</div>
+  <div class="curfew-text">Be quiet!</div>
 </div>
 
 <div class="wrap">
