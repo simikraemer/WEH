@@ -4,24 +4,19 @@ require('conn.php');
 mysqli_set_charset($conn, "utf8mb4");
 
 /**
- * JSON-Suche (AJAX): /dieses-script.php?search=...
- * Gibt eine Map uid => [ { uid, name, username, room, oldroom, turm } ] zurück
+ * AJAX 1: Nutzersuche
+ * GET ?search_user=...
+ * Rückgabe: Map uid => [ { uid, name, username, room, oldroom, turm } ]
  */
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search'])) {
-    $term = trim($_GET['search'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search_user'])) {
     header('Content-Type: application/json; charset=utf-8');
+    $term = trim($_GET['search_user'] ?? '');
+    if ($term === '') { echo json_encode([]); exit; }
 
-    if ($term === '') {
-        echo json_encode([]);
-        exit;
-    }
-
-    // prepared LIKEs
     $like = "%{$term}%";
     $searchedusers = [];
 
     if (ctype_digit($term)) {
-        // numeric: auch exakte Vergleiche auf room/oldroom/uid zulassen
         $sql = "
             SELECT u.uid, CONCAT(u.firstname,' ',u.lastname) AS name, u.username, u.room, u.oldroom, u.turm
             FROM users u
@@ -59,6 +54,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search'])) {
     echo json_encode($searchedusers);
     exit;
 }
+
+/**
+ * AJAX 2: IP-Suche
+ * GET ?search_ip=...
+ * Rückgabe: Liste von IPs (Array mit Strings), substring-fähig (z.B. ".147")
+ */
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search_ip'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $term = trim($_GET['search_ip'] ?? '');
+    if ($term === '') { echo json_encode([]); exit; }
+
+    $like = "%{$term}%";
+    $sql = "SELECT DISTINCT ip FROM iphistory WHERE ip LIKE ? ORDER BY INET_ATON(ip) ASC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('s', $like);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    $ips = [];
+    while ($row = $res->fetch_assoc()) {
+        $ip = trim($row['ip']);
+        if ($ip !== '') $ips[] = $ip;
+    }
+    echo json_encode($ips);
+    exit;
+}
+
+/* template.php NACH den AJAX-Blocks laden */
 require('template.php');
 
 if (!(auth($conn) && $_SESSION['NetzAG'])) {
@@ -130,15 +153,6 @@ if (!empty($_POST['ip'])) {
         ];
     }
 }
-
-/** IP-Liste für Dropdown */
-$ips = [];
-$resIps = $conn->query("SELECT DISTINCT ip FROM iphistory ORDER BY INET_ATON(ip) ASC");
-if ($resIps && $resIps->num_rows) {
-    while ($r = $resIps->fetch_assoc()) {
-        $ips[] = $r['ip'];
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -148,116 +162,85 @@ if ($resIps && $resIps->num_rows) {
     <link rel="stylesheet" href="WEH.css" media="screen">
     <style>
         :root { --primary: #11a50d; --text: #e8e8e8; --muted: #a3a3a3; --card: #1c1c1c; --card-2: #141414; --line: #2a2a2a; }
-        /* kein body styling hier! (kommt aus WEH.css) */
+        .wrap          { max-width: 1300px; margin: 24px auto; padding: 0 16px; }
+        .grid-2        { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 900px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+        .panel         { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+        .panel-inner   { padding: 12px 14px; }
 
-        .wrap            { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
-        .stack           { display: grid; gap: 16px; }
-        .panel           { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
-        .panel-inner     { padding: 16px 18px; }
-        .toolbar         { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-        .pill            { background: var(--card-2); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; color: var(--text); }
-        .input           { background: var(--card-2); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; outline: none; min-width: 260px; }
-        .input:focus     { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(17,165,13,.2); }
-        .select          { background: var(--card-2); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; outline: none; }
-        .btn             { background: var(--primary); color: #071307; border: none; border-radius: 10px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
-        .btn:disabled    { opacity: .6; cursor: not-allowed; }
+        .input         { width: 100%; background: var(--card-2); border: 1px solid var(--line);
+                         color: var(--text); border-radius: 10px; padding: 10px 12px; outline: none; }
+        .input:focus   { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(17,165,13,.2); }
 
-        .table-wrap      { overflow-x: auto; }
-        .table           { width: 100%; border-collapse: collapse; font-size: 15px; color: var(--text); }
-        .table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-        .table thead th  { background: #0f0f0f; position: sticky; top: 0; z-index: 1; cursor: pointer; }
-        .table tr:hover  { background: #111; }
-        .badge           { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); background: var(--card-2); color: var(--muted); }
-        .badge.ok        { color: var(--primary); border-color: rgba(17,165,13,.35); }
-        .ghost           { color: var(--muted); }
-
-        .grid            { display: grid; gap: 12px; grid-template-columns: 1fr; }
-        @media (min-width: 720px) {
-            .grid { grid-template-columns: 1fr 1fr; }
-        }
-
-        .note            { color: var(--muted); font-size: 13px; }
-        .spacer          { height: 4px; }
+        .table-wrap    { overflow: auto; max-height: 360px; border-radius: 10px; border: 1px solid var(--line); }
+        .table         { width: 100%; border-collapse: collapse; font-size: 14.5px; color: var(--text); }
+        .table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: left; }
+        .table thead th { background: #0f0f0f; position: sticky; top: 0; z-index: 1; }
+        .table tr:hover { background: #111; }
+        .table tr.clickable { cursor: pointer; }
+        .link          { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--line); }
+        .link:hover    { color: var(--primary); border-bottom-color: var(--primary); }
 
         .sort-asc::after  { content: " ▲"; }
         .sort-desc::after { content: " ▼"; }
 
-        .clickable       { cursor: pointer; }
-        .link            { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--line); }
-        .link:hover      { color: var(--primary); border-bottom-color: var(--primary); }
+        .badge        { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px;
+                        border: 1px solid var(--line); background: var(--card-2); color: var(--muted); }
+        .badge.ok     { color: var(--primary); border-color: rgba(17,165,13,.35); }
+
+        .ghost        { color: var(--muted); }
+        .stack8 > * + * { margin-top: 8px; }
+        .mt8 { margin-top: 8px; }
     </style>
 </head>
 <body>
-<div class="wrap stack">
+<div class="wrap">
 
-    <!-- Suche & Auswahl -->
-    <div class="panel">
-        <div class="panel-inner stack">
-            <div class="toolbar">
-                <div class="pill">IP-History</div>
-                <div class="note">Suche Nutzer oder wähle eine IP aus.</div>
-            </div>
-
-            <div class="grid">
-                <div class="stack">
-                    <input id="searchInput" class="input" type="text" placeholder="Name, Nutzername, E-Mail, Raum, UID ..." autocomplete="off" />
-                    <div class="table-wrap panel" style="max-height: 320px;">
-                        <div class="panel-inner" style="padding:0;">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th style="cursor:default;">UID</th>
-                                        <th style="cursor:default;">Username</th>
-                                        <th style="cursor:default;">Name</th>
-                                        <th style="cursor:default;">Haus</th>
-                                        <th style="cursor:default;">Raum</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="userResults">
-                                    <!-- JS füllt hier -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stack">
-                    <form method="POST" id="ipForm" class="stack">
-                        <select name="ip" id="ipSelect" class="select" onchange="document.getElementById('ipForm').submit();">
-                            <option value="">~ IP auswählen ~</option>
-                            <?php foreach ($ips as $ip): ?>
-                                <option value="<?= htmlspecialchars($ip) ?>"><?= htmlspecialchars($ip) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </form>
-
-                    <div class="spacer"></div>
-
-                    <!-- <form method="POST" id="uidForm" class="stack">
-                        <div class="note">…oder UID direkt öffnen</div>
-                        <div class="toolbar">
-                            <input class="input" type="number" name="uid" placeholder="UID" min="1">
-                            <button class="btn" type="submit">Öffnen</button>
-                        </div>
-                    </form> -->
+    <div class="grid-2">
+        <!-- User-Suche -->
+        <div class="panel">
+            <div class="panel-inner stack8">
+                <input id="userSearch" class="input" type="text"
+                       placeholder="Nach User suchen" autocomplete="off" />
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>UID</th>
+                                <th>Username</th>
+                                <th>Name</th>
+                                <th>Haus</th>
+                                <th>Raum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userResults"><!-- JS füllt --></tbody>
+                    </table>
                 </div>
             </div>
+        </div>
 
+        <!-- IP-Suche -->
+        <div class="panel">
+            <div class="panel-inner stack8">
+                <input id="ipSearch" class="input" type="text"
+                       placeholder="Nach IP suchen" autocomplete="off" />
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ipResults"><!-- JS füllt --></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Ergebnis-Tabelle -->
-    <div class="panel">
-        <div class="panel-inner stack">
-            <div class="toolbar">
-                <div class="pill">Ergebnisse</div>
-                <?php if (empty($resultData)): ?>
-                    <div class="note">Keine Daten zum Anzeigen.</div>
-                <?php else: ?>
-                    <div class="note"><?= count($resultData) ?> Einträge</div>
-                <?php endif; ?>
-            </div>
-
+    <!-- Ergebnisse unten, volle Breite -->
+    <div class="panel mt8">
+        <div class="panel-inner">
             <?php if (!empty($resultData)): ?>
                 <div class="table-wrap">
                     <table class="table" id="dataTable">
@@ -268,11 +251,11 @@ if ($resIps && $resIps->num_rows) {
                                 <th onclick="sortTable(2)">IP</th>
                                 <th onclick="sortTable(3)">Start</th>
                                 <th onclick="sortTable(4)">Ende</th>
-                                <th style="cursor:default;">Status</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ($resultData as $row): 
+                        <?php foreach ($resultData as $row):
                             $uid   = (int)$row['uid'];
                             $name  = htmlspecialchars($row['name']);
                             $room  = htmlspecialchars((string)$row['room']);
@@ -289,7 +272,8 @@ if ($resIps && $resIps->num_rows) {
                                 <td data-sort="<?= $ip ?>"><?= $ip ?></td>
                                 <td data-sort="<?= $startSort ?>"><?= $start ?></td>
                                 <td data-sort="<?= $endSort ?>"><?= $end ?></td>
-                                <td><?php if ($active): ?>
+                                <td>
+                                    <?php if ($active): ?>
                                         <span class="badge ok">aktiv</span>
                                     <?php else: ?>
                                         <span class="badge">beendet</span>
@@ -300,15 +284,16 @@ if ($resIps && $resIps->num_rows) {
                         </tbody>
                     </table>
                 </div>
+            <?php else: ?>
+                <div style="color:var(--muted);">Keine Daten zum Anzeigen.</div>
             <?php endif; ?>
-
         </div>
     </div>
 
 </div>
 
 <script>
-/** Sortier-Logik für Ergebnistabelle */
+/* ===== Sortier-Logik ===== */
 let sortDirection = {};
 function sortTable(colIndex) {
     const table = document.getElementById("dataTable");
@@ -316,7 +301,6 @@ function sortTable(colIndex) {
     const tbody = table.tBodies[0];
     const rows = Array.from(tbody.querySelectorAll("tr"));
     const ths = table.tHead.rows[0].cells;
-
     for (let i = 0; i < ths.length; i++) ths[i].classList.remove("sort-asc", "sort-desc");
 
     const dir = sortDirection[colIndex] === "asc" ? "desc" : "asc";
@@ -328,7 +312,6 @@ function sortTable(colIndex) {
         const bCell = b.cells[colIndex];
         const aSort = aCell.getAttribute("data-sort") || aCell.textContent.trim().toLowerCase();
         const bSort = bCell.getAttribute("data-sort") || bCell.textContent.trim().toLowerCase();
-
         const aNum = Number(aSort), bNum = Number(bSort);
         const bothNumeric = !Number.isNaN(aNum) && !Number.isNaN(bNum);
 
@@ -340,54 +323,37 @@ function sortTable(colIndex) {
     rows.forEach(r => tbody.appendChild(r));
 }
 
-/** POST-Redirect zu User.php mit UID */
+/* ===== Navigation zu User.php (per POST) ===== */
 function goToUser(uid) {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = 'User.php';
-
     const input = document.createElement('input');
     input.type = 'hidden';
     input.name = 'id';
     input.value = uid;
     form.appendChild(input);
-
     document.body.appendChild(form);
     form.submit();
 }
 
-/** Live-Suche (AJAX) */
-let searchTimer = null;
-const searchInput = document.getElementById('searchInput');
+/* ===== AJAX: Nutzersuche ===== */
+let userTimer = null;
+const userSearch = document.getElementById('userSearch');
 const userResults = document.getElementById('userResults');
 
 function renderUserRow(u) {
     const tr = document.createElement('tr');
+    tr.className = 'clickable';
+    tr.onclick = () => submitUID(u.uid);
 
     const tdUid  = document.createElement('td');   tdUid.textContent = u.uid;
     const tdUser = document.createElement('td');   tdUser.textContent = u.username;
+    const tdName = document.createElement('td');   tdName.textContent = u.name;
+    const tdTurm = document.createElement('td');   tdTurm.textContent = (u.turm || '').toUpperCase();
+    const tdRoom = document.createElement('td');   tdRoom.textContent = (Number(u.room) === 0 ? Number(u.oldroom) : Number(u.room)) || '-';
 
-    const tdName = document.createElement('td');
-    const link = document.createElement('a');
-    link.href = 'javascript:void(0);';
-    link.className = 'link';
-    link.textContent = u.name;
-    link.onclick = () => submitUID(u.uid);
-    tdName.appendChild(link);
-
-    const tdTurm = document.createElement('td');
-    const turmText = (u.turm || '').toUpperCase();
-    tdTurm.textContent = turmText;
-
-    const tdRoom = document.createElement('td');
-    const room = (Number(u.room) === 0 ? Number(u.oldroom) : Number(u.room)) || '-';
-    tdRoom.textContent = room;
-
-    // Farbliche Akzente anhand Belegung
-    if (Number(u.room) === 0) {
-        tdTurm.classList.add('ghost');
-        tdRoom.classList.add('ghost');
-    }
+    if (Number(u.room) === 0) { tdTurm.classList.add('ghost'); tdRoom.classList.add('ghost'); }
 
     tr.appendChild(tdUid);
     tr.appendChild(tdUser);
@@ -407,32 +373,72 @@ function submitUID(uid) {
     form.submit();
 }
 
-async function doSearch(q) {
+async function doUserSearch(q) {
     const url = new URL(window.location.href);
-    url.searchParams.set('search', q);
+    url.searchParams.set('search_user', q);
     const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
     if (!res.ok) return;
     const data = await res.json();
-
     userResults.innerHTML = '';
     Object.keys(data).forEach(uid => {
-        data[uid].forEach(u => {
-            userResults.appendChild(renderUserRow(u));
-        });
+        data[uid].forEach(u => userResults.appendChild(renderUserRow(u)));
     });
 }
 
-if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
+if (userSearch) {
+    userSearch.addEventListener('input', (e) => {
         const q = e.target.value.trim();
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-            if (q === '') {
-                userResults.innerHTML = '';
-            } else {
-                doSearch(q).catch(() => {});
-            }
-        }, 200);
+        clearTimeout(userTimer);
+        userTimer = setTimeout(() => {
+            if (q === '') userResults.innerHTML = '';
+            else doUserSearch(q).catch(() => {});
+        }, 180);
+    });
+}
+
+/* ===== AJAX: IP-Suche ===== */
+let ipTimer = null;
+const ipSearch = document.getElementById('ipSearch');
+const ipResults = document.getElementById('ipResults');
+
+function renderIpRow(ip) {
+    const tr = document.createElement('tr');
+    tr.className = 'clickable';
+    tr.onclick = () => submitIP(ip);
+    const td = document.createElement('td');
+    td.textContent = ip;
+    tr.appendChild(td);
+    return tr;
+}
+
+function submitIP(ip) {
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = '';
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden'; hidden.name = 'ip'; hidden.value = ip;
+    form.appendChild(hidden);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+async function doIpSearch(q) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('search_ip', q);
+    const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return;
+    const list = await res.json();
+    ipResults.innerHTML = '';
+    list.forEach(ip => ipResults.appendChild(renderIpRow(ip)));
+}
+
+if (ipSearch) {
+    ipSearch.addEventListener('input', (e) => {
+        const q = e.target.value.trim();
+        clearTimeout(ipTimer);
+        ipTimer = setTimeout(() => {
+            if (q === '') ipResults.innerHTML = '';
+            else doIpSearch(q).catch(() => {});
+        }, 180);
     });
 }
 </script>
