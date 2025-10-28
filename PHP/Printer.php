@@ -763,7 +763,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
         echo "</div>";
 
-        $isVorstand = isset($_SESSION["Vorstand"]) && $_SESSION["Vorstand"] === true;
+        $isVorstand = ((isset($_SESSION["Vorstand"]) && $_SESSION["Vorstand"]) || (isset($_SESSION["TvK-Sprecher"]) && $_SESSION["TvK-Sprecher"])) === true;
         $isNetzAG = isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true;
         
         // **Seitenanzahl aus PDF holen**

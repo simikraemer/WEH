@@ -883,7 +883,7 @@ function addPrivateIPs($conn, $uid, $subnet) {
     $base_ip = substr($subnet, 0, -1);  // Basis des Subnetzes ohne letzte Ziffer
     $x = 1;
     $count = 0;
-    while ($count < 5) {
+    while ($count < 10) {
         $ip = $base_ip . $x;
 
         if (!in_array($ip, $selectedIPs)) {
