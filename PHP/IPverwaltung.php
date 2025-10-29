@@ -657,7 +657,7 @@ if (auth($conn) && $_SESSION['valid']) {
     echo "<td $cellStyle>";
     echo "<form method='post' style='margin: 0;'>";
     echo "<input type='hidden' name='uid' value='" . htmlspecialchars($selected_uid, ENT_QUOTES, 'UTF-8') . "'>";
-    echo "<button type='submit' name='remove' value='" . $id . "' style='background: none; border: none; cursor: pointer; padding: 0;'>";
+    echo "<button type='button' name='remove' value='" . $id . "' onclick='submitRemove(this)' style='background: none; border: none; cursor: pointer; padding: 0;'>";
     echo '<img src="images/trash_white.png" 
       class="animated-trash-icon" 
       style="width: 24px; height: 24px;">';
@@ -702,5 +702,24 @@ else {
 // Close the connection to the database
 $conn->close();
 ?>
+<script>
+// Enter in der großen Bearbeitungs-Form soll ausschließlich den SAVE-Button triggern
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    const form = e.target && e.target.form;
+    if (form && (form.getAttribute('name') === 'formularipverwaltung')) {
+      e.preventDefault();
+      const saveBtn = form.querySelector("button[name='save']");
+      if (saveBtn) saveBtn.click();
+    }
+  }
+});
+
+// Trash-Button klickt gezielt nur sein eigenes (kleines) Formular
+function submitRemove(btn) {
+  const f = btn.closest('form');
+  if (f) f.submit();
+}
+</script>
 </body>
 </html>
