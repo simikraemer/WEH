@@ -51,7 +51,7 @@ def abmeldung():
         
         summe = get_betrag(uid)
         print("Summe auf dem Konto des Benutzers:", summe)
-        betrag = summe
+        betrag = float(summe)
         
         # Abrechnen der Abmeldekosten
         if bezahlart == 1:
@@ -258,19 +258,17 @@ def get_betrag(uid):
     try:
         fedb = connect_weh()
         fecursor = fedb.cursor()
-        sql = "SELECT sum(betrag) FROM transfers WHERE uid = %s"
-        var = (uid,)
-        fecursor.execute(sql, var)
-        summe = fecursor.fetchone()
-
-        if summe is not None:
-            return summe[0]
-        else:
-            return 0
-
+        # COALESCE stellt sicher, dass bei keinen Transfers 0 zurückkommt
+        fecursor.execute("SELECT COALESCE(SUM(betrag), 0) FROM transfers WHERE uid = %s", (uid,))
+        row = fecursor.fetchone()
+        value = row[0] if row else 0
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
     except Exception as e:
         print("Fehler beim Abrufen des Betrags:", e)
-        return 0
+        return 0.0
 
 abmeldung()
 
