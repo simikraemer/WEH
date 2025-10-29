@@ -73,20 +73,24 @@ def abmeldung():
         print("Auszugsart für UID:", uid, "ist:", auszugsart)
         
         # Statuswechsel
-        if bezahlart == 1:  # "Abmeldung abgeschlossen"
-            if betrag > 0:
-                # Netzsprecher erhält Mail mit Überweisungsaufforderung des Betrags
-                # 31.03.2025 - Keine Kontomail mehr, sondern Verwaltung über Dashboard.php
-                #kontomail(betrag, iban, name)
-                #print("Kontomail gesendet für Betrag:", betrag)
-                print("Fiji hat den übelsten Swag!")
-            status = 1
-            print("Status gesetzt auf 2 (Abmeldung abgeschlossen) für UID:", uid)
-        elif bezahlart == 0:  # "Barzahlung ausstehend" #OUTDATED
-            status = 1
-            print("Status gesetzt auf 1 (Barzahlung ausstehend) für UID:", uid)
+        if betrag == 0:
+            status = 2  # Abmeldung abgeschlossen (nichts zu überweisen)
+            print(f"Status gesetzt auf 2 (Abmeldung abgeschlossen, 0€ Restbetrag) für UID: {uid}")
         else:
-            print("Fehler bei bezahlart\nAbmeldung von uid: " + uid + "\nGrüße von Fiji")
+            if bezahlart == 1:  # "Abmeldung abgeschlossen"
+                if betrag > 0:
+                    # Netzsprecher erhält Mail mit Überweisungsaufforderung des Betrags
+                    # 31.03.2025 - Keine Kontomail mehr, sondern Verwaltung über Dashboard.php
+                    #kontomail(betrag, iban, name)
+                    #print("Kontomail gesendet für Betrag:", betrag)
+                    print("Fiji hat den übelsten Swag!")
+                status = 1
+                print("Status gesetzt auf 1 (Überweisung ausstehend) für UID:", uid)
+            elif bezahlart == 0:  # "Barzahlung ausstehend" #OUTDATED
+                status = 1
+                print("Status gesetzt auf 1 (Barzahlung ausstehend) für UID:", uid)
+            else:
+                print("Fehler bei bezahlart\nAbmeldung von uid: " + uid + "\nGrüße von Fiji")
         
         # Konto auf 0 setzen, wenn Auszahlung erfolgen soll
         if betrag > 0:
