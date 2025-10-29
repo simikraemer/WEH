@@ -249,7 +249,7 @@ if ($isAuthed) {
 
       echo '
       <div class="form-container">
-        <form action="Abmeldung.php" method="post" autocomplete="off" novalidate>
+        <form action="Abmeldung.php" method="post" autocomplete="off">
           <div class="heading" id="user-heading">'.htmlspecialchars($defaultHeadingName).'</div>
           <div class="subtitle"><sub>Your internet access will remain active until you move out</sub></div>
 
