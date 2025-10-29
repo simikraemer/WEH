@@ -85,6 +85,31 @@ if ($isAuthed) {
     return !$has; // true if no abmeldung yet
   }
 
+  function validate_iban(string $iban): bool {
+    // Normalize
+    $iban = strtoupper(preg_replace('/\s+/', '', $iban));
+
+    // Basic structure: CCkk + 11–30 alphanum
+    if (!preg_match('/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/', $iban)) {
+        return false;
+    }
+
+    // Move first 4 chars to the end
+    $rearranged = substr($iban, 4) . substr($iban, 0, 4);
+
+    // Convert letters to numbers (A=10 ... Z=35) and compute mod 97 in chunks
+    $chunk = '';
+    foreach (str_split($rearranged) as $ch) {
+        $chunk .= ctype_alpha($ch) ? (string)(ord($ch) - 55) : $ch;
+
+        // Reduce in safe chunk sizes to avoid big ints
+        if (strlen($chunk) > 9) {
+            $chunk = (string)((int)$chunk % 97);
+        }
+    }
+    return ((int)$chunk % 97) === 1;
+  }
+
   // Handle POST (create abmeldung) - password validation removed
   if (isset($_POST["reload"]) && $_POST["reload"] == "1" && isset($_POST["dod"])) {
     $actingUid = (int)$_SESSION["user"];
@@ -106,8 +131,13 @@ if ($isAuthed) {
       $status  = 0;
       $betrag  = 0;
       $tstamp  = time();
-      $iban    = isset($_POST["iban"]) ? trim($_POST["iban"]) : "";
+      $iban  = isset($_POST["iban"]) ? strtoupper(trim($_POST["iban"])) : "";
       $alMail  = isset($_POST["forwardemail"]) ? trim($_POST["forwardemail"]) : "";
+
+      if ($iban === "" || !validate_iban($iban)) {
+        echo '<div class="form-container"><div class="error">Bitte eine gültige IBAN angeben (z. B. DE89…)</div></div>';
+        exit; // stop before INSERT
+      }
 
       mysqli_stmt_bind_param(
         $stmt,
