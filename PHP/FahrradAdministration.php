@@ -17,7 +17,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
   $zeit = time();  
   $turm = $_SESSION['turm'];
   
-  if ($_SESSION["FahrradAG"] || $_SESSION["TvK-Sprecher"] || (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === true)) {
+  if ($_SESSION["FahrradAG"] || $_SESSION["TvK-Sprecher"] || (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true)) {
     $agentuid = $_SESSION["uid"];
     echo "<br><br>";
 
