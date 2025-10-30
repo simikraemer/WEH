@@ -222,7 +222,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     "https://backend.weh.rwth-aachen.de/AG-Essen.php" . PHP_EOL .
                     "\nViele Grüße," . PHP_EOL .
                     "AG-Essen-Form.php";     
-                    $to = "kasse@weh.rwth-aachen.de";
+                    $to = "kasse@weh.rwth-aachen.de, fiji@weh.rwth-aachen.de";
                     $subject = "WEH - AG Essen";
                     $headers = "From: " . $mailconfig['address'] . "\r\n";
                     $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
