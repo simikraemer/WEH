@@ -583,6 +583,10 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
                     echo '<button onclick="window.location.href=\'/WaschRefund.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
                 }
+                if ($agName === 'TvK-WaschAG') {
+                    echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen-tvk\';">Waschsystem</button> ';
+                    echo '<button onclick="window.location.href=\'/WaschRefundTvK.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
+                }
                 if ($agName === 'WohnzimmerAG') {
                     echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }

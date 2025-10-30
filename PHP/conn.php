@@ -28,6 +28,14 @@ $waschconn = mysqli_connect(
 );
 #mysqli_set_charset($waschconn,"utf8");
 
+$mysql_tvkwaschconfig = $config['mysqlphptvkwasch'];
+$tvkwaschconn = mysqli_connect(
+    $mysql_tvkwaschconfig['host'],
+    $mysql_tvkwaschconfig['user'],
+    $mysql_tvkwaschconfig['password'],
+    $mysql_tvkwaschconfig['database']
+);
+
 $mailconfig = $config['mail'];
 
 ?>

@@ -4,7 +4,7 @@
 session_start();
 
 // --- EARLY DB ACCESS FOR AJAX ENDPOINTS ---
-require_once('conn.php'); // defines $conn (DB "weh") and $waschconn (DB "waschsystem2")
+require_once('conn.php'); // defines $conn and $waschconn
 mysqli_set_charset($conn, "utf8");
 
 $isAuthedEarly = !empty($_SESSION['valid']);

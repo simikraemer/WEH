@@ -4,7 +4,7 @@
 session_start();
 
 // --- EARLY DB ACCESS FOR AJAX ENDPOINTS ---
-require_once('conn.php'); // defines $conn (DB "weh") and $waschconn (DB "waschsystem2")
+require_once('conn.php'); // defines $conn and $tvkwaschconn
 mysqli_set_charset($conn, "utf8");
 
 $isAuthedEarly = !empty($_SESSION['valid']);
@@ -32,12 +32,12 @@ if (isset($_GET['action'])) {
         // allow 1+ character
         $like = '%' . $term . '%';
 
-        // Only active or subletters in WEH
+        // Only active or subletters in TvK
         $sql = "
             SELECT uid, firstname, lastname, username, room
             FROM users
             WHERE pid IN (11,12)
-              AND turm = 'weh'
+              AND turm = 'tvk'
               AND (
                     username LIKE ?
                  OR firstname LIKE ?
@@ -74,9 +74,9 @@ if (isset($_GET['action'])) {
         if ($uid <= 0)                        json_exit(['ok'=>false, 'error'=>'Kein Nutzer gewählt.'], 422);
         if ($amount < 1 || $amount > 5)       json_exit(['ok'=>false, 'error'=>'Anzahl muss 1–5 sein.'], 422);
 
-        // Validate that user exists and is selectable (WEH DB)
+        // Validate that user exists and is selectable
         $vsql = "SELECT uid, firstname, lastname, username, room
-                 FROM users WHERE uid=? AND pid IN (11,12) AND turm='weh' LIMIT 1";
+                 FROM users WHERE uid=? AND pid IN (11,12) AND turm='tvk' LIMIT 1";
         $vstm = mysqli_prepare($conn, $vsql);
         mysqli_stmt_bind_param($vstm, 'i', $uid);
         mysqli_stmt_execute($vstm);
@@ -87,25 +87,25 @@ if (isset($_GET['action'])) {
         }
 
         // --- TRANSACTION in waschsystem2 ---
-        mysqli_begin_transaction($waschconn);
+        mysqli_begin_transaction($tvkwaschconn);
 
         // 1) Prüfen, ob waschusers-Record existiert (KEIN INSERT, KEIN UPDATE anderer Felder)
-        $lock = mysqli_prepare($waschconn, "SELECT waschmarken FROM waschusers WHERE uid=? FOR UPDATE");
+        $lock = mysqli_prepare($tvkwaschconn, "SELECT waschmarken FROM waschusers WHERE uid=? FOR UPDATE");
         mysqli_stmt_bind_param($lock, 'i', $uid);
         mysqli_stmt_execute($lock);
         $locked = mysqli_stmt_get_result($lock);
         $rowWU  = mysqli_fetch_assoc($locked);
 
         if (!$rowWU) {
-            mysqli_rollback($waschconn);
+            mysqli_rollback($tvkwaschconn);
             json_exit(['ok'=>false, 'error'=>'Nutzer ist im Waschsystem nicht registriert.'], 404);
         }
 
         // 2) Nur waschmarken erhöhen
-        $up = mysqli_prepare($waschconn, "UPDATE waschusers SET waschmarken = waschmarken + ? WHERE uid=?");
+        $up = mysqli_prepare($tvkwaschconn, "UPDATE waschusers SET waschmarken = waschmarken + ? WHERE uid=?");
         mysqli_stmt_bind_param($up, 'ii', $amount, $uid);
         if (!mysqli_stmt_execute($up)) {
-            mysqli_rollback($waschconn);
+            mysqli_rollback($tvkwaschconn);
             json_exit(['ok'=>false, 'error'=>'Fehler beim Aktualisieren der Waschmarken.'], 500);
         }
 
@@ -113,22 +113,22 @@ if (isset($_GET['action'])) {
         $ts = time();
         $von_uid = -2;
         $tsql = "INSERT INTO transfers (von_uid, nach_uid, anzahl, time) VALUES (?, ?, ?, ?)";
-        $tstm = mysqli_prepare($waschconn, $tsql);
+        $tstm = mysqli_prepare($tvkwaschconn, $tsql);
         mysqli_stmt_bind_param($tstm, 'iiii', $von_uid, $uid, $amount, $ts);
         if (!mysqli_stmt_execute($tstm)) {
-            mysqli_rollback($waschconn);
+            mysqli_rollback($tvkwaschconn);
             json_exit(['ok'=>false, 'error'=>'Fehler beim Protokollieren des Transfers.'], 500);
         }
 
         // 4) Neue Summe laden
         $bsql = "SELECT waschmarken FROM waschusers WHERE uid=? LIMIT 1";
-        $bstm = mysqli_prepare($waschconn, $bsql);
+        $bstm = mysqli_prepare($tvkwaschconn, $bsql);
         mysqli_stmt_bind_param($bstm, 'i', $uid);
         mysqli_stmt_execute($bstm);
         $bres = mysqli_stmt_get_result($bstm);
         $bal  = ($r = mysqli_fetch_assoc($bres)) ? (int)$r['waschmarken'] : null;
 
-        mysqli_commit($waschconn);
+        mysqli_commit($tvkwaschconn);
 
         $userLabel = trim(($userRow['firstname'] ?? '').' '.($userRow['lastname'] ?? ''));
         if ($userLabel === '') $userLabel = $userRow['username'];
@@ -271,7 +271,7 @@ if (isset($_GET['action'])) {
 </head>
 <body>
 <?php
-require('template.php'); // defines $conn/$waschconn again (ok), outputs layout, provides auth($conn)
+require('template.php'); // defines $conn/$tvkwaschconn again (ok), outputs layout, provides auth($conn)
 
 $isAuthed = auth($conn) && !empty($_SESSION['valid']);
 $isAdmin  = ((!empty($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === true)
