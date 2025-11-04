@@ -562,7 +562,10 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $psk_box_color = empty($pskonly) ? "#20631e" : "rgba(0, 0, 0, 0.7)";
 
     // Abmeldung
-    $sql = "SELECT a.id, u.room, u.turm FROM abmeldungen a JOIN users u ON a.uid=u.uid WHERE a.status = 1";
+    $sql = "SELECT a.id, u.room, u.oldroom, u.turm 
+            FROM abmeldungen a 
+            JOIN users u ON a.uid = u.uid 
+            WHERE a.status = 1";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_execute($stmt);
     $abm = get_result($stmt);
@@ -806,7 +809,13 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     } else {
         foreach ($abm as $entry) {
             $btn_color = ($entry['turm'] === 'tvk') ? '#E49B0F' : '#11a50d';
-            echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . htmlspecialchars(str_pad($entry["room"], 4, '0', STR_PAD_LEFT)) . '</button>';
+            // Wenn ausgezogen (room == 0), statt room den oldroom anzeigen
+            $roomNum = ((int)$entry['room'] === 0 && !empty($entry['oldroom']))
+                ? (string)$entry['oldroom']
+                : (string)$entry['room'];
+
+            $label = htmlspecialchars(str_pad($roomNum, 4, '0', STR_PAD_LEFT));
+            echo '<button type="submit" name="id" value="' . htmlspecialchars($entry["id"]) . '" class="white-center-btn" style="display: inline-block; font-size: 20px; background-color:' . $btn_color . ';">' . $label . '</button>';
         }
     }
     echo '</div><br></form></div>';
@@ -1109,8 +1118,8 @@ updateCountdowns();
         mysqli_stmt_close($stmt);
   
         if ($lastradius == 0) {
-            $lastradiusstring = "> 1 Woche";
-            $lastradiuscolor = "green";
+            $lastradiusstring = "Noch nie!";
+            $lastradiuscolor = "red";
         } else {
             $abstand_in_sekunden = $zeit - $lastradius + 3600;
             $abstand_tage = floor($abstand_in_sekunden / (24 * 60 * 60));
