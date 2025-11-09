@@ -637,6 +637,16 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
     $zeit = time();
     $cutoff = $zeit - (60 * 60 * 24 * 7);     
 
+    $spieleag_code = '';
+  if ($stmt = mysqli_prepare($conn, "SELECT code FROM weh.codes WHERE title = 'SpieleAGCode' AND active = 1 LIMIT 1")) {
+      mysqli_stmt_execute($stmt);
+      mysqli_stmt_bind_result($stmt, $spieleag_code);
+      mysqli_stmt_fetch($stmt);
+      mysqli_stmt_close($stmt);
+  }
+  $spieleag_code = $spieleag_code ?? '';
+  $spieleag_box_color = ($spieleag_code !== '') ? "#20631e" : "#840d0a";
+
     #$sql = "SELECT COUNT(*) FROM users WHERE pid in (11,12,13) AND lastradius >= ?";
     #$stmt = mysqli_prepare($conn, $sql);
     #mysqli_stmt_bind_param($stmt, "i", $cutoff);
@@ -740,6 +750,16 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       echo "<div style='font-size: 30px; margin-bottom: 20px;'>Service-Monitoring</div>";   
       echo "<div style='font-size: 40px;'>Alle Hosts online</div>";
     }    
+    echo "</div>";
+
+    // 🔷 Spiele-AG Zugangscode (vierter Block)
+    echo "<div class='dashboard-container' style='background-color: $spieleag_box_color;'>";
+    echo "<div style='font-size: 30px; margin-bottom: 20px;'>Spiele-AG Code</div>";
+    if ($spieleag_code !== '') {
+        echo "<div style='font-size: 48px; letter-spacing: 2px;'>" . htmlspecialchars($spieleag_code) . "</div>";
+    } else {
+        echo "<div style='font-size: 24px;'>Kein aktiver Code gefunden</div>";
+    }
     echo "</div>";
 
   echo '</div>';
