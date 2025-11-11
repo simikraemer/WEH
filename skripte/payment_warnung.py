@@ -111,7 +111,9 @@ def warnmail(uid, rest, monatsbeitrag, name, username, turm):
         "Name: WEH e.V.\n" +
         "IBAN: DE90 3905 0000 1070 3346 00\n" +
         "Transfer Reference: W"+str(uid)+"H\n" +
-        "Please make sure to use this exact survey, so we can assign the transfer to your account.\n\n" +
+        "Please make sure to use this exact reference, so we can assign the transfer to your account.\n\n" +
+        "It takes a few days for bank transfers to appear in your WEH account!\n" +
+        "For faster processing, consider using the PayPal option on the Backend-Website.\n\n" +
         "If you have any questions or concerns, feel free to contact us.\n\n" +
         "Best regards,\nNetzwerk-AG WEH e.V."
     )     

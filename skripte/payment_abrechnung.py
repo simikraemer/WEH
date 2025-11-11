@@ -350,16 +350,18 @@ def sperrmail(uid, rest, name, username, turm, zweite_email, forwardemail):
     
     subject = "WEH Account Ban"
     message = "Dear " + str(name) + ",\n\n"\
-    "your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n"\
+    "if you have already moved out of WEH without deregistering, please ignore this email.\n\n"\
+    "Your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n"\
     "To reactivate your internet connection, there are still " + "{:.2f}".format(posrest) + "€ missing.\n\n"\
     "Name: WEH e.V.\n"\
     "IBAN: DE90 3905 0000 1070 3346 00\n"\
     "Transfer Reference: W"+str(uid)+"H\n"\
     "If you do not set this exact Transfer Reference, we will not be able to assign your payment to your account!\n\n"\
+    "It takes a few days for bank transfers to appear in your WEH account!\n"\
+    "For faster processing, consider using the PayPal option on the Backend-Website (accessible via eduroam or RWTH VPN).\n\n"\
     "When your member account has a positive balance, your internet connection will be reactivated automatically.\n\n"\
     "Please note that it may take several days until your payment is processed and assigned.\n"\
     "You will receive an email notification as soon as your account is reactivated.\n\n"\
-    "If you have already moved out of WEH without deregistering, please ignore this email.\n\n"\
     "Best Regards,\nNetzwerk-AG WEH e.V."
     to_email = username + "@" + str(turm) + ".rwth-aachen.de"
     

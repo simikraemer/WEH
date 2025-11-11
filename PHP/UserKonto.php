@@ -656,11 +656,11 @@ if (isset($_POST['save_transfer_id'])) {
   echo '<div style="display: flex; flex-direction: row; align-items: flex-start; justify-content: center; font-size: 25px; color: white;">';
   echo '<div style="flex: 1; text-align: center;">';
   echo '<h1>Bank</h1>';    
-  echo '<span style="color: red; font-size:20px;">It may take a few days for bank transfers to appear in your WEH account!</span>';  
-  echo '<span style="color: #708090; font-size:18px;"><br>For faster processing, consider using the PayPal option.</span><br><br>';  
+  echo '<span style="color: red; font-size:20px;">It takes a few days for bank transfers to appear in your WEH account!</span>';  
+  echo '<span style="color: red; font-size:18px;"><br>For faster processing, consider using the PayPal option.</span><br><br>';  
   echo '<span style="color: white;">Name: </span><span class="white-text">WEH e.V.</span><br>';
   echo '<span style="color: white;">IBAN: </span><span class="white-text">DE90 3905 0000 1070 3346 00</span><br>';
-  echo '<span style="color: white;">Überweisungsbetreff: </span><span class="white-text">W' . $_SESSION["user"] . 'H</span><br><br>';
+  echo '<span style="color: white;">Verwendungszweck: </span><span class="white-text">W' . $_SESSION["user"] . 'H</span><br><br>';
   echo '<span style="color: #708090; font-size:18px;">If you do not set this exact Transfer Reference,<br>we will not be able to assign your payment to your account!</span><br>';
   
   echo '</div>';
@@ -681,7 +681,7 @@ if (isset($_POST['save_transfer_id'])) {
   echo '</select>&nbsp&nbsp';
   echo '<button  type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">TRANSFER</button>';
   echo '</form><br>';
-  echo '<span style="color: #708090; font-size:18px;">It can take up to 10 seconds to process your payment!</span><br>';
+  echo '<span style="color: #708090; font-size:18px;">It can take up to 1-2 minutes to process your payment!</span><br>';
   echo '</div>';
   echo '</div>';
   
