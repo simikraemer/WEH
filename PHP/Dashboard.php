@@ -99,7 +99,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       $betrag = floatval(str_replace(",", ".", $betrag));
       $konto = 4;
       $kasse = ($netzkonto == 1) ? 72 : 92;
-      $beschreibung = "Überweisung";
+      $beschreibung = "Transfer";
       $zeit = time();
       $zeit_formatiert = date("d.m.Y H:i");
       $changelog = "[" . $zeit_formatiert . "] Insert durch Kontowecker\n";

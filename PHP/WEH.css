@@ -1874,9 +1874,9 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
 
 .kasse-semester-grid {
   display: grid;
-  grid-template-columns: 4fr 2fr; /* 3 Spalten: Buttons, Dropdown, Kontostand */
+  grid-template-columns: 4fr 3fr; /* 3 Spalten: Buttons, Dropdown, Kontostand */
   gap: 12px;
-  width: 70%;
+  width: 75%;
   margin: 20px auto;
   padding: 10px;
   color: #fff;

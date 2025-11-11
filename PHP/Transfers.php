@@ -145,6 +145,201 @@ if (isset($_POST['transfer_upload_speichern'])) {
 }
 
 
+// CSV-Import-Handler (mit hartem Cutoff & klassischer Duplikatprüfung)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'])) {
+    // Saubere JSON-Antwort (keine PHP-Warnings davor)
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    ini_set('display_errors', '0');
+    header('Content-Type: application/json; charset=utf-8');
+
+    if (empty($admin)) {
+        echo json_encode(['ok' => false, 'error' => 'not_authorized']);
+        exit;
+    }
+
+    $csvText = $_POST['csv_text'] ?? '';
+    if ($csvText === '') {
+        echo json_encode(['ok' => false, 'error' => 'empty_csv']);
+        exit;
+    }
+    if (!mb_detect_encoding($csvText, 'UTF-8', true)) {
+        $csvText = mb_convert_encoding($csvText, 'UTF-8');
+    }
+
+    // Fix: alles älter als 09.11.2025 ignorieren
+    $CUTOFF_TS = mktime(0, 0, 0, 11, 9, 2025); // 09.11.2025 00:00
+
+    // IBANs + Mapping
+    $NETZ_IBAN = 'DE90390500001070334600';
+    $HAUS_IBAN = 'DE37390500001070334584';
+
+    $kasseMap = [
+        $NETZ_IBAN => 72, // Netzkonto
+        $HAUS_IBAN => 92, // Hauskonto
+    ];
+    $netzkontoMap = [
+        $NETZ_IBAN => 1,
+        $HAUS_IBAN => 0,
+    ];
+
+    // Parser
+    $parseAmount = function (string $s): float {
+        $s = trim($s);
+        $neg = false;
+        if (substr($s, -1) === '-') { $neg = true; $s = substr($s, 0, -1); }
+        $s = str_replace(['.', ' '], '', $s);
+        $s = str_replace(',', '.', $s);
+        $v = (float)$s;
+        return $neg ? -$v : $v;
+    };
+    $parseDate = function (string $s): int {
+        $s = trim($s);
+        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $s, $m)) {
+            return mktime(12, 0, 0, (int)$m[2], (int)$m[1], (int)$m[3]);
+        }
+        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{2})$/', $s, $m)) {
+            $y = (int)$m[3];
+            $y = ($y < 70) ? 2000 + $y : 1900 + $y;
+            return mktime(12, 0, 0, (int)$m[2], (int)$m[1], $y);
+        }
+        return time();
+    };
+
+    // CSV parsen
+    $lines = preg_split('/\R/u', $csvText, -1, PREG_SPLIT_NO_EMPTY);
+    if (!$lines || count($lines) < 2) {
+        echo json_encode(['ok' => false, 'error' => 'no_rows']);
+        exit;
+    }
+
+    $header = str_getcsv($lines[0], ';', '"');
+    $idx = [];
+    foreach ($header as $i => $h) {
+        $h = trim($h, " \t\n\r\0\x0B\"");
+        $idx[$h] = $i;
+    }
+
+    $required = [
+        'Auftragskonto',
+        'Buchungstag',
+        'Valutadatum',
+        'Verwendungszweck',
+        'Beguenstigter/Zahlungspflichtiger',
+        'Kontonummer/IBAN',
+        'Betrag',
+    ];
+    foreach ($required as $col) {
+        if (!array_key_exists($col, $idx)) {
+            echo json_encode(['ok' => false, 'error' => 'missing_col:' . $col]);
+            exit;
+        }
+    }
+
+    // Statements – "klassisch": exakte tstamp-Gleichheit (keine ±5 Tage)
+    $selExistsKnown = $conn->prepare(
+        'SELECT id FROM transfers 
+         WHERE uid=? AND ROUND(betrag,2)=ROUND(?,2) AND tstamp=? AND konto=4 AND kasse=? 
+         LIMIT 1'
+    );
+    $insKnown = $conn->prepare(
+        'INSERT INTO transfers (uid, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) 
+         VALUES (?, ?, "Transfer", 4, ?, ?, ?, ?)'
+    );
+
+    $selExistsUnknown = $conn->prepare(
+        'SELECT id FROM unknowntransfers 
+         WHERE iban=? AND ROUND(betrag,2)=ROUND(?,2) AND tstamp=? 
+           AND COALESCE(betreff,"")=COALESCE(?, "")
+         LIMIT 1'
+    );
+    $insUnknown = $conn->prepare(
+        'INSERT INTO unknowntransfers (uid, tstamp, name, betreff, betrag, netzkonto, iban, agent, status) 
+         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)'
+    );
+
+    $agent = (int)($_SESSION['uid'] ?? 0);
+    $nowStr = date('d.m.Y H:i');
+    $inserted = 0; $skipped = 0; $unknown = 0;
+
+    // Zeilen verarbeiten
+    for ($li = 1; $li < count($lines); $li++) {
+        $row = str_getcsv($lines[$li], ';', '"');
+        if (!$row || count($row) < count($header)) { continue; }
+
+        $auftragskonto = trim($row[$idx['Auftragskonto']] ?? '');
+        $valutaStr     = trim($row[$idx['Valutadatum']] ?? '');
+        $buchungStr    = trim($row[$idx['Buchungstag']] ?? '');
+        $verwendung    = trim($row[$idx['Verwendungszweck']] ?? '');
+        $name          = trim($row[$idx['Beguenstigter/Zahlungspflichtiger']] ?? '');
+        $iban          = trim($row[$idx['Kontonummer/IBAN']] ?? '');
+        $betragStr     = trim($row[$idx['Betrag']] ?? '');
+
+        // Nur unsere beiden Konten berücksichtigen
+        if (!isset($kasseMap[$auftragskonto])) { $skipped++; continue; }
+
+        $betrag = $parseAmount($betragStr);
+
+        // Interne Umbuchungen zwischen NETZ_IBAN <-> HAUS_IBAN über 1000 (abs) ignorieren
+        $isInterAccount =
+            ($auftragskonto === $NETZ_IBAN && $iban === $HAUS_IBAN) ||
+            ($auftragskonto === $HAUS_IBAN && $iban === $NETZ_IBAN);
+        if ($isInterAccount && abs($betrag) > 1000) {
+            $skipped++;
+            continue;
+        }
+
+        // Nur positive Gutschriften importieren
+        if ($betrag <= 0.0) { $skipped++; continue; }
+
+        // Datum (Valuta bevorzugt) und harter Cutoff
+        $tstamp = $parseDate($valutaStr !== '' ? $valutaStr : $buchungStr);
+        if ($tstamp < $CUTOFF_TS) { $skipped++; continue; }
+
+        $kasse = $kasseMap[$auftragskonto];
+        $netzkonto = $netzkontoMap[$auftragskonto];
+
+        // UID aus "W<uid>H" – robust gegen nachfolgende Buchstaben (z.B. "W3186HA...")
+        $uid = null;
+        if (preg_match('/W\s*(\d{1,6})\s*H(?!\d)/iu', $verwendung, $m)) {
+            $uid = (int)$m[1];
+        }
+
+        if ($uid !== null) {
+            // Klassische Duplikatprüfung (exakt gleicher Zeitstempel)
+            $selExistsKnown->bind_param('idii', $uid, $betrag, $tstamp, $kasse);
+            $selExistsKnown->execute();
+            $selExistsKnown->store_result();
+            if ($selExistsKnown->num_rows > 0) {
+                $skipped++; $selExistsKnown->free_result(); continue;
+            }
+            $selExistsKnown->free_result();
+
+            $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV";
+            $insKnown->bind_param('iiidis', $uid, $tstamp, $kasse, $betrag, $agent, $changelog);
+            $insKnown->execute();
+            $inserted++;
+        } else {
+            // Unknown – klassische Duplikatprüfung (exakter Zeitstempel)
+            $selExistsUnknown->bind_param('sdis', $iban, $betrag, $tstamp, $verwendung);
+            $selExistsUnknown->execute();
+            $selExistsUnknown->store_result();
+            if ($selExistsUnknown->num_rows > 0) {
+                $skipped++; $selExistsUnknown->free_result(); continue;
+            }
+            $selExistsUnknown->free_result();
+
+            $insUnknown->bind_param('issdisi', $tstamp, $name, $verwendung, $betrag, $netzkonto, $iban, $agent);
+            $insUnknown->execute();
+            $unknown++;
+        }
+    }
+
+    echo json_encode(['ok' => true, 'inserted' => $inserted, 'skipped' => $skipped, 'unknown' => $unknown]);
+    exit;
+}
+
+
+
 if (isset($_POST['save_transfer_id'])) {
     
 
@@ -412,8 +607,18 @@ echo '</div>';
 
 echo '</form>';
 
-// Rechte 2/6: Semester-Dropdown + Kontostand
-echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center;">';
+// Rechte 2/6 (+ CSV bei Admin): Dropdown + Kontostand (+ CSV-Import)
+echo '<div class="kasse-semester-grid" style="display:grid; gap:12px; align-items:center; grid-template-columns:' . ($admin ? '1fr 1fr 1fr' : '1fr 1fr') . ';">';
+
+
+// CSV-Import (3. Spalte nur Admin)
+if ($admin) {
+    echo '<div class="csv-import" style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">';
+    echo '  <label for="sparkasse_csv" class="kasse-button" style="font-size:14px; padding:8px 12px; cursor:pointer; user-select:none;">Sparkassen-CSV importieren</label>';
+    echo '  <input type="file" id="sparkasse_csv" accept=".csv" style="display:none">';
+    echo '  <span id="csv_status" style="color:#aaa;"></span>';
+    echo '</div>';
+}
 
 // Kontostand
 $kontostand = berechneKontostand($conn, $kid);
@@ -422,7 +627,7 @@ echo 'Aktueller Kontostand:<br><strong>' . number_format($kontostand, 2, ',', '.
 echo '</div>';
 
 // Dropdown
-echo '<form method="post" style="margin: 0;">';
+echo '<form method="post" style="margin:0;">';
 echo '<select id="semester-select" name="semester_start" class="semester-dropdown" onchange="this.form.submit()">';
 foreach ($semester_options as $label => $start_ts) {
     $selected = ($start_ts == $semester_start) ? 'selected' : '';
@@ -431,7 +636,7 @@ foreach ($semester_options as $label => $start_ts) {
 echo '</select>';
 echo '</form>';
 
-echo '</div>'; // Ende rechte 2/6
+echo '</div>'; // Ende Grid
 
 
 
@@ -889,4 +1094,50 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
     }
 });
 
+</script>
+
+<script>
+// === ROBUSTER FETCH: JSON-Parsing-Fehler vermeiden, Fallback auf Text ===
+(() => {
+  const input = document.getElementById('sparkasse_csv');
+  if (!input) return;
+
+  input.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('csv_status');
+    if (statusEl) statusEl.textContent = 'Import läuft…';
+
+    try {
+      const text = await file.text();
+      const form = new FormData();
+      form.append('import_sparkasse_csv', '1');
+      form.append('csv_text', text);
+
+      const res = await fetch(window.location.href, {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      const raw = await res.text();
+      let data = null;
+      try { data = JSON.parse(raw); } catch (_) { /* non-JSON */ }
+
+      if (data && data.ok) {
+        if (statusEl) statusEl.textContent =
+          `Fertig: ${data.inserted} eingefügt, ${data.skipped} übersprungen, ${data.unknown} unbekannt.`;
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        if (statusEl) statusEl.textContent = 'Import-Fehler: ' + (data?.error || raw.trim() || 'Unbekannter Fehler');
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Fehler: ' + (err?.message || err);
+    } finally {
+      input.value = '';
+    }
+  });
+})();
 </script>
