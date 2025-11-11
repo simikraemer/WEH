@@ -102,7 +102,7 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
       $beschreibung = "Transfer";
       $zeit = time();
       $zeit_formatiert = date("d.m.Y H:i");
-      $changelog = "[" . $zeit_formatiert . "] Insert durch Kontowecker\n";
+      $changelog = "[" . $zeit_formatiert . "] Insert durch manuelle Zuordnung des Transfers\n";
       $agent = $_SESSION["uid"]; // Der bearbeitende Admin/User
 
       // Transfer bestätigen
