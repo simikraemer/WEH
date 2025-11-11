@@ -1884,6 +1884,19 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   align-items: center;
 }
 
+.csv-status-banner {
+  color: #11a50d;
+  text-align: center;
+  font-weight: 600;
+  padding: 10px 12px;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  word-break: break-word;
+  width: 75%;
+  margin: 10px auto 0 auto; /* über dem Grid, zentriert */
+}
+
+
 .kassenbereich {
   display: flex;
   flex-direction: column;

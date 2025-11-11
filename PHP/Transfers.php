@@ -550,6 +550,10 @@ while ($ts >= strtotime('01-10-2023')) {
     }
 }
 
+if ($admin) { ?>
+  <div id="csv_status_banner" class="csv-status-banner"></div>
+<?php }
+
 echo '<div class="kasse-semester-grid">';
 
 // Linke 4/6: Kassen-Formular
@@ -613,10 +617,13 @@ echo '<div class="kasse-semester-grid" style="display:grid; gap:12px; align-item
 
 // CSV-Import (3. Spalte nur Admin)
 if ($admin) {
-    echo '<div class="csv-import" style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">';
-    echo '  <label for="sparkasse_csv" class="kasse-button" style="font-size:14px; padding:8px 12px; cursor:pointer; user-select:none;">Sparkassen-CSV importieren</label>';
+    echo '<div class="csv-import" style="display:flex; align-items:center; justify-content:flex-end; gap:10px; text-align: center;">';
+    echo '  <label for="sparkasse_csv" class="kasse-button"';
+    echo '         style="font-size:14px; padding:8px 12px; cursor:pointer; user-select:none;"';
+    echo '         title="Bei der Sparkasse in der Kontoübersicht: Exportieren → Excel (CSV - gefilterte Einträge).&#10;Diese Datei herunterladen und hier hochladen -> die Transfers werden automatisch den Usern zugewiesen.&#10;Doppelte Einträge werden übersprungen, nicht zuordbare Transfers werden später durch die NetzAG zugewiesen.">';
+    echo '    Sparkassen-CSV importieren';
+    echo '  </label>';
     echo '  <input type="file" id="sparkasse_csv" accept=".csv" style="display:none">';
-    echo '  <span id="csv_status" style="color:#aaa;"></span>';
     echo '</div>';
 }
 
@@ -1097,17 +1104,17 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
 </script>
 
 <script>
-// === ROBUSTER FETCH: JSON-Parsing-Fehler vermeiden, Fallback auf Text ===
+// CSV-Status oben im Banner anzeigen (bleibt stehen; kein Klick zum Entfernen, kein Auto-Reload)
 (() => {
-  const input = document.getElementById('sparkasse_csv');
-  if (!input) return;
+  const banner = document.getElementById('csv_status_banner');
+  const input  = document.getElementById('sparkasse_csv');
+  if (!input || !banner) return;
 
-  input.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
     if (!file) return;
 
-    const statusEl = document.getElementById('csv_status');
-    if (statusEl) statusEl.textContent = 'Import läuft…';
+    banner.textContent = 'Import läuft…';
 
     try {
       const text = await file.text();
@@ -1124,17 +1131,25 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
 
       const raw = await res.text();
       let data = null;
-      try { data = JSON.parse(raw); } catch (_) { /* non-JSON */ }
+      try { data = JSON.parse(raw); } catch (_) {}
 
       if (data && data.ok) {
-        if (statusEl) statusEl.textContent =
-          `Fertig: ${data.inserted} eingefügt, ${data.skipped} übersprungen, ${data.unknown} unbekannt.`;
-        setTimeout(() => window.location.reload(), 800);
+        const msg = [
+          'CSV-Import abgeschlossen:',
+          `• ${data.inserted} Transfers wurden Benutzern zugewiesen`,
+          `• ${data.unknown} Transfers sind unbekannt und müssen noch manuell zugewiesen werden`,
+          `• ${data.skipped} Transfers wurden übersprungen, da bereits vorhanden`
+        ].join('\n');
+        banner.textContent = msg;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // KEIN Reload, KEIN Wegklicken – bleibt stehen bis man die Seite neu lädt
       } else {
-        if (statusEl) statusEl.textContent = 'Import-Fehler: ' + (data?.error || raw.trim() || 'Unbekannter Fehler');
+        banner.textContent = 'Import-Fehler:\n' + (data?.error || raw.trim() || 'Unbekannter Fehler');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
-      if (statusEl) statusEl.textContent = 'Fehler: ' + (err?.message || err);
+      banner.textContent = 'Fehler:\n' + (err?.message || String(err));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       input.value = '';
     }
