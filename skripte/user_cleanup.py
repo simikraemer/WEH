@@ -140,64 +140,97 @@ def clean_user(ends):
         changes = True
         print(f"[✓] {name} - IPs wieder freigegeben (kein Subletter mehr)")
         
-    # Fall 7: User mindestens 5 IPs
-    select_sql = "SELECT wert FROM constants WHERE name = 'standard_ips'"
-    cursor.execute(select_sql)
-    result = cursor.fetchone()
-    if result is not None:
-        standard_ips = int(result[0])
-    else:
-        # Standardwert, falls der Eintrag nicht gefunden wird
-        standard_ips = 5    
-        
+    # Fall 7: Bewohner (pid=11) sollen mind. N IPs haben – global eindeutige Vergabe im /24
+
+    def subnet_prefix(s: str) -> str:
+        """
+        Liefert 'A.B.C.' als Präfix für ein /24-Subnetz.
+        Akzeptiert 'A.B.C.D', 'A.B.C.' oder 'A.B.C.D/24'.
+        """
+        if not s:
+            return ""
+        s = s.strip().split('/', 1)[0]          # '/24' o.ä. abschneiden
+        if s.endswith('.'):
+            return s                             # bereits 'A.B.C.'
+        parts = s.split('.')
+        if len(parts) >= 3:
+            return '.'.join(parts[:3]) + '.'
+        return s  # Fallback (sollte bei sauberen Daten nicht vorkommen)
+
+    # 1) gewünschte Standard-Anzahl ermitteln (Fallback 5)
+    cursor.execute("SELECT wert FROM constants WHERE name = 'standard_ips'")
+    row = cursor.fetchone()
+    standard_ips = int(row[0]) if row else 5
+
+    # 2) Für jeden Bewohner: wie viele IPs im eigenen /24 sind bereits zugeordnet?
+    #    -> nur EIN Platzhalter im HAVING, Rest in Python
     sql = """
-    SELECT users.name, users.uid, users.subnet, (%s - COUNT(*)) AS num_ips_to_add
-    FROM weh.users
-    LEFT JOIN weh.macauth ON users.uid = macauth.uid
-    WHERE users.pid = 11 AND users.subnet != ""
-    GROUP BY users.uid
-    HAVING COUNT(*) < %s
+    SELECT u.name, u.uid, u.subnet, COUNT(ma.id) AS cnt
+    FROM weh.users u
+    LEFT JOIN weh.macauth ma
+    ON u.uid = ma.uid
+    AND ma.ip LIKE CONCAT(SUBSTRING_INDEX(u.subnet, '.', 3), '.%')
+    WHERE u.pid = 11 AND u.subnet <> ''
+    GROUP BY u.uid, u.name, u.subnet
+    HAVING cnt < %s
     """
-    var = (standard_ips, standard_ips)
-    cursor.execute(sql, var)
-    neueuser = cursor.fetchall()
-    for row in neueuser:
-        name = row[0]
-        uid = row[1]
-        subnet_cut = row[2][:-1]
-        num_ips_to_add = row[3]
-        text += "* " + str(name) + " hatte weniger als " + str(standard_ips) + " IPs. Hinzugefügt wurden die IPs:\n"
+    cursor.execute(sql, (standard_ips,))
+    rows = cursor.fetchall()
 
-        select_sql = "SELECT ip FROM macauth WHERE uid = %s"
-        select_var = (uid,)
-        cursor.execute(select_sql, select_var)
-        occupied_ips = [ip[0] for ip in cursor.fetchall()] 
-        
-        for _ in range(num_ips_to_add):
-            available_ips = []
-            for i in range(1, 256):
-                available_ips.append(subnet_cut + str(i))
+    # Optional: best. Host-Anteile reservieren (z.B. Gateway .1)
+    RESERVED_LAST_OCTETS = set()  # z.B. {1}
 
-            for ip in available_ips:
-                if ip not in occupied_ips:
-                    free_ip = ip
-                    break
-                    
-            zeit = int(time.time())
-            insert_sql = "INSERT INTO macauth (uid, tstamp, ip) VALUES (%s, %s, %s)"
-            insert_var = (uid, zeit, free_ip)
-            cursor.execute(insert_sql, insert_var)
-            
-            text += "  " + free_ip + "\n"
-            occupied_ips.append(free_ip)
+    for name, uid, usersubnet, cnt in rows:
+        prefix = subnet_prefix(usersubnet)       # z.B. '10.2.254.'
+        if not prefix:
+            continue
 
-        
-        #text += "\nOccupied IPs: {}\n".format(occupied_ips)
-        #text += "\nAvailable IPs: {}\n".format(available_ips)
-        
+        num_to_add = int(standard_ips - int(cnt))
+        if num_to_add <= 0:
+            continue
+
+        # 3) global belegte IPs in DIESEM Subnetz holen (egal welche UID, egal sublet)
+        cursor.execute(
+            "SELECT ip FROM weh.macauth WHERE ip LIKE %s AND ip <> ''",
+            (prefix + '%',)
+        )
+        occupied = {r[0] for r in cursor.fetchall()}
+
+        text += f"* {name} hatte weniger als {standard_ips} IPs. Hinzugefügt wurden die IPs:\n"
+
+        # 4) Kandidaten 1..254 (kein .0/.255), Reserven auslassen
+        candidates = (f"{prefix}{i}" for i in range(1, 255) if i not in RESERVED_LAST_OCTETS)
+
+        added = 0
+        for cand in candidates:
+            if added >= num_to_add:
+                break
+            if cand in occupied:
+                continue
+
+            # 5) Rennen vermeiden: nur einfügen, wenn IP noch nicht existiert
+            zeit_int = int(time.time())
+            insert_sql = """
+                INSERT INTO weh.macauth (uid, tstamp, ip)
+                SELECT %s, %s, %s FROM DUAL
+                WHERE NOT EXISTS (SELECT 1 FROM weh.macauth WHERE ip = %s)
+            """
+            cursor.execute(insert_sql, (uid, zeit_int, cand, cand))
+
+            if cursor.rowcount == 1:
+                text += f"  {cand}\n"
+                occupied.add(cand)
+                added += 1
+            else:
+                # jemand war schneller – nächsten Kandidaten probieren
+                continue
+
         text += "\n"
-        changes = True
-        print(f"[✓] {name} - zusätzliche IPs generiert")
+        if added > 0:
+            changes = True
+            print(f"[✓] {name} – {added} zusätzliche IP(s) generiert")
+        else:
+            print(f"[i] {name} – keine freie IP im Subnetz {prefix} gefunden")
         
     # Fall 8: Abgemeldeter hat noch aktiven Mailaccount
     sql = "SELECT users.name, abmeldungen.uid FROM weh.abmeldungen JOIN weh.users ON users.uid = abmeldungen.uid WHERE users.pid = 14 AND abmeldungen.keepemail = 0 AND users.mailisactive = 1"
