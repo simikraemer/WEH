@@ -103,3 +103,33 @@ def unix_to_date(unixtime):
     datum_string = str(tag)+"."+str(monat)+"."+str(jahr)
     
     return datum_string
+
+
+###### Extra Mails #######
+
+
+
+def send_mail_buchungssystem(subject, message, to_email, reply_to=None):
+    # Erstelle eine MIMEText-Nachricht
+    msg = MIMEMultipart()
+    msg['Subject'] = subject
+    msg['From'] = "WEH Buchungssystem <buchungssystem@weh.rwth-aachen.de>"
+    msg['To'] = to_email
+
+    # Optionale Reply-To-Adresse hinzufügen
+    if reply_to:
+        msg['Reply-To'] = reply_to
+
+    # Füge den Text als MIMEText hinzu
+    msg.attach(MIMEText(message))
+        
+    # Verbinde mit dem SMTP-Server
+    mail_config = readconfig("mail")
+    with smtplib.SMTP(mail_config['ip'], 25) as smtp_server:
+        smtp_server.starttls()
+        smtp_server.login(mail_config['user'], mail_config['password'])
+        smtp_server.sendmail(mail_config['address'], to_email, msg.as_string())
+
+    # Ausgabe der gesendeten Mail-Details
+    echo_message = f"Betreff: {subject}, From: {msg['From']}, To: {msg['To']}\n"
+    print(echo_message)
