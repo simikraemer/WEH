@@ -7,7 +7,6 @@
   <meta charset="UTF-8">
   <link rel="stylesheet" href="WEH.css" media="screen">
   <style>
-    /* inline tweaks for dark UI + #11a50d accent */
     .form-container { max-width: 680px; margin: 32px auto; padding: 22px; background:#141414; border:1px solid #222; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.35); }
     .form-label { display:block; color:#ddd; margin:10px 0 6px; font-weight:600; }
     .form-input, select, .form-submit {
