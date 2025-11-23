@@ -353,7 +353,7 @@ def sperrmail(uid, rest, name, username, turm, zweite_email, forwardemail):
     "if you have already moved out of WEH without deregistering, please ignore this email.\n\n"\
     "Your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n"\
     "To reactivate your internet connection, there are still " + "{:.2f}".format(posrest) + "€ missing.\n\n"\
-    "Name: WEH e.V.\n"\
+    "Name: WEH E.V. AACHEN\n"\
     "IBAN: DE90 3905 0000 1070 3346 00\n"\
     "Transfer Reference: W"+str(uid)+"H\n"\
     "If you do not set this exact Transfer Reference, we will not be able to assign your payment to your account!\n\n"\

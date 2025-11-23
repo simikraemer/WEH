@@ -658,7 +658,7 @@ if (isset($_POST['save_transfer_id'])) {
   echo '<h1>Bank</h1>';    
   echo '<span style="color: red; font-size:20px;">It takes a few days for bank transfers to appear in your WEH account!</span>';  
   echo '<span style="color: red; font-size:18px;"><br>For faster processing, consider using the PayPal option.</span><br><br>';  
-  echo '<span style="color: white;">Name: </span><span class="white-text">WEH e.V.</span><br>';
+  echo '<span style="color: white;">Name: </span><span class="white-text">WEH E.V. AACHEN</span><br>';
   echo '<span style="color: white;">IBAN: </span><span class="white-text">DE90 3905 0000 1070 3346 00</span><br>';
   echo '<span style="color: white;">Verwendungszweck: </span><span class="white-text">W' . $_SESSION["user"] . 'H</span><br><br>';
   echo '<span style="color: #708090; font-size:18px;">If you do not set this exact Transfer Reference,<br>we will not be able to assign your payment to your account!</span><br>';

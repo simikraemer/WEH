@@ -469,7 +469,7 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
                                 "This is a reminder mail.\nThis information has already been sent to your email address of choice.\n\n" .
                                 "Your membership account balance is too low to extend your access to WEH services, so it was cancelled.\n\n" .
                                 "To reactivate your internet connection, there are still " . $neg_summe . "€ missing.\n\n" .
-                                "Name: WEH e.V.\n" .
+                                "Name: WEH E.V. AACHEN\n" .
                                 "IBAN: DE90 3905 0000 1070 3346 00\n" .
                                 "Transfer Reference: W" . $_POST["id"] . "H\n" .
                                 "If you do not set this exact Transfer Reference, we will not be able to assign your payment to your account!\n\n" .

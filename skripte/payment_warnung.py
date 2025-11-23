@@ -108,7 +108,7 @@ def warnmail(uid, rest, monatsbeitrag, name, username, turm):
         "You can review your account balance and top it up by visiting the following link:\n" +
         "https://backend.weh.rwth-aachen.de/UserKonto.php\n\n" +
         "If you are currently out of Aachen, you can transfer money to our bank account:\n" +
-        "Name: WEH e.V.\n" +
+        "Name: WEH E.V. AACHEN\n" +
         "IBAN: DE90 3905 0000 1070 3346 00\n" +
         "Transfer Reference: W"+str(uid)+"H\n" +
         "Please make sure to use this exact reference, so we can assign the transfer to your account.\n\n" +
