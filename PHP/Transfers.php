@@ -235,15 +235,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         }
     }
 
-    // Statements – "klassisch": exakte tstamp-Gleichheit (keine ±5 Tage)
+    // Statements – "klassisch": Duplikatprüfung jetzt über IBAN + Betrag + Zeit
     $selExistsKnown = $conn->prepare(
         'SELECT id FROM transfers 
-         WHERE uid=? AND ROUND(betrag,2)=ROUND(?,2) AND tstamp=? AND konto=4 AND kasse=? 
+         WHERE iban=? 
+           AND ROUND(betrag,2)=ROUND(?,2) 
+           AND tstamp=? 
+           AND konto=4 
+           AND kasse=? 
          LIMIT 1'
     );
     $insKnown = $conn->prepare(
-        'INSERT INTO transfers (uid, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) 
-         VALUES (?, ?, "Transfer", 4, ?, ?, ?, ?)'
+        'INSERT INTO transfers (uid, iban, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) 
+         VALUES (?, ?, ?, "Transfer", 4, ?, ?, ?, ?)'
     );
 
     $selExistsUnknown = $conn->prepare(
@@ -295,31 +299,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         $tstamp = $parseDate($valutaStr !== '' ? $valutaStr : $buchungStr);
         if ($tstamp < $CUTOFF_TS) { $skipped++; continue; }
 
-        $kasse = $kasseMap[$auftragskonto];
+        $kasse     = $kasseMap[$auftragskonto];
         $netzkonto = $netzkontoMap[$auftragskonto];
 
-        // UID aus "W<uid>H" – robust gegen nachfolgende Buchstaben (z.B. "W3186HA...")
+        // UID aus "W<uid>H"
         $uid = null;
         if (preg_match('/W\s*(\d{1,6})\s*H(?!\d)/iu', $verwendung, $m)) {
             $uid = (int)$m[1];
         }
 
         if ($uid !== null) {
-            // Klassische Duplikatprüfung (exakt gleicher Zeitstempel)
-            $selExistsKnown->bind_param('idii', $uid, $betrag, $tstamp, $kasse);
+            // Duplikatprüfung jetzt über IBAN + Betrag + tstamp + kasse
+            $selExistsKnown->bind_param('sdii', $iban, $betrag, $tstamp, $kasse);
             $selExistsKnown->execute();
             $selExistsKnown->store_result();
             if ($selExistsKnown->num_rows > 0) {
-                $skipped++; $selExistsKnown->free_result(); continue;
+                $skipped++;
+                $selExistsKnown->free_result();
+                continue;
             }
             $selExistsKnown->free_result();
 
             $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV";
-            $insKnown->bind_param('iiidis', $uid, $tstamp, $kasse, $betrag, $agent, $changelog);
+            // IBAN wird jetzt mit in transfers geschrieben
+            $insKnown->bind_param('isiidis', $uid, $iban, $tstamp, $kasse, $betrag, $agent, $changelog);
             $insKnown->execute();
             $inserted++;
         } else {
-            // Unknown – klassische Duplikatprüfung (exakter Zeitstempel)
+            // Unknown – unverändert, Duplikatprüfung läuft hier schon über IBAN
             $selExistsUnknown->bind_param('sdis', $iban, $betrag, $tstamp, $verwendung);
             $selExistsUnknown->execute();
             $selExistsUnknown->store_result();
