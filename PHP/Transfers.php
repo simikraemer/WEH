@@ -373,6 +373,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             $selExistsKnown->free_result();
 
             $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV";
+
+            // 1) Normaler Eintrag (z.B. aufs Netzkonto)
             $insKnown->bind_param(
                 'isisidis',
                 $uid,
@@ -386,6 +388,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             );
             $insKnown->execute();
             $inserted++;
+
+            // 2) Zusätzliche Gegenbuchung für den monatlichen PayPal-Transfer
+            if ($isPaypalTransfer) {
+                $kassePaypal  = 69;          // PayPal-Kasse
+                $betragPaypal = -$betrag;    // Gegenbuchung mit Negativbetrag
+
+                $insKnown->bind_param(
+                    'isisidis',
+                    $uid,
+                    $iban,
+                    $tstamp,
+                    $beschreibung,  // "Kassenausgleich PayPal"
+                    $kassePaypal,
+                    $betragPaypal,
+                    $agent,
+                    $changelog
+                );
+                $insKnown->execute();
+                $inserted++;
+            }
         } else {
             // Unknown – unverändert, Duplikatprüfung läuft hier schon über IBAN + Betrag + tstamp + Verwendungszweck
             $selExistsUnknown->bind_param('sdis', $iban, $betrag, $tstamp, $verwendung);
