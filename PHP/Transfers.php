@@ -223,11 +223,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         'Auftragskonto',
         'Buchungstag',
         'Valutadatum',
+        'Buchungstext',
         'Verwendungszweck',
         'Beguenstigter/Zahlungspflichtiger',
         'Kontonummer/IBAN',
         'Betrag',
     ];
+
     foreach ($required as $col) {
         if (!array_key_exists($col, $idx)) {
             echo json_encode(['ok' => false, 'error' => 'missing_col:' . $col]);
@@ -247,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
     );
     $insKnown = $conn->prepare(
         'INSERT INTO transfers (uid, iban, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) 
-         VALUES (?, ?, ?, "Transfer", 4, ?, ?, ?, ?)'
+         VALUES (?, ?, ?, ?, 4, ?, ?, ?, ?)'
     );
 
     $selExistsUnknown = $conn->prepare(
@@ -264,7 +266,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
     $agent = (int)($_SESSION['uid'] ?? 0);
     $nowStr = date('d.m.Y H:i');
     $inserted = 0; $skipped = 0; $unknown = 0;
-
     // Zeilen verarbeiten
     for ($li = 1; $li < count($lines); $li++) {
         $row = str_getcsv($lines[$li], ';', '"');
@@ -273,15 +274,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         $auftragskonto = trim($row[$idx['Auftragskonto']] ?? '');
         $valutaStr     = trim($row[$idx['Valutadatum']] ?? '');
         $buchungStr    = trim($row[$idx['Buchungstag']] ?? '');
+        $buchungstext  = trim($row[$idx['Buchungstext']] ?? '');
         $verwendung    = trim($row[$idx['Verwendungszweck']] ?? '');
         $name          = trim($row[$idx['Beguenstigter/Zahlungspflichtiger']] ?? '');
         $iban          = trim($row[$idx['Kontonummer/IBAN']] ?? '');
         $betragStr     = trim($row[$idx['Betrag']] ?? '');
 
+        // Kassenausgleich-Überweisungen zwischen Netz- und Hauskonto (beide Richtungen) explizit ignorieren
+        if (
+            (
+                ($auftragskonto === $NETZ_IBAN && $iban === $HAUS_IBAN) ||
+                ($auftragskonto === $HAUS_IBAN && $iban === $NETZ_IBAN)
+            )
+            && stripos($verwendung, 'kassenausgleich') !== false
+        ) {
+            $skipped++;
+            continue;
+        }
+
         // Nur unsere beiden Konten berücksichtigen
         if (!isset($kasseMap[$auftragskonto])) { $skipped++; continue; }
 
         $betrag = $parseAmount($betragStr);
+
+        // Abmeldungen (Rücküberweisung bei Austritt) ignorieren – werden von anderem Prozess verbucht
+        if (
+            ($auftragskonto === $NETZ_IBAN || $auftragskonto === $HAUS_IBAN) &&
+            stripos($verwendung, 'abmeldung') !== false &&
+            $betrag < 0
+        ) {
+            $skipped++;
+            continue;
+        }
 
         // Interne Umbuchungen zwischen NETZ_IBAN <-> HAUS_IBAN über 1000 (abs) ignorieren
         $isInterAccount =
@@ -292,8 +316,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             continue;
         }
 
-        // Nur positive Gutschriften importieren
-        if ($betrag <= 0.0) { $skipped++; continue; }
+        // Flags für Sonderfälle
+        $isEntgeltabschluss = (stripos($buchungstext, 'ENTGELTABSCHLUSS') !== false);
+        $isPaypalTransfer   = (
+            $auftragskonto === $NETZ_IBAN &&
+            stripos($name, 'paypal europe') !== false
+        );
+
+        // Nur positive Gutschriften importieren – außer Entgeltabschluss (Bankgebühr)
+        if ($betrag <= 0.0 && !$isEntgeltabschluss) {
+            $skipped++;
+            continue;
+        }
 
         // Datum (Valuta bevorzugt) und harter Cutoff
         $tstamp = $parseDate($valutaStr !== '' ? $valutaStr : $buchungStr);
@@ -302,14 +336,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         $kasse     = $kasseMap[$auftragskonto];
         $netzkonto = $netzkontoMap[$auftragskonto];
 
-        // UID aus "W<uid>H"
+        // UID & Beschreibung bestimmen
         $uid = null;
-        if (preg_match('/W\s*(\d{1,6})\s*H(?!\d)/iu', $verwendung, $m)) {
+        $beschreibung = 'Transfer';
+
+        // Entgeltabschlüsse direkt auf Dummy-UIDs
+        if ($isEntgeltabschluss) {
+            $beschreibung = 'Entgeltabschluss';
+            if ($auftragskonto === $NETZ_IBAN) {
+                $uid = 472; // NetzAG Dummy
+            } elseif ($auftragskonto === $HAUS_IBAN) {
+                $uid = 492; // Haussprecher Dummy
+            }
+        }
+        // Monatlicher PayPal-Transfer direkt auf Netz-Dummy
+        elseif ($isPaypalTransfer) {
+            $uid = 472; // PayPal-Umsatz -> NetzAG Dummy
+            $beschreibung = 'Kassenausgleich PayPal';
+        }
+
+        // UID aus "W<uid>H" nur, wenn noch keine Dummy-UID gesetzt ist
+        if ($uid === null && preg_match('/W\s*(\d{1,6})\s*H(?!\d)/iu', $verwendung, $m)) {
             $uid = (int)$m[1];
         }
 
         if ($uid !== null) {
-            // Duplikatprüfung jetzt über IBAN + Betrag + tstamp + kasse
+            // Duplikatprüfung über IBAN + Betrag + tstamp + kasse
             $selExistsKnown->bind_param('sdii', $iban, $betrag, $tstamp, $kasse);
             $selExistsKnown->execute();
             $selExistsKnown->store_result();
@@ -321,12 +373,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             $selExistsKnown->free_result();
 
             $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV";
-            // IBAN wird jetzt mit in transfers geschrieben
-            $insKnown->bind_param('isiidis', $uid, $iban, $tstamp, $kasse, $betrag, $agent, $changelog);
+            $insKnown->bind_param(
+                'isisidis',
+                $uid,
+                $iban,
+                $tstamp,
+                $beschreibung,
+                $kasse,
+                $betrag,
+                $agent,
+                $changelog
+            );
             $insKnown->execute();
             $inserted++;
         } else {
-            // Unknown – unverändert, Duplikatprüfung läuft hier schon über IBAN
+            // Unknown – unverändert, Duplikatprüfung läuft hier schon über IBAN + Betrag + tstamp + Verwendungszweck
             $selExistsUnknown->bind_param('sdis', $iban, $betrag, $tstamp, $verwendung);
             $selExistsUnknown->execute();
             $selExistsUnknown->store_result();
@@ -340,6 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             $unknown++;
         }
     }
+
 
     echo json_encode(['ok' => true, 'inserted' => $inserted, 'skipped' => $skipped, 'unknown' => $unknown]);
     exit;
