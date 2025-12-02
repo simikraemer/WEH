@@ -48,7 +48,7 @@ function normalize_ag_title(string $name): string {
     ];
     return $map[$name] ?? $name;
 }
-$AG_TITLE_EXCLUDE = ['Webmaster','WEH-Hausmeister','TvK-Hausmeister','Vorsitz','Kasse','Schriftführer'];
+$AG_TITLE_EXCLUDE = ['WEH-Hausmeister','TvK-Hausmeister','Vorsitz','Kasse','Schriftführer'];
 
 function build_ag_users(array &$ag_complete, mysqli $conn): void {
     foreach ($ag_complete as $id => &$data_user_erweiterung) {
@@ -155,10 +155,16 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
             .tag-label { width: 9mm; text-align: center; letter-spacing: .2px; }
             .tag-room  { width: 11mm; text-align: right; }
             .crown { height: 10pt; vertical-align: middle; position: relative; top: 1.2pt; margin-left: 2px; }
+            .legend {
+                position: fixed;
+                right: 0mm;
+                bottom: 0mm;
+                font-size: 10pt;
+            }
         </style>
     </head>
     <body>
-        <h1><?= htmlspecialchars($title) ?> - <?= htmlspecialchars($today) ?></h1>
+        <h1><?= htmlspecialchars($title)?></h1>
         <table class="grid"><tbody>
         <?php
         $count = count($groupsFiltered);
@@ -183,6 +189,11 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
                            . htmlspecialchars($group['mail'])
                            . '</div>';
                     }
+                    if ($group['name'] == "Netzwerk-AG" && $turm == "weh") {
+                        echo "<div style='font-size:7pt; text-align:center; font-weight: bold; margin-top:2mm; margin-bottom:2mm;'>"
+                           . "Don't knock on our doors,<br>visit our consultation hour!"
+                           . "</div>";
+                    }
                     if (!empty($users)) {
                         echo '<table class="members"><tbody>';
                         foreach ($users as $user) {
@@ -199,8 +210,13 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
                             echo       '<span class="tag-room">'  . htmlspecialchars($room_disp) . '</span>';
                             echo     '</span>';
                             echo   '</td>';
-                            echo   '<td class="namecell">';
-                            echo     htmlspecialchars($user['name']);
+                            echo   '<td class="namecell">';                            
+                            $name = htmlspecialchars($user['name']);
+                            #if (!empty($isSpeaker) || $group_id === 8 || $group_id === 66) {
+                            if (!empty($isSpeaker)) {
+                                $name = '<strong>' . $name . '</strong>';
+                            }
+                            echo $name;
                             #if ($isSpeaker) { echo ' <img class="crown" src="' . $crownDataUri . '" alt="Sprecher">'; }
                             echo   '</td>';
                             echo '</tr>';
@@ -208,12 +224,6 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
                         echo '</tbody></table>';
                     } else {
                         echo '<div style="text-align:center; color:#444;">Keine Mitglieder in dieser AG.</div>';
-                    }
-
-                    if ($group['name'] == "Netzwerk-AG" && $turm == "weh") {
-                        echo "<div style='font-size:7pt; text-align:center; font-weight: bold; margin-top:2mm;'>"
-                           . "Don't knock on our doors,<br>visit our consultation hour!"
-                           . "</div>";
                     }
                     echo '</div>';
                 }
@@ -223,6 +233,12 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
         endfor;
         ?>
         </tbody></table>
+        <div class="legend">
+            <strong>Fett</strong> = Sprecher
+            <br>
+            Stand: <?= htmlspecialchars($today) ?>
+        </div>
+
     </body>
     </html>
     <?php
@@ -313,7 +329,7 @@ function export_floor_pdf(mysqli $conn, string $turm, int $maxfloor, string $ori
         $COLS = 3;
     } else {
         if ($turm == "weh") {
-            $COLS = 4;
+            $COLS = 3;
         } else {
             $COLS = 4;
         }
@@ -328,7 +344,7 @@ function export_floor_pdf(mysqli $conn, string $turm, int $maxfloor, string $ori
         <meta charset="utf-8">
         <style>
             @page { size: <?= $pageSizeCss ?>; margin: 20mm 20mm; }
-            body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 7pt; line-height: 1.25; color: #000; }
+            body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 8pt; line-height: 1.25; color: #000; }
             h1 { font-size: 13pt; margin: 0 0 4mm 0; text-align: center; }
             .grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
             .grid td { vertical-align: top; padding: 1.6mm; }
@@ -343,10 +359,16 @@ function export_floor_pdf(mysqli $conn, string $turm, int $maxfloor, string $ori
             .tag-label { width: 9mm; text-align: center; letter-spacing: .2px; }
             .tag-room  { width: 11mm; text-align: right; }
             .muted { color:#444; text-align:center; }
+            .legend {
+                position: fixed;
+                right: 0mm;
+                top: 0mm;
+                font-size: 10pt;
+            }
         </style>
     </head>
     <body>
-        <h1><?= htmlspecialchars($title) ?> - <?= htmlspecialchars($today) ?></h1>
+        <h1><?= htmlspecialchars($title) ?></h1>
         <table class="grid"><tbody>
         <?php
         $floors = array_keys($data);
@@ -389,6 +411,9 @@ function export_floor_pdf(mysqli $conn, string $turm, int $maxfloor, string $ori
         endfor;
         ?>
         </tbody></table>
+        <div class="legend">
+            Stand: <?= htmlspecialchars($today) ?>
+        </div>
     </body>
     </html>
     <?php
