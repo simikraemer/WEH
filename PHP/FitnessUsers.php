@@ -10,7 +10,7 @@
 require('template.php');
 mysqli_set_charset($conn, "utf8");
 if (auth($conn) && $_SESSION['valid'] && ($_SESSION['SportAG'] || $_SESSION['Webmaster'])) {
-    load_menu();    
+    load_menu();
     $zeit = time();
     
     
@@ -19,6 +19,7 @@ if (auth($conn) && $_SESSION['valid'] && ($_SESSION['SportAG'] || $_SESSION['Web
     $sql = "SELECT u.username, u.name, u.room, u.turm, f.status 
             FROM fitness f 
             JOIN users u ON f.uid = u.uid 
+            WHERE u.pid NOT IN (13,14)
             ORDER BY FIELD(u.turm, 'weh', 'tvk'), u.room";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_execute($stmt);
