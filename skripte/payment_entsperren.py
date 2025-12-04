@@ -61,8 +61,8 @@ def checkpayment(DEBUG=True):
             if not DEBUG:
                 cursor.execute("""
                     UPDATE sperre SET endtime = %s
-                    WHERE uid = %s AND missedpayment = 1 AND starttime <= %s AND endtime >= %s
-                """, (zeit, uid, zeit, zeit))
+                    WHERE uid = %s AND missedpayment = 1 AND endtime >= %s
+                """, (zeit, uid, zeit))
                 db.commit()
 
                 to_email = f"{username}@{turm}.rwth-aachen.de"
