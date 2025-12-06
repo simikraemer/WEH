@@ -479,19 +479,19 @@ function load_menu() {
                 echo '      <button onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
             }
 
-            #$infoterminalbuttons = [
-            #    'weh' => ['label' => 'WEH Infoterminal', 'link' => '/LokiManagement.php'],
-            #    'tvk' => ['label' => 'TvK Infoterminal', 'link' => '/SigynManagement.php']
-            #];
-            #$hasOverrideAccess = !empty($_SESSION['Webmaster']) || !empty($_SESSION['NetzAG']);
-            #foreach ($infoterminalbuttons as $key => $data) {
-            #    $isActive = ($hasOverrideAccess || $_SESSION["turm"] === $key);
-            #    $style = 'white-space: nowrap;' . ($isActive ? '' : ' color: gray; cursor: not-allowed;');
-            #    $disabled = $isActive ? '' : 'disabled';
-            #    $onclick = $isActive ? "onclick=\"window.location.href='{$data['link']}';\"" : '';
-            #    
-            #    echo "<button $onclick style=\"$style\" $disabled>{$data['label']}</button> ";
-            #}
+            $infoterminalbuttons = [
+                'weh' => ['label' => 'WEH Infoterminal', 'link' => '/LokiManagement.php'],
+                #'tvk' => ['label' => 'TvK Infoterminal', 'link' => '/SigynManagement.php']
+            ];
+            $hasOverrideAccess = !empty($_SESSION['Webmaster']) || !empty($_SESSION['NetzAG']);
+            foreach ($infoterminalbuttons as $key => $data) {
+                $isActive = ($hasOverrideAccess || $_SESSION["turm"] === $key);
+                $style = 'white-space: nowrap;' . ($isActive ? '' : ' color: gray; cursor: not-allowed;');
+                $disabled = $isActive ? '' : 'disabled';
+                $onclick = $isActive ? "onclick=\"window.location.href='{$data['link']}';\"" : '';
+                
+                echo "<button $onclick style=\"$style\" $disabled>{$data['label']}</button> ";
+            }
 
             echo '</div>';
             echo '</div>';

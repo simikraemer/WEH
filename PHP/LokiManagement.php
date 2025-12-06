@@ -11,8 +11,8 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
-#if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["aktiv"])) {
-if (auth($conn) && ($_SESSION['NetzAG'])) {
+if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["aktiv"])) {
+#if (auth($conn) && ($_SESSION['NetzAG'])) {
   load_menu();
   $zeit = time();
   #echo '<pre style="color: white;">';print_r($_POST);echo '</pre>';
