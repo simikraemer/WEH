@@ -17,6 +17,14 @@ $waschconn = mysqli_connect(
     $mysql_waschconfig['password'],
     $mysql_waschconfig['database']
 );
+
+$mysql_waschconfig = $config['mysqlphpwaschtvk'];
+$tvkwaschconn = mysqli_connect(
+    $mysql_waschconfig['host'],
+    $mysql_waschconfig['user'],
+    $mysql_waschconfig['password'],
+    $mysql_waschconfig['database']
+);
 #mysqli_set_charset($waschconn,"utf8");
 
 $mailconfig = $config['mail'];

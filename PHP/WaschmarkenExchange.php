@@ -11,6 +11,21 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
+
+function getWaschConnForUid($conn, $waschconn, $tvkwaschconn, $uid) {
+    $uid = (int)$uid;
+
+    $sql  = "SELECT turm FROM users WHERE uid = ? LIMIT 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $uid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $turm);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    return ($turm === "tvk") ? $tvkwaschconn : $waschconn;
+}
+
 if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === true)) {
 
   load_menu();
@@ -21,7 +36,8 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
 
 
   if (isset($_POST["execute"]) && $_POST["execute"] == "thatshit") {
-    $exec_uid = $_POST["uid"];
+    $exec_uid = (int)$_POST["uid"]; // (optional) cast
+    $exec_waschconn = getWaschConnForUid($conn, $waschconn, $tvkwaschconn, $exec_uid);
     $exec_waschmarkenpreis = $_POST["waschmarkenpreis"];
     $exec_aktuellewaschmarken = $_POST["aktuellewaschmarken"];
 
@@ -39,7 +55,7 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
             // Insert into waschsystem2.transfers
             $insert_sql = "INSERT INTO transfers (von_uid, nach_uid, anzahl, time) VALUES (-1,?,?,?)";
             $insert_var = array($exec_uid, $marken_neg, $zeit);
-            $stmt = mysqli_prepare($waschconn, $insert_sql);
+            $stmt = mysqli_prepare($exec_waschconn, $insert_sql);
             mysqli_stmt_bind_param($stmt, "iii", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
@@ -60,7 +76,7 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
             // Update waschsystem2.waschusers
             $new_waschmarken = $exec_aktuellewaschmarken - $marken;
             $update_sql = "UPDATE waschusers SET waschmarken = ? WHERE uid = ?";
-            $update_stmt = mysqli_prepare($waschconn, $update_sql);
+            $update_stmt = mysqli_prepare($exec_waschconn, $update_sql);
             mysqli_stmt_bind_param($update_stmt, "ii", $new_waschmarken, $exec_uid);
             mysqli_stmt_execute($update_stmt);
             mysqli_stmt_close($update_stmt);
@@ -87,7 +103,7 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
             // Insert into waschsystem2.transfers
             $insert_sql = "INSERT INTO transfers (von_uid, nach_uid, anzahl, time) VALUES (-1,?,?,?)";
             $insert_var = array($exec_uid, $marken, $zeit);
-            $stmt = mysqli_prepare($waschconn, $insert_sql);
+            $stmt = mysqli_prepare($exec_waschconn, $insert_sql);
             mysqli_stmt_bind_param($stmt, "iii", ...$insert_var);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
@@ -108,7 +124,7 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
             // Update waschsystem2.waschusers
             $new_waschmarken = $exec_aktuellewaschmarken + $marken;
             $update_sql = "UPDATE waschusers SET waschmarken = ? WHERE uid = ?";
-            $update_stmt = mysqli_prepare($waschconn, $update_sql);
+            $update_stmt = mysqli_prepare($exec_waschconn, $update_sql);
             mysqli_stmt_bind_param($update_stmt, "ii", $new_waschmarken, $exec_uid);
             mysqli_stmt_execute($update_stmt);
             mysqli_stmt_close($update_stmt);
@@ -223,9 +239,11 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
   mysqli_stmt_bind_result($stmt, $name, $room, $groups);
   mysqli_stmt_fetch($stmt);
   mysqli_stmt_free_result($stmt);
+
+  $selected_waschconn = getWaschConnForUid($conn, $waschconn, $tvkwaschconn, (int)$selected_uid);
   
   $sql = "SELECT waschmarken FROM waschusers WHERE uid = ?";
-  $stmt = mysqli_prepare($waschconn, $sql);
+  $stmt = mysqli_prepare($selected_waschconn, $sql);  
   mysqli_stmt_bind_param($stmt, "i", $selected_uid);
   mysqli_stmt_execute($stmt);
   #mysqli_set_charset($conn, "utf8");

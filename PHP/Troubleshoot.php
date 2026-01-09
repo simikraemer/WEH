@@ -303,33 +303,25 @@ if (auth($conn) && $_SESSION['valid']) {
 
             if ($turm == 'weh') {
 
-                $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22022 fijinotaus@radius1.weh.rwth-aachen.de "less /var/log/syslog | grep ' . $username. '@weh.rwth-aachen.de 2>&1; echo $?"';
+                // FIX: exakte Mail in eckigen Klammern matchen (sonst matcht "e17@..." auch "katherine17@...")
+                $needle   = '[' . $username . '@weh.rwth-aachen.de]';
+                $remoteCmd = 'grep -F -- ' . escapeshellarg($needle) . ' /var/log/syslog';
+
+                $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22022 fijinotaus@radius1.weh.rwth-aachen.de '
+                        . escapeshellarg($remoteCmd . ' 2>&1; echo $?');
+
                 $descriptors = [
-                    0 => ['pipe', 'r'], // stdin
-                    1 => ['pipe', 'w'], // stdout
-                    2 => ['pipe', 'w']  // stderr
+                    0 => ['pipe', 'r'],
+                    1 => ['pipe', 'w'],
+                    2 => ['pipe', 'w']
                 ];
 
-                // Befehl ausführen
                 $process = proc_open($command, $descriptors, $pipes);
 
                 if (is_resource($process)) {
-                    // Output von stdout lesen
-                    $output = stream_get_contents($pipes[1]);
-                    fclose($pipes[1]);
-                
-                    // Fehler von stderr lesen (falls vorhanden)
-                    $errors = stream_get_contents($pipes[2]);
-                    fclose($pipes[2]);
-                
-                    // Warte auf den Abschluss des Prozesses
+                    $output = stream_get_contents($pipes[1]); fclose($pipes[1]);
+                    $errors = stream_get_contents($pipes[2]); fclose($pipes[2]);
                     $return_value = proc_close($process);
-                
-                    // Ausgabe zur Fehlersuche
-                    #echo "Command: " . htmlspecialchars($command) . "<br>";
-                    #echo "Output: " . nl2br(htmlspecialchars($output)) . "<br>";
-                    #echo "Errors: " . nl2br(htmlspecialchars($errors)) . "<br>";
-                    #echo "Return value: " . $return_value . "<br>";
                 } else {
                     echo "Fehler: Prozess konnte nicht geöffnet werden.<br>";
                 }
@@ -337,33 +329,25 @@ if (auth($conn) && $_SESSION['valid']) {
                 $outputfeld = True;
 
             } elseif ($turm == 'tvk') {
-                $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de "less /var/log/syslog | grep ' . $username. ' 2>&1; echo $?"';
+
+                // optional robust: nur "Wort"-Treffer (verhindert Substring-Matches)
+                $remoteCmd = 'grep -Fw -- ' . escapeshellarg($username) . ' /var/log/syslog';
+
+                $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de '
+                        . escapeshellarg($remoteCmd . ' 2>&1; echo $?');
+
                 $descriptors = [
-                    0 => ['pipe', 'r'], // stdin
-                    1 => ['pipe', 'w'], // stdout
-                    2 => ['pipe', 'w']  // stderr
+                    0 => ['pipe', 'r'],
+                    1 => ['pipe', 'w'],
+                    2 => ['pipe', 'w']
                 ];
 
-                // Befehl ausführen
                 $process = proc_open($command, $descriptors, $pipes);
 
                 if (is_resource($process)) {
-                    // Output von stdout lesen
-                    $output = stream_get_contents($pipes[1]);
-                    fclose($pipes[1]);
-                
-                    // Fehler von stderr lesen (falls vorhanden)
-                    $errors = stream_get_contents($pipes[2]);
-                    fclose($pipes[2]);
-                
-                    // Warte auf den Abschluss des Prozesses
+                    $output = stream_get_contents($pipes[1]); fclose($pipes[1]);
+                    $errors = stream_get_contents($pipes[2]); fclose($pipes[2]);
                     $return_value = proc_close($process);
-                
-                    // Ausgabe zur Fehlersuche
-                    #echo "Command: " . htmlspecialchars($command) . "<br>";
-                    #echo "Output: " . nl2br(htmlspecialchars($output)) . "<br>";
-                    #echo "Errors: " . nl2br(htmlspecialchars($errors)) . "<br>";
-                    #echo "Return value: " . $return_value . "<br>";
                 } else {
                     echo "Fehler: Prozess konnte nicht geöffnet werden.<br>";
                 }
