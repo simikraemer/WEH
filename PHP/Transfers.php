@@ -443,6 +443,12 @@ if (isset($_POST['save_transfer_id'])) {
     $beschreibung = $_POST['beschreibung']; // Neue Beschreibung
     $zeit = time(); // Neuer Timestamp (aktuelle Zeit)
     $agent = $_SESSION['uid']; // Agent, der die Änderung durchführt (aus Session)
+    $ausgangs_tstamp = (int)($_POST['ausgangs_tstamp'] ?? 0);
+    $new_tstamp = $ausgangs_tstamp;
+    if (!empty($_POST['tstamp_date']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $_POST['tstamp_date'], $m)) {
+        $y = (int)$m[1]; $mo = (int)$m[2]; $d = (int)$m[3];
+        $new_tstamp = mktime(12, 0, 0, $mo, $d, $y);
+    }
 
     // Alte Werte abfangen
     $ausgangs_uid = $_POST['ausgangs_uid'];
@@ -521,6 +527,13 @@ if (isset($_POST['save_transfer_id'])) {
         }
         $changelog .= "Konto: von " . $ausgangs_konto . " auf " . $konto . "\n";
     }
+    if ($new_tstamp !== $ausgangs_tstamp) {
+        if (!$has_changes) {
+            $changelog .= "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
+            $has_changes = true;
+        }
+        $changelog .= "Datum: von " . date("d.m.Y", $ausgangs_tstamp) . " auf " . date("d.m.Y", $new_tstamp) . "\n";
+    }
     if ($kasse != $ausgangs_kasse) {
         if (!$has_changes) {
             $changelog .= "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
@@ -560,21 +573,22 @@ if (isset($_POST['save_transfer_id'])) {
 
     // Update-Abfrage nur durchführen, wenn Änderungen vorhanden sind
     if ($has_changes) {
-      $query = "UPDATE transfers 
-      SET uid = ?, 
-          konto = ?, 
-          kasse = ?, 
-          betrag = ?, 
-          beschreibung = ?,
-          agent = ?, 
-          pfad = ?,
-          changelog = CONCAT(IFNULL(changelog, ''), IF(changelog IS NOT NULL, '\n\n', ''), ?) 
-      WHERE id = ?";
+        $query = "UPDATE transfers 
+        SET uid = ?, 
+            konto = ?, 
+            kasse = ?, 
+            betrag = ?, 
+            beschreibung = ?,
+            agent = ?, 
+            pfad = ?,
+            tstamp = ?,
+            changelog = CONCAT(IFNULL(changelog, ''), IF(changelog IS NOT NULL, '\n\n', ''), ?) 
+        WHERE id = ?";
 
         $stmt = $conn->prepare($query);
 
         // Bindet die Parameter an die Abfrage
-        $stmt->bind_param("iiidsissi", $selected_user, $konto, $kasse, $formatierter_betrag, $beschreibung, $agent, $pfad, $changelog, $transfer_id);
+        $stmt->bind_param("iiidsisisi", $selected_user, $konto, $kasse, $formatierter_betrag, $beschreibung, $agent, $pfad, $new_tstamp, $changelog, $transfer_id);
 
         // Führt das Update aus
         $stmt->execute();
@@ -627,7 +641,7 @@ $current_start = unixtime2startofsemester($zeit);
 // ▼ HIER war's vorher bei dir vergessen:
 $semester_options = [];
 $ts = $current_start;
-while ($ts >= strtotime('01-10-2023')) {
+while ($ts >= strtotime('01-10-2022')) {
     $sem = unixtime2semester($ts);
     $semester_options[$sem] = $ts;
 
@@ -892,7 +906,7 @@ if (isset($_POST['edit_transfer'])) {
     ];
 
     // Deutsche Zeitformatierung (Timestamp in Unixtime)
-    $formatted_date = date("d.m.Y H:i", $selected_transfer_tstamp);
+    $formatted_date = date("d.m.Y", (int)$selected_transfer_tstamp);
 
     // Start des Formulars und der Overlay-Box
     echo ('<div class="overlay"></div>
@@ -915,6 +929,7 @@ if (isset($_POST['edit_transfer'])) {
       echo '<input type="hidden" name="ausgangs_kasse" value="'.$selected_transfer_kasse.'">';
       echo '<input type="hidden" name="ausgangs_beschreibung" value="'.htmlspecialchars($selected_transfer_beschreibung).'">';
       echo '<input type="hidden" name="ausgangs_pfad" value="'.htmlspecialchars($selected_transfer_pfad).'">';
+      echo '<input type="hidden" name="ausgangs_tstamp" value="'.(int)$selected_transfer_tstamp.'">';
     }
     
     echo '<div style="text-align: center; color: lightgrey;">';
@@ -1014,6 +1029,15 @@ if (isset($_POST['edit_transfer'])) {
     
     echo '</div>'; // Ende Flexbox-Container
     
+
+    $date_value = date('Y-m-d', (int)$selected_transfer_tstamp);
+
+    echo '<label style="color:lightgrey;">Datum:</label><br>';
+    if (!$admin) {
+        echo '<p style="color:white !important;">'.date("d.m.Y", (int)$selected_transfer_tstamp).'</p><br>';
+    } else {
+        echo '<input type="date" name="tstamp_date" value="'.htmlspecialchars($date_value, ENT_QUOTES, "UTF-8").'" style="text-align:center;"><br><br>';
+    }
     
 
     echo '<br>';

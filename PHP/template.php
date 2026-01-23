@@ -536,6 +536,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
                     echo '<button onclick="window.location.href=\'/IPs.php\';" style="white-space: nowrap;">IP Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/IPhistory.php\';" style="white-space: nowrap;">IP Historie</button> ';
+                    echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
                     echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'Vorstand') {                                        
@@ -544,6 +545,7 @@ function load_menu() {
                         echo '<button onclick="window.location.href=\'/ProtokollUpload.php\';" style="white-space: nowrap;">Protokoll hochladen</button> ';
                     }
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
                     echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
                     echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
                     echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
@@ -576,6 +578,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/Kassenprüfer.php\';">Kassenprüfer</button> ';
+                    echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
                 }
                 if ($agName === 'WEH-BA') {                                        
                     echo '<button onclick="window.location.href=\'/BA-Administration.php\';" style="white-space: nowrap;">Belegung</button> ';
