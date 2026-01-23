@@ -39,30 +39,35 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
         "kasse_tresor" => "Tresor"
     );
 
-	if (isset($_POST["submit"])) {
+    $boolnamen = array(
+        "paypalactive" => "PayPal aktiv",
+    );
+
+    if (isset($_POST["submit"])) {
         $updateData = array();
+
         foreach ($dezimalnamen as $name => $string) {
-            $updateData[$name] = array(
-                'wert' => $_POST[$name],
-                'dezimal' => true,
-            );
-        }    
+            $updateData[$name] = array('wert' => $_POST[$name], 'dezimal' => true);
+        }
         foreach ($kassennamen as $name => $string) {
-            $updateData[$name] = array(
-                'wert' => $_POST[$name],
-                'dezimal' => false,
-            );
+            $updateData[$name] = array('wert' => $_POST[$name], 'dezimal' => false);
         }
         foreach ($intnamen as $name => $string) {
+            $updateData[$name] = array('wert' => $_POST[$name], 'dezimal' => false);
+        }
+
+        // NEU: Bool (Checkbox) -> kommt als "0" oder "1"
+        foreach ($boolnamen as $name => $string) {
             $updateData[$name] = array(
-                'wert' => $_POST[$name],
+                'wert' => isset($_POST[$name]) ? intval($_POST[$name]) : 0,
                 'dezimal' => false,
             );
         }
-        
+
         foreach ($updateData as $name => $data) {
             $sql = "UPDATE constants SET wert = ? WHERE name = ?";
             $stmt = mysqli_prepare($conn, $sql);
+
             if ($data['dezimal']) {
                 $wert = floatval($data['wert']);
                 mysqli_stmt_bind_param($stmt, "ds", $wert, $name);
@@ -74,8 +79,8 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
             mysqli_stmt_close($stmt);
         }
 
-		echo "<span style='color: green; font-size: 20px;'>Gespeichert.</span><br><br>";
-	}
+        echo "<span style='color: green; font-size: 20px;'>Gespeichert.</span><br><br>";
+    }
 
     $sql = "SELECT name, wert, beschreibung FROM constants";
     $stmt = mysqli_prepare($conn, $sql);
@@ -124,14 +129,17 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
     
     foreach ($konstanten_array as $name => $data) {
         echo "<tr>";
+
         if (array_key_exists($name, $intnamen)) {
             echo "<td style='max-width: 250px;'>" . $intnamen[$name] . "</td>";
             echo "<td style='max-width: 500px;'>" . $data['beschreibung'] . "</td>";
             echo "<td><input type='number' name='$name' value='{$data['wert']}' style='font-size: 20px; max-width: 250px;'></td>";
+
         } elseif (array_key_exists($name, $dezimalnamen)) {
             echo "<td style='max-width: 250px;'>" . $dezimalnamen[$name] . "</td>";
             echo "<td style='max-width: 500px;'>" . $data['beschreibung'] . "</td>";
             echo "<td><input type='number' name='$name' value='{$data['wert']}' step='any' style='font-size: 20px; max-width: 250px;'></td>";
+
         } elseif (array_key_exists($name, $kassennamen)) {
             echo "<td style='max-width: 250px;'>" . $kassennamen[$name] . "</td>";
             echo "<td style='max-width: 500px;'>" . $data['beschreibung'] . "</td>";
@@ -150,10 +158,23 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
             }
             echo "</select>";
             echo "</td>";
+
+        } elseif (array_key_exists($name, $boolnamen)) {
+            // NEU: Checkbox (Hidden-Feld sorgt dafür, dass "0" gesendet wird, wenn unchecked)
+            $checked = ((int)$data['wert'] === 1) ? 'checked' : '';
+            echo "<td style='max-width: 250px;'>" . $boolnamen[$name] . "</td>";
+            echo "<td style='max-width: 500px;'>" . $data['beschreibung'] . "</td>";
+            echo "<td style='font-size: 20px; max-width: 250px;'>";
+            echo "<input type='hidden' name='$name' value='0'>";
+            echo "<label style='cursor:pointer; user-select:none;'>";
+            echo "<input type='checkbox' name='$name' value='1' $checked> aktiv";
+            echo "</label>";
+            echo "</td>";
         }
-        
+
         echo "</tr>";
     }
+
     
     echo "</tbody>";
     echo "</table>";   

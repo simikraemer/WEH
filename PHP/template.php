@@ -399,9 +399,12 @@ function load_menu() {
             echo '<button class="center-btn">Webmaster</button>';
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'/SetSessions.php\';" style="white-space: nowrap;">Sessions verwalten</button> ';
+            echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
             echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
             echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
             echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+            echo '<button onclick="window.location.href=\'/Mitgliedskonto.php\';" style="white-space: nowrap;">Mitgliedskonto</button> ';
+            echo '<button onclick="window.location.href=\'/PayPalTest.php\';" style="white-space: nowrap;">PayPal Test</button> ';
             echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
             echo '<button onclick="window.location.href=\'/Constants.php\';" style="white-space: nowrap;">Konstanten</button> ';
             #echo '<button onclick="window.location.href=\'/EilendersFluch.php\';" style="white-space: nowrap;">Eilender\'s Fluch</button>';

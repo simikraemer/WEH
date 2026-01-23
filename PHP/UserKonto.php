@@ -1,7 +1,17 @@
 <?php
   session_start();
   require('conn.php');
-
+  
+  $paypalactive = 0; // fallback: aus
+  if ($st = $conn->prepare("SELECT wert FROM constants WHERE name='paypalactive' LIMIT 1")) {
+      $st->execute();
+      $st->bind_result($w);
+      if ($st->fetch()) {
+          $paypalactive = (int)$w;
+      }
+      $st->close();
+  }
+  $DEBUG_PAYPAL = ($paypalactive !== 1);
   $suche = FALSE;
   
   if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['search'])) {
@@ -56,7 +66,30 @@ if (auth($conn) && $_SESSION['valid']) {
 
   
   $editable = (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true) || (isset($_SESSION["Vorstand"]) && $_SESSION["Vorstand"] === true);
+  $isWebmaster   = !empty($_SESSION['Webmaster']);
+  $paypalAllowed = (!$DEBUG_PAYPAL) || $isWebmaster;
 
+    function tail_bytes(string $path, int $maxBytes = 200000): string {
+        if (!is_file($path) || !is_readable($path)) return '';
+        $size = @filesize($path);
+        if ($size === false) return '';
+        $start = max(0, $size - $maxBytes);
+        $fp = @fopen($path, 'rb');
+        if (!$fp) return '';
+        @fseek($fp, $start);
+        $data = stream_get_contents($fp);
+        @fclose($fp);
+        return (string)$data;
+    }
+
+    function tail_lines(string $path, int $lines = 200, int $maxBytes = 200000): string {
+        $data = tail_bytes($path, $maxBytes);
+        if ($data === '') return '';
+        $arr = preg_split("/\r\n|\n|\r/", $data);
+        $arr = array_values(array_filter($arr, static fn($v) => $v !== ''));
+        $arr = array_slice($arr, -$lines);
+        return implode("\n", $arr);
+    }
 
 
   require_once('/WEH/PHP/FPDF/fpdf.php');
@@ -664,27 +697,141 @@ if (isset($_POST['save_transfer_id'])) {
   echo '<span style="color: #708090; font-size:18px;">If you do not set this exact Transfer Reference,<br>we will not be able to assign your payment to your account!</span><br>';
   
   echo '</div>';
-  echo '<div style="flex: 1; text-align: center;">';
-  echo '<h1>PayPal</h1>';
-  
-  echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form">';
-  echo '<label for="paypal-amount" style="color: white; font-size: 25px;">Amount: </label>';
-  echo '<select  id="paypal-amount" name="paypal-amount" style="margin-top: 20px; font-size: 20px;">';
-  echo '<option value="5">5 € (0.35 € fee)</option>';
-  echo '<option value="10">10 € (0.35 € fee)</option>';
-  echo '<option value="20" selected>20 € </option>';
-  echo '<option value="30">30 € </option>';
-  echo '<option value="40">40 € </option>';
-  echo '<option value="50">50 € </option>';
-  echo '<option value="75">75 € </option>';
-  echo '<option value="100">100 € </option>';
-  echo '</select>&nbsp&nbsp';
-  echo '<button  type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">TRANSFER</button>';
-  echo '</form><br>';
-  echo '<span style="color: #708090; font-size:18px;">It can take up to 1-2 minutes to process your payment!</span><br>';
+    echo '<div style="flex: 1; text-align: center;">';
+    echo '<h1>PayPal</h1>';
+
+    if ($paypalAllowed) {
+        echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form">';
+        echo '<label for="paypal-amount" style="color: white; font-size: 25px;">Amount: </label>';
+        echo '<select id="paypal-amount" name="paypal-amount" style="margin-top: 20px; font-size: 20px;">';
+        echo '<option value="5">5 € (0.35 € fee)</option>';
+        echo '<option value="10">10 € (0.35 € fee)</option>';
+        echo '<option value="20" selected>20 € </option>';
+        echo '<option value="30">30 € </option>';
+        echo '<option value="40">40 € </option>';
+        echo '<option value="50">50 € </option>';
+        echo '<option value="75">75 € </option>';
+        echo '<option value="100">100 € </option>';
+        echo '</select>&nbsp&nbsp';
+        echo '<button type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">TRANSFER</button>';
+        echo '</form><br>';
+
+        if ($DEBUG_PAYPAL) {
+            echo '<div style="margin-top:6px; color:#ffd27d; font-weight:900; font-size:16px;">
+                    PayPal aktuell nur für Webmaster freigeschaltet.
+                </div>';
+        }
+
+        echo '<span style="color: #708090; font-size:18px;">It can take up to 1-2 minutes to process your payment!</span><br>';
+    } else {
+        echo '<div style="margin-top:10px; color:#ff3b3b; font-weight:900; font-size:18px;">
+                PayPal-Transfer aufgrund von Arbeiten durch die Netzwerk-AG aktuell nicht verfügbar.
+            </div>';
+    }
+
+    echo '</div>';
   echo '</div>';
-  echo '</div>';
   
+
+  if ($DEBUG_PAYPAL && $isWebmaster) {
+    echo '<div style="margin-top:14px; padding:12px; border:2px dashed #ffd27d; max-width:520px; margin-left:auto; margin-right:auto; text-align:left; font-family:monospace; font-size:13px; color:#ffd27d;">';
+    echo '<div style="font-weight:900; margin-bottom:8px;">PAYPAL DEBUG</div>';
+
+    // Session / Kontext
+    echo 'HTTP_HOST: ' . htmlspecialchars($_SERVER['HTTP_HOST'] ?? '-') . "<br>";
+    echo 'SESSION[user]: ' . htmlspecialchars((string)($_SESSION['user'] ?? '-')) . "<br>";
+    echo 'SESSION[uid]: ' . htmlspecialchars((string)($_SESSION['uid'] ?? '-')) . "<br>";
+    echo 'selected_uid: ' . htmlspecialchars((string)($selected_uid ?? '-')) . "<br>";
+    echo 'paypalAllowed: ' . ($paypalAllowed ? 'true' : 'false') . "<br>";
+    echo '<hr style="border:0; border-top:1px solid #ffd27d; margin:10px 0;">';
+
+    // Letzte PayPal-Requests aus Tabelle `paypal`
+    echo '<div style="font-weight:900; margin-bottom:6px;">Last rows in `paypal`</div>';
+
+    $debugUid = null;
+    if (isset($_SESSION['user']) && ctype_digit((string)$_SESSION['user'])) {
+        $debugUid = (int)$_SESSION['user'];
+    }
+
+    if ($debugUid !== null) {
+        $q = "SELECT id, uid, amount, request_time, txn_id, status, payer_email, complete_time
+              FROM paypal
+              WHERE uid = ?
+              ORDER BY id DESC
+              LIMIT 12";
+        $st = $conn->prepare($q);
+        if ($st) {
+            $st->bind_param("i", $debugUid);
+            $st->execute();
+            $r = $st->get_result();
+
+            if ($r && $r->num_rows > 0) {
+                echo '<table style="width:100%; border-collapse:collapse; color:#ffd27d;">';
+                echo '<tr><th style="border-bottom:1px solid #ffd27d; text-align:left;">id</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">amt</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">req</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">status</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">txn</th></tr>';
+                while ($row = $r->fetch_assoc()) {
+                    $req = !empty($row['request_time']) ? date('d.m H:i', (int)$row['request_time']) : '-';
+                    $cmp = !empty($row['complete_time']) ? date('d.m H:i', (int)$row['complete_time']) : '-';
+                    echo '<tr>';
+                    echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)$row['id']) . '</td>';
+                    echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)$row['amount']) . '</td>';
+                    echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars($req) . '</td>';
+                    echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)($row['status'] ?? '-')) . '</td>';
+                    echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)($row['txn_id'] ?? '-')) . '</td>';
+                    echo '</tr>';
+                    if (!empty($row['payer_email']) || !empty($row['complete_time'])) {
+                        echo '<tr><td colspan="5" style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25); opacity:0.9;">';
+                        echo 'payer=' . htmlspecialchars((string)($row['payer_email'] ?? '-')) . ' | complete=' . htmlspecialchars($cmp);
+                        echo '</td></tr>';
+                    }
+                }
+                echo '</table>';
+            } else {
+                echo 'No rows for uid=' . htmlspecialchars((string)$debugUid) . '<br>';
+            }
+            $st->close();
+        } else {
+            echo 'Prepare failed (paypal debug query): ' . htmlspecialchars($conn->error) . '<br>';
+        }
+    } else {
+        echo 'SESSION[user] is not numeric -> cannot filter `paypal` by uid. (check what SESSION[user] contains)<br>';
+    }
+
+    echo '<hr style="border:0; border-top:1px solid #ffd27d; margin:10px 0;">';
+
+    // Letzte Transfers via PayPal (kasse=69)
+    echo '<div style="font-weight:900; margin-bottom:6px;">Last transfers with kasse=69</div>';
+    $qt = "SELECT id, uid, tstamp, betrag, beschreibung
+           FROM transfers
+           WHERE kasse = 69
+           ORDER BY id DESC
+           LIMIT 12";
+    $st2 = $conn->prepare($qt);
+    if ($st2) {
+        $st2->execute();
+        $r2 = $st2->get_result();
+        if ($r2 && $r2->num_rows > 0) {
+            echo '<table style="width:100%; border-collapse:collapse; color:#ffd27d;">';
+            echo '<tr><th style="border-bottom:1px solid #ffd27d; text-align:left;">id</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">uid</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">time</th><th style="border-bottom:1px solid #ffd27d; text-align:left;">amt</th></tr>';
+            while ($row = $r2->fetch_assoc()) {
+                $ts = !empty($row['tstamp']) ? date('d.m H:i', (int)$row['tstamp']) : '-';
+                echo '<tr>';
+                echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)$row['id']) . '</td>';
+                echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)$row['uid']) . '</td>';
+                echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars($ts) . '</td>';
+                echo '<td style="padding:4px 6px; border-bottom:1px solid rgba(255,210,125,0.25);">' . htmlspecialchars((string)$row['betrag']) . '</td>';
+                echo '</tr>';
+            }
+            echo '</table>';
+        } else {
+            echo 'No transfers with kasse=69 found.<br>';
+        }
+        $st2->close();
+    } else {
+        echo 'Prepare failed (transfers debug query): ' . htmlspecialchars($conn->error) . '<br>';
+    }
+
+    echo '</div>';
+}
   
 
 
