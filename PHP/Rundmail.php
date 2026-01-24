@@ -145,9 +145,18 @@ if (auth($conn) && $_SESSION['valid']) {
             mysqli_stmt_bind_param($stmt, "issis", $_SESSION['uid'], $_POST['address'], $titel, $time, $body);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
-            if ($_POST['address'] == "essential" || $_POST['address'] == "tvk-essential" || $_POST['address'] == "weh-essential") {
+
+            $wordpress_allowed = [
+              'essential','tvk-essential','weh-essential',
+              'important','tvk-important','weh-important',
+              'webmaster' // <-- damit Debug/Webmaster mit Checkbox posten darf
+            ];
+            $publish_frontend  = !empty($_POST['publish_frontend']) && in_array($_POST['address'], $wordpress_allowed, true);
+
+            if ($publish_frontend) {
                 post2frontend($titel, $body);
             }
+
             echo '<div style="margin: 0 auto; text-align: center;">';
             echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
             echo "<p style='color:green; text-align:center;'>Mail versendet.</p>";
@@ -216,9 +225,14 @@ if (auth($conn) && $_SESSION['valid']) {
       }
       echo '</select><br>';
 
-      echo '<div id="essential-info" style="display: none; margin-top: 10px; color: #ffcc00; font-size: 18px;">
-        Hinweis: Diese Mail wird zusätzlich <strong>auf der öffentlichen Vereinswebseite</strong> publiziert.
-      </div>';
+      echo '
+        <div id="publish-wrap" style="display:none; margin-top: 10px; color: #ffcc00; font-size: 18px;">
+          <label style="cursor:pointer;">
+            <input type="checkbox" id="publish_frontend" name="publish_frontend" value="1" style="transform: scale(1.2); margin-right: 10px;">
+            Zusätzlich <strong>auf der öffentlichen Vereinswebseite</strong> publizieren
+          </label>
+        </div>
+      ';
 
       if ($hasAgMembership) {
         echo '<label for="replyto" style="color: white; font-size: 25px; cursor: help;" title="Recipients will send replies to the chosen AG instead of the sender.">Reply-To: </label>';
@@ -287,19 +301,32 @@ function post2frontend($titel, $body) {
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const addressSelect = document.getElementById('address');
-    const infoBox = document.getElementById('essential-info');
+    const publishWrap   = document.getElementById('publish-wrap');
+    const publishCb     = document.getElementById('publish_frontend');
 
-    function checkEssentialNotice() {
+    const essential = new Set(['essential', 'tvk-essential', 'weh-essential', 'webmaster']);
+    const important = new Set(['important', 'tvk-important', 'weh-important']);
+
+    function updatePublishUI(forceDefault = true) {
       const val = addressSelect.value;
-      if (val === 'essential' || val === 'tvk-essential' || val === 'weh-essential') {
-        infoBox.style.display = 'block';
+
+      if (essential.has(val)) {
+        publishWrap.style.display = 'block';
+        if (forceDefault) publishCb.checked = true;     // default: checked
+      } else if (important.has(val)) {
+        publishWrap.style.display = 'block';
+        if (forceDefault) publishCb.checked = false;    // default: unchecked
       } else {
-        infoBox.style.display = 'none';
+        publishWrap.style.display = 'none';
+        publishCb.checked = false;                      // safety
       }
     }
 
-    addressSelect.addEventListener('change', checkEssentialNotice);
-    checkEssentialNotice(); // Initialer Aufruf für voreingestellten Wert
+    addressSelect.addEventListener('change', function () {
+      updatePublishUI(true); // beim Wechsel Default setzen
+    });
+
+    updatePublishUI(true); // initial
   });
 </script>
 
