@@ -701,6 +701,9 @@ if (isset($_POST['save_transfer_id'])) {
     echo '<h1>PayPal</h1>';
 
     if ($paypalAllowed) {
+
+        $www2HealthUrl = 'https://www2.weh.rwth-aachen.de/paypal_healthcheck.php?sandbox=' . ($DEBUG_PAYPAL ? '1' : '0');
+
         echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form">';
         echo '<label for="paypal-amount" style="color: white; font-size: 25px;">Amount: </label>';
         echo '<select id="paypal-amount" name="paypal-amount" style="margin-top: 20px; font-size: 20px;">';
@@ -713,8 +716,79 @@ if (isset($_POST['save_transfer_id'])) {
         echo '<option value="75">75 € </option>';
         echo '<option value="100">100 € </option>';
         echo '</select>&nbsp&nbsp';
-        echo '<button type="submit" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">TRANSFER</button>';
-        echo '</form><br>';
+
+        // Button initial disabled + versteckt
+        echo '<button type="submit" id="paypal_transfer_btn" class="center-btn" style="margin: 0 auto; display: none; font-size: 20px;" disabled>TRANSFER</button>';
+        echo '</form>';
+
+        // Status UI
+        echo '<div id="paypal_health_status" style="margin-top:10px; font-weight:900; font-size:16px; color:#ffd27d;">
+                PayPal-Verbindung wird geprüft…
+            </div>';
+
+        // JS Health-Check: Browser -> www2 (nur dann sichtbar/aktiv wenn erreichbar + TLS ok)
+        echo '<script>
+        (function(){
+        const healthUrl = ' . json_encode($www2HealthUrl) . ';
+        const btn = document.getElementById("paypal_transfer_btn");
+        const status = document.getElementById("paypal_health_status");
+        const form = document.getElementById("paypal_form");
+
+        function setFail(msg){
+            btn.style.display = "none";
+            btn.disabled = true;
+            status.style.color = "#ff3b3b";
+            status.textContent = msg;
+        }
+
+        function setOk(){
+            btn.style.display = "inline-block";
+            btn.disabled = false;
+            status.style.color = "#18ec13";
+            status.textContent = "";
+        }
+
+        form.addEventListener("submit", function(e){
+            if (btn.disabled) { e.preventDefault(); e.stopPropagation(); }
+        });
+
+        // optional: harte Timeout-Absicherung (Fetch hat keinen nativen timeout)
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 3500);
+
+        fetch(healthUrl, { method: "GET", cache: "no-store", credentials: "omit", signal: controller.signal })
+            .then(r => {
+            clearTimeout(t);
+            return r.json().catch(() => null).then(j => ({status:r.status, ok:r.ok, json:j}));
+            })
+            .then(res => {
+            const j = res.json || {};
+            if (res.ok && j && j.ok === true) { setOk(); return; }
+
+            // hier nur noch www2 relevant
+            if (res.status === 0) {
+                setFail("PayPal aktuell nicht verfügbar (www2 nicht erreichbar). Bitte später erneut versuchen.");
+            } else if (res.status >= 300 && res.status < 400) {
+                setFail("PayPal aktuell nicht verfügbar (www2 Redirect). Bitte später erneut versuchen.");
+            } else if (res.status === 403) {
+                setFail("PayPal aktuell nicht verfügbar (www2 Zugriff verweigert). Bitte später erneut versuchen.");
+            } else {
+                setFail("PayPal aktuell nicht verfügbar (www2 Healthcheck nicht OK). Bitte später erneut versuchen.");
+            }
+            })
+            .catch(err => {
+            clearTimeout(t);
+            // TLS/Cert/Netz/Timeout => landet hier
+            if (err && err.name === "AbortError") {
+                setFail("PayPal aktuell nicht verfügbar (www2 Timeout). Bitte später erneut versuchen.");
+            } else {
+                setFail("PayPal aktuell nicht verfügbar (www2 nicht erreichbar / TLS-Fehler). Bitte später erneut versuchen.");
+            }
+            });
+        })();
+        </script>';
+
+        echo '<br>';
 
         if ($DEBUG_PAYPAL) {
             echo '<div style="margin-top:6px; color:#ffd27d; font-weight:900; font-size:16px;">
@@ -723,6 +797,7 @@ if (isset($_POST['save_transfer_id'])) {
         }
 
         echo '<span style="color: #708090; font-size:18px;">It can take up to 1-2 minutes to process your payment!</span><br>';
+
     } else {
         echo '<div style="margin-top:10px; color:#ff3b3b; font-weight:900; font-size:18px;">
                 PayPal-Transfer aufgrund von Arbeiten durch die Netzwerk-AG aktuell nicht verfügbar.

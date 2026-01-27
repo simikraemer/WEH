@@ -444,10 +444,26 @@ if (isset($_POST['save_transfer_id'])) {
     $zeit = time(); // Neuer Timestamp (aktuelle Zeit)
     $agent = $_SESSION['uid']; // Agent, der die Änderung durchführt (aus Session)
     $ausgangs_tstamp = (int)($_POST['ausgangs_tstamp'] ?? 0);
-    $new_tstamp = $ausgangs_tstamp;
+    $orig_h = (int)date('H', $ausgangs_tstamp);
+    $orig_i = (int)date('i', $ausgangs_tstamp);
+    $orig_s = (int)date('s', $ausgangs_tstamp);
+    if (!empty($_POST['tstamp_time']) && preg_match('/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/', $_POST['tstamp_time'], $tm)) {
+        $orig_h = (int)$tm[1];
+        $orig_i = (int)$tm[2];
+        $orig_s = (int)$tm[3];
+    }
+    $new_tstamp = $ausgangs_tstamp;    
+    $y  = (int)date('Y', $ausgangs_tstamp);
+    $mo = (int)date('m', $ausgangs_tstamp);
+    $d  = (int)date('d', $ausgangs_tstamp);
     if (!empty($_POST['tstamp_date']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $_POST['tstamp_date'], $m)) {
-        $y = (int)$m[1]; $mo = (int)$m[2]; $d = (int)$m[3];
-        $new_tstamp = mktime(12, 0, 0, $mo, $d, $y);
+        $y  = (int)$m[1];
+        $mo = (int)$m[2];
+        $d  = (int)$m[3];
+    }    
+    $candidate = mktime($orig_h, $orig_i, $orig_s, $mo, $d, $y);
+    if ($candidate !== $ausgangs_tstamp) {
+        $new_tstamp = $candidate;
     }
 
     // Alte Werte abfangen
@@ -532,7 +548,10 @@ if (isset($_POST['save_transfer_id'])) {
             $changelog .= "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
             $has_changes = true;
         }
-        $changelog .= "Datum: von " . date("d.m.Y", $ausgangs_tstamp) . " auf " . date("d.m.Y", $new_tstamp) . "\n";
+        $changelog .= "Zeit: von "
+            . date("d.m.Y H:i", $ausgangs_tstamp) . " (" . $ausgangs_tstamp . ")"
+            . " auf "
+            . date("d.m.Y H:i", $new_tstamp) . " (" . $new_tstamp . ")\n";
     }
     if ($kasse != $ausgangs_kasse) {
         if (!$has_changes) {
@@ -930,6 +949,9 @@ if (isset($_POST['edit_transfer'])) {
       echo '<input type="hidden" name="ausgangs_beschreibung" value="'.htmlspecialchars($selected_transfer_beschreibung).'">';
       echo '<input type="hidden" name="ausgangs_pfad" value="'.htmlspecialchars($selected_transfer_pfad).'">';
       echo '<input type="hidden" name="ausgangs_tstamp" value="'.(int)$selected_transfer_tstamp.'">';
+      echo '<input type="hidden" name="ausgangs_hour" value="'.(int)date('H', (int)$selected_transfer_tstamp).'">';
+      echo '<input type="hidden" name="ausgangs_min"  value="'.(int)date('i', (int)$selected_transfer_tstamp).'">';
+      echo '<input type="hidden" name="ausgangs_sec"  value="'.(int)date('s', (int)$selected_transfer_tstamp).'">';
     }
     
     echo '<div style="text-align: center; color: lightgrey;">';
@@ -1031,12 +1053,20 @@ if (isset($_POST['edit_transfer'])) {
     
 
     $date_value = date('Y-m-d', (int)$selected_transfer_tstamp);
+    $time_value = date('H:i:s', (int)$selected_transfer_tstamp);
 
-    echo '<label style="color:lightgrey;">Datum:</label><br>';
+    echo '<label style="color:lightgrey;">Datum & Uhrzeit:</label><br>';
+
     if (!$admin) {
-        echo '<p style="color:white !important;">'.date("d.m.Y", (int)$selected_transfer_tstamp).'</p><br>';
+        echo '<p style="color:white !important;">'
+        . date("d.m.Y H:i", (int)$selected_transfer_tstamp)
+        . ' <span style="color:#aaa;">(' . (int)$selected_transfer_tstamp . ')</span>'
+        . '</p><br>';
     } else {
-        echo '<input type="date" name="tstamp_date" value="'.htmlspecialchars($date_value, ENT_QUOTES, "UTF-8").'" style="text-align:center;"><br><br>';
+        echo '<div style="display:flex; gap:10px; justify-content:center; align-items:center;">';
+        echo '  <input type="date" name="tstamp_date" value="'.htmlspecialchars($date_value, ENT_QUOTES, "UTF-8").'" style="text-align:center;">';
+        echo '  <input type="time" name="tstamp_time" value="'.htmlspecialchars($time_value, ENT_QUOTES, "UTF-8").'" step="1" style="text-align:center; width:150px;">';
+        echo '</div><br><br>';
     }
     
 
