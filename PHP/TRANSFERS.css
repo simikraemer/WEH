@@ -1,0 +1,123 @@
+/* =========================
+   (A) CSS KLASSEN (bitte separat in deine CSS-Datei einfügen)
+   Prefix: transfers_x_*
+   ========================= */
+
+/* Wrapper rechts: immer gleich breit, immer rechts aligned */
+.transfers_x_rightbar {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Grid innen: 3 Slots (CSV | Kontostand | Dropdown) – Breiten hier live tunen */
+.transfers_x_rightgrid {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+
+  /* 🔧 HIER spielst du live rum */
+  grid-template-columns: 150px 250px 150px;
+
+  /* optional: damit es nicht rumzappelt */
+  justify-items: stretch;
+}
+
+/* jeder Slot bekommt feste Breite aus grid, aber eigene Controls */
+.transfers_x_slot {
+  display: flex;
+  align-items: center;
+}
+
+/* Slot-Ausrichtung */
+.transfers_x_slot_csv { justify-content: flex-end; }
+.transfers_x_slot_balance { justify-content: flex-start; }
+.transfers_x_slot_dropdown { justify-content: flex-end; }
+
+/* „unsichtbar aber Platz behalten“ (damit nichts springt) */
+.transfers_x_hidden_keep_space {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Dropdown soll immer volle Slotbreite nehmen */
+.transfers_x_dropdown_form { margin: 0; width: 100%; }
+.transfers_x_dropdown_select { width: 100%; }
+
+/* Kontostand klickbar */
+.transfers_x_balance_clickable { cursor: pointer; }
+.transfers_x_balance_static { cursor: default; }
+
+/* Modal */
+.transfers_x_modal_overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 9998;
+}
+.transfers_x_modal {
+  display: none;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  width: min(780px, calc(100% - 40px));
+  background: #141414;
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 18px;
+  z-index: 9999;
+  color: #eee;
+}
+.transfers_x_modal_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.transfers_x_modal_title {
+  font-size: 18px;
+  font-weight: 600;
+}
+.transfers_x_modal_text {
+  margin-top: 12px;
+  color: #cfcfcf;
+  line-height: 1.45;
+  font-size: 14px;
+}
+.transfers_x_modal_panel {
+  margin-top: 14px;
+  padding: 12px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 10px;
+}
+.transfers_x_modal_hint {
+  color: #aaa;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.transfers_x_modal_form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.transfers_x_modal_input {
+  text-align: center;
+  width: 180px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #101010;
+  color: #fff;
+}
+.transfers_x_modal_info {
+  margin-top: 10px;
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+}

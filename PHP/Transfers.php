@@ -49,6 +49,7 @@
 <html>
     <head>
         <link rel="stylesheet" href="WEH.css" media="screen">
+        <link rel="stylesheet" href="TRANSFERS.css" media="screen">
     </head>
 <body>
 <?php
@@ -72,6 +73,75 @@ $admin = !empty($_SESSION["NetzAG"]) || !empty($_SESSION["Vorstand"]);
 
 if (!$berechtigt) {
     header("Location: denied.php");
+    exit;
+}
+
+$START_TRANSFER_ID = [
+    1  => 89747,
+    2  => 55780,
+    69 => 55514,
+    72 => 55510,
+    92 => 55509,
+    93 => 55905,
+    94 => 55513,
+    95 => 89748,
+];
+
+$parseEuroInput = function ($s): float {
+    $s = trim((string)$s);
+    if ($s === '') return 0.0;
+    // Tausenderpunkte killen, Komma zu Punkt
+    $s = str_replace([' ', "\u{00A0}"], '', $s);
+    if (strpos($s, ',') !== false) {
+        $s = str_replace('.', '', $s);
+        $s = str_replace(',', '.', $s);
+    }
+    return (float)$s;
+};
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_kontostand_correction'])) {
+    if (empty($admin)) {
+        header("Location: denied.php");
+        exit;
+    }
+
+    $kasse = (int)($_POST['kasse_for_balance'] ?? 0);
+    if (!isset($START_TRANSFER_ID[$kasse])) {
+        header("Location: " . strtok($_SERVER["REQUEST_URI"], '?'));
+        exit;
+    }
+
+    $desired = $parseEuroInput($_POST['desired_balance'] ?? '');
+    $desired = round($desired, 2);
+
+    // aktueller System-Stand
+    $current = (float)berechneKontostand($conn, $kasse);
+    $current = round($current, 2);
+
+    $delta = round($desired - $current, 2);
+    if (abs($delta) >= 0.005) {
+        $startId = (int)$START_TRANSFER_ID[$kasse];
+        $agent   = (int)($_SESSION['uid'] ?? 0);
+        $nowStr  = date('d.m.Y H:i');
+
+        $log = "[{$nowStr}] Agent {$agent}\n";
+        $log .= "Kontostand-Korrektur über Transfers.php\n";
+        $log .= "Ziel: " . number_format($desired, 2, ',', '.') . " € | System vorher: " . number_format($current, 2, ',', '.') . " € | Delta: " . number_format($delta, 2, ',', '.') . " €\n";
+
+        $upd = $conn->prepare("
+            UPDATE transfers
+            SET betrag = betrag + ?,
+                agent  = ?,
+                changelog = CONCAT(IFNULL(changelog,''), IF(IFNULL(changelog,'')='', '', '\n\n'), ?)
+            WHERE id = ?
+            LIMIT 1
+        ");
+        $upd->bind_param("disi", $delta, $agent, $log, $startId);
+        $upd->execute();
+        $upd->close();
+    }
+
+    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?'));
     exit;
 }
 
@@ -237,35 +307,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         }
     }
 
-    // Statements – "klassisch": Duplikatprüfung jetzt über IBAN + Betrag + Zeit
-    $selExistsKnown = $conn->prepare(
-        'SELECT id FROM transfers 
-         WHERE iban=? 
-           AND ROUND(betrag,2)=ROUND(?,2) 
-           AND tstamp=? 
-           AND konto=4 
-           AND kasse=? 
-         LIMIT 1'
-    );
+    // --- PERFORMANCE: Prefetch + nur noch INSERT Statements (keine SELECTs pro Zeile) ---
+
+    $moneyKey = function ($x): string {
+        // stabiler 2-decimal key (wie früher ROUND(...,2))
+        $v = round((float)$x, 2);
+        return number_format($v, 2, '.', '');
+    };
+
+    $existingKnown   = []; // keys: iban|kasse|tstamp|betrag2
+    $existingUnknown = []; // keys: iban|tstamp|betrag2|betreff_norm
+
+    // Prefetch: bekannte Transfers (konto=4, ab cutoff, nur relevante kassen)
+    $prefKnown = $conn->prepare("
+        SELECT iban, kasse, tstamp, betrag
+        FROM transfers
+        WHERE konto=4
+        AND tstamp >= ?
+        AND kasse IN (69,72,92)
+    ");
+    $prefKnown->bind_param("i", $CUTOFF_TS);
+    $prefKnown->execute();
+    $prefKnown->bind_result($p_iban, $p_kasse, $p_tstamp, $p_betrag);
+    while ($prefKnown->fetch()) {
+        $k = (string)$p_iban . '|' . (int)$p_kasse . '|' . (int)$p_tstamp . '|' . $moneyKey($p_betrag);
+        $existingKnown[$k] = true;
+    }
+    $prefKnown->close();
+
+    // Prefetch: unknowntransfers (ab cutoff)
+    $prefUnk = $conn->prepare("
+        SELECT iban, tstamp, betrag, COALESCE(betreff,'') AS betreff_norm
+        FROM unknowntransfers
+        WHERE tstamp >= ?
+    ");
+    $prefUnk->bind_param("i", $CUTOFF_TS);
+    $prefUnk->execute();
+    $prefUnk->bind_result($u_iban, $u_tstamp, $u_betrag, $u_betreff_norm);
+    while ($prefUnk->fetch()) {
+        $k = (string)$u_iban . '|' . (int)$u_tstamp . '|' . $moneyKey($u_betrag) . '|' . (string)$u_betreff_norm;
+        $existingUnknown[$k] = true;
+    }
+    $prefUnk->close();
+
+    // Nur noch INSERT Statements
     $insKnown = $conn->prepare(
         'INSERT INTO transfers (uid, iban, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) 
-         VALUES (?, ?, ?, ?, 4, ?, ?, ?, ?)'
+        VALUES (?, ?, ?, ?, 4, ?, ?, ?, ?)'
     );
 
-    $selExistsUnknown = $conn->prepare(
-        'SELECT id FROM unknowntransfers 
-         WHERE iban=? AND ROUND(betrag,2)=ROUND(?,2) AND tstamp=? 
-           AND COALESCE(betreff,"")=COALESCE(?, "")
-         LIMIT 1'
-    );
     $insUnknown = $conn->prepare(
         'INSERT INTO unknowntransfers (uid, tstamp, name, betreff, betrag, netzkonto, iban, agent, status) 
-         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)'
+        VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)'
     );
+
+    // kleine Helper-Funktion: execute oder JSON-Fehler + rollback
+    $execOrFail = function (mysqli_stmt $st) use ($conn) {
+        if (!$st->execute()) {
+            $err = $st->error ?: 'stmt_execute_failed';
+            $conn->rollback();
+            echo json_encode(['ok' => false, 'error' => 'db_error', 'detail' => $err]);
+            exit;
+        }
+    };
+
 
     $agent = (int)($_SESSION['uid'] ?? 0);
     $nowStr = date('d.m.Y H:i');
     $inserted = 0; $skipped = 0; $unknown = 0;
+    $conn->begin_transaction();
     // Zeilen verarbeiten
     for ($li = 1; $li < count($lines); $li++) {
         $row = str_getcsv($lines[$li], ';', '"');
@@ -361,20 +471,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         }
 
         if ($uid !== null) {
-            // Duplikatprüfung über IBAN + Betrag + tstamp + kasse
-            $selExistsKnown->bind_param('sdii', $iban, $betrag, $tstamp, $kasse);
-            $selExistsKnown->execute();
-            $selExistsKnown->store_result();
-            if ($selExistsKnown->num_rows > 0) {
+
+            $betrag2 = round($betrag, 2);
+            $keyKnown = $iban . '|' . $kasse . '|' . $tstamp . '|' . $moneyKey($betrag2);
+
+            // Duplikat? -> skip
+            if (isset($existingKnown[$keyKnown])) {
                 $skipped++;
-                $selExistsKnown->free_result();
                 continue;
             }
-            $selExistsKnown->free_result();
 
             $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV";
 
-            // 1) Normaler Eintrag (z.B. aufs Netzkonto)
+            // 1) Normaler Eintrag (Netz/Haus)
             $insKnown->bind_param(
                 'isisidis',
                 $uid,
@@ -382,50 +491,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
                 $tstamp,
                 $beschreibung,
                 $kasse,
-                $betrag,
+                $betrag2,
                 $agent,
                 $changelog
             );
-            $insKnown->execute();
+            $execOrFail($insKnown);
             $inserted++;
+
+            // Key merken (damit Duplikate innerhalb derselben CSV auch erkannt werden)
+            $existingKnown[$keyKnown] = true;
 
             // 2) Zusätzliche Gegenbuchung für den monatlichen PayPal-Transfer
             if ($isPaypalTransfer) {
-                $kassePaypal  = 69;          // PayPal-Kasse
-                $betragPaypal = -$betrag;    // Gegenbuchung mit Negativbetrag
+                $kassePaypal  = 69;
+                $betragPaypal = round(-$betrag2, 2);
+                $keyPaypal    = $iban . '|' . $kassePaypal . '|' . $tstamp . '|' . $moneyKey($betragPaypal);
 
-                $insKnown->bind_param(
-                    'isisidis',
-                    $uid,
-                    $iban,
-                    $tstamp,
-                    $beschreibung,  // "Kassenausgleich PayPal"
-                    $kassePaypal,
-                    $betragPaypal,
-                    $agent,
-                    $changelog
-                );
-                $insKnown->execute();
-                $inserted++;
+                if (!isset($existingKnown[$keyPaypal])) {
+                    $insKnown->bind_param(
+                        'isisidis',
+                        $uid,
+                        $iban,
+                        $tstamp,
+                        $beschreibung, // "Kassenausgleich PayPal"
+                        $kassePaypal,
+                        $betragPaypal,
+                        $agent,
+                        $changelog
+                    );
+                    $execOrFail($insKnown);
+                    $inserted++;
+                    $existingKnown[$keyPaypal] = true;
+                } else {
+                    $skipped++;
+                }
             }
+
         } else {
-            // Unknown – unverändert, Duplikatprüfung läuft hier schon über IBAN + Betrag + tstamp + Verwendungszweck
-            $selExistsUnknown->bind_param('sdis', $iban, $betrag, $tstamp, $verwendung);
-            $selExistsUnknown->execute();
-            $selExistsUnknown->store_result();
-            if ($selExistsUnknown->num_rows > 0) {
-                $skipped++; $selExistsUnknown->free_result(); continue;
-            }
-            $selExistsUnknown->free_result();
 
-            $insUnknown->bind_param('issdisi', $tstamp, $name, $verwendung, $betrag, $netzkonto, $iban, $agent);
-            $insUnknown->execute();
+            $betrag2 = round($betrag, 2);
+            $betreffNorm = $verwendung ?? '';
+            $keyUnk = $iban . '|' . $tstamp . '|' . $moneyKey($betrag2) . '|' . $betreffNorm;
+
+            if (isset($existingUnknown[$keyUnk])) {
+                $skipped++;
+                continue;
+            }
+
+            $insUnknown->bind_param('issdisi', $tstamp, $name, $verwendung, $betrag2, $netzkonto, $iban, $agent);
+            $execOrFail($insUnknown);
             $unknown++;
+
+            $existingUnknown[$keyUnk] = true;
         }
+
     }
 
+    $conn->commit();
+    $insKnown->close();
+    $insUnknown->close();
 
-    echo json_encode(['ok' => true, 'inserted' => $inserted, 'skipped' => $skipped, 'unknown' => $unknown]);
+    $kidNow = (int)($_SESSION['kasse_id'] ?? 0);
+    $newBalance = (float)berechneKontostand($conn, $kidNow);
+    $newBalanceFmt = number_format($newBalance, 2, ',', '.');
+
+    echo json_encode([
+        'ok' => true,
+        'inserted' => $inserted,
+        'skipped' => $skipped,
+        'unknown' => $unknown,
+        'balance' => [
+            'kid' => $kidNow,
+            'raw' => round($newBalance, 2),
+            'fmt' => $newBalanceFmt
+        ]
+    ]);
     exit;
 }
 
@@ -732,42 +872,125 @@ foreach ($barkassen as $btn) {
 }
 echo '</div>';
 
+echo '<div style="width:100%; height:0; border-top:2px solid rgba(255,255,255,0.25); margin:12px 0;"></div>';
+
+echo '<div class="kasse-row">';
+
+$specialBtns = [
+    ['id' => -11, 'label' => 'Druckaufträge'],
+    ['id' => -12, 'label' => 'Abrechnungen'],
+    ['id' => -14, 'label' => 'Waschmarken'],
+    ['id' => -13, 'label' => 'Sonstige'],
+];
+
+foreach ($specialBtns as $btn) {
+    $active = ((int)$kid === (int)$btn['id']) ? ' active' : '';
+    echo '<button type="submit" name="kasse_id" value="' . (int)$btn['id'] . '" class="kasse-button' . $active . '" style="font-size:13px; width:150px;">'
+       . $btn['label']
+       . '</button>';
+}
+
+echo '</div>';
+
 
 echo '</form>';
 
 // Rechte 2/6 (+ CSV bei Admin): Dropdown + Kontostand (+ CSV-Import)
-echo '<div class="kasse-semester-grid" style="display:grid; gap:12px; align-items:center; grid-template-columns:' . ($admin ? '1fr 1fr 1fr' : '1fr 1fr') . ';">';
+$REGULAR_KASSEN = [72, 69, 92, 1, 2, 93, 94, 95];          // online + barkassen
+$showKontostand = in_array((int)$kid, $REGULAR_KASSEN, true);
+$showCsvImport  = (!empty($admin) && in_array((int)$kid, [72, 92], true)); // NUR Netzkonto + Hauskonto
 
+echo '<div class="transfers_x_rightbar">';
+echo '  <div class="transfers_x_rightgrid">';
 
-// CSV-Import (3. Spalte nur Admin)
-if ($admin) {
-    echo '<div class="csv-import" style="display:flex; align-items:center; justify-content:flex-end; gap:10px; text-align: center;">';
-    echo '  <label for="sparkasse_csv" class="kasse-button"';
-    echo '         style="font-size:14px; padding:8px 12px; cursor:pointer; user-select:none;"';
-    echo '         title="Bei der Sparkasse in der Kontoübersicht: Exportieren → Excel (CSV - gefilterte Einträge).&#10;Diese Datei herunterladen und hier hochladen -> die Transfers werden automatisch den Usern zugewiesen.&#10;Doppelte Einträge werden übersprungen, nicht zuordbare Transfers werden später durch die NetzAG zugewiesen.">';
-    echo '    Sparkassen-CSV importieren';
-    echo '  </label>';
-    echo '  <input type="file" id="sparkasse_csv" accept=".csv" style="display:none">';
-    echo '</div>';
-}
+//
+// Slot 1: CSV (oder hidden placeholder, aber Platz bleibt)
+//
+$csvSlotClass = $showCsvImport ? '' : ' transfers_x_hidden_keep_space';
+echo '    <div class="transfers_x_slot transfers_x_slot_csv' . $csvSlotClass . '">';
+echo '      <div class="csv-import" style="display:flex; align-items:center; justify-content:flex-end; gap:10px; text-align:center;">';
+echo '        <label for="sparkasse_csv" class="kasse-button"';
+echo '               style="font-size:14px; padding:8px 12px; cursor:pointer; user-select:none;"';
+echo '               title="Bei der Sparkasse in der Kontoübersicht: Exportieren → Excel (CSV - gefilterte Einträge).&#10;Diese Datei herunterladen und hier hochladen -> die Transfers werden automatisch den Usern zugewiesen.&#10;Doppelte Einträge werden übersprungen, nicht zuordbare Transfers werden später durch die NetzAG zugewiesen.">';
+echo '          Sparkassen-CSV importieren';
+echo '        </label>';
+echo '        <input type="file" id="sparkasse_csv" accept=".csv" style="display:none">';
+echo '      </div>';
+echo '    </div>';
 
-// Kontostand
-$kontostand = berechneKontostand($conn, $kid);
-echo '<div class="kontostand-box">';
-echo 'Aktueller Kontostand:<br><strong>' . number_format($kontostand, 2, ',', '.') . ' €</strong>';
-echo '</div>';
+//
+// Slot 2: Kontostand (oder hidden placeholder, aber Platz bleibt)
+//
+$balSlotClass = $showKontostand ? '' : ' transfers_x_hidden_keep_space';
 
-// Dropdown
-echo '<form method="post" style="margin:0;">';
-echo '<select id="semester-select" name="semester_start" class="semester-dropdown" onchange="this.form.submit()">';
+$kontostand = $showKontostand ? (float)berechneKontostand($conn, (int)$kid) : 0.0;
+$kontostandFmt = number_format($kontostand, 2, ',', '.');
+
+$balClickableClass = ($admin && $showKontostand) ? 'transfers_x_balance_clickable' : 'transfers_x_balance_static';
+$balOnclick = ($admin && $showKontostand) ? 'onclick="openKontostandModal()"' : '';
+
+echo '    <div class="transfers_x_slot transfers_x_slot_balance' . $balSlotClass . '">';
+echo '      <div class="kontostand-box ' . $balClickableClass . '" ' . $balOnclick . '>';
+echo '        Aktueller Kontostand:<br><strong id="transfers_x_balance_amount">' . $kontostandFmt . ' €</strong>';
+echo '      </div>';
+echo '    </div>';
+
+//
+// Slot 3: Dropdown (immer sichtbar, immer gleich groß)
+//
+echo '    <div class="transfers_x_slot transfers_x_slot_dropdown">';
+echo '      <form method="post" class="transfers_x_dropdown_form">';
+echo '        <select id="semester-select" name="semester_start" class="semester-dropdown transfers_x_dropdown_select" onchange="this.form.submit()">';
 foreach ($semester_options as $label => $start_ts) {
     $selected = ($start_ts == $semester_start) ? 'selected' : '';
     echo "<option value=\"$start_ts\" $selected>$label</option>";
 }
-echo '</select>';
-echo '</form>';
+echo '        </select>';
+echo '      </form>';
+echo '    </div>';
 
-echo '</div>'; // Ende Grid
+echo '  </div>';
+echo '</div>';
+
+// Modal nur wenn Kontostand grundsätzlich da ist (sonst unnötig DOM)
+if ($showKontostand) {
+    $prefill = htmlspecialchars($kontostandFmt, ENT_QUOTES, 'UTF-8');
+
+    echo '
+      <div id="balance_overlay" class="transfers_x_modal_overlay" onclick="closeKontostandModal()"></div>
+      <div id="balance_modal" class="transfers_x_modal">
+        <div class="transfers_x_modal_header">
+          <div class="transfers_x_modal_title">Kontostand korrigieren</div>
+          <button type="button" onclick="closeKontostandModal()" class="close-btn" style="margin:0;">X</button>
+        </div>
+
+        <div class="transfers_x_modal_text">
+          Der Konto- bzw. Kassenstand berechnet sich in unserem System aus der Summe der Einträge. Vor allem die Abrechnung der PayPal-Transfers ist nicht exakt und muss daher im Backend gelegentlich angepasst werden, damit der Kontostand im Backend korrekt ist. Auch bei Kassenprüfungen können ein paar wenige Cents fehlen.
+          <br><br>
+          Seit die Kassen im Backend digitalisiert wurden, haben wir einfach mit dem damaligen Startwert angefangen. Hier kannst du den Wert korrigieren:
+          <br><br>
+          Du kannst für die aktuell ausgewählte Kasse den wahren Kontostand eintragen. Auf allen Seiten wird der Kontostand dann aktualisiert, indem der damalige Startwert angepasst wird. Dies ist keine Methode, um Zahlungen einzutragen!
+        </div>
+
+        <div class="transfers_x_modal_panel">
+          <div class="transfers_x_modal_hint">
+            Aktueller Systemwert (berechnet): <span style="color:#fff;">' . $kontostandFmt . ' €</span>
+          </div>
+
+          <form method="post" class="transfers_x_modal_form">
+            <input type="hidden" name="save_kontostand_correction" value="1">
+            <input type="hidden" name="kasse_for_balance" value="' . (int)$kid . '">
+
+            <label style="color:#aaa; font-size:13px;">Wahrer Kontostand:</label>
+            <input type="text" name="desired_balance" value="' . $prefill . '" class="transfers_x_modal_input" ' . (!$admin ? 'disabled' : '') . '>
+            ' . ($admin ? '<button type="submit" class="kasse-button" style="font-size:14px; padding:8px 12px;">Speichern</button>' : '') . '
+          </form>
+
+          ' . (!$admin ? '<div class="transfers_x_modal_info">Nur Admins können den Kontostand korrigieren.</div>' : '') . '
+        </div>
+      </div>
+    ';
+}
 
 
 
@@ -814,17 +1037,92 @@ if ($admin) {
 
 
 
-$sql = "
-    SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
-           t.tstamp, t.beschreibung, t.betrag, t.pfad
-    FROM transfers t
-    JOIN users u ON t.uid = u.uid
-    WHERE t.tstamp >= ? AND t.tstamp < ? AND t.kasse = ?
-    ORDER BY t.tstamp DESC
-";
+$kid = (int)$kid;
 
-$stmt = mysqli_prepare($conn, $sql);
-mysqli_stmt_bind_param($stmt, "iii", $semester_start, $semester_ende, $kid);
+$BASE_NOT_IN = "t.kasse NOT IN (1,2,69,72,92,93,94,95)";
+
+if ($kid === -11) {
+    // 1) Druckaufträge
+    $sql = "
+        SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
+               t.tstamp, t.beschreibung, t.betrag, t.pfad
+        FROM transfers t
+        JOIN users u ON t.uid = u.uid
+        WHERE t.tstamp >= ? AND t.tstamp < ?
+          AND $BASE_NOT_IN
+          AND t.print_id IS NOT NULL AND t.print_id <> 0
+        ORDER BY t.tstamp DESC
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
+
+} elseif ($kid === -12) {
+    // 2) Abrechnungen
+    $sql = "
+        SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
+               t.tstamp, t.beschreibung, t.betrag, t.pfad
+        FROM transfers t
+        JOIN users u ON t.uid = u.uid
+        WHERE t.tstamp >= ? AND t.tstamp < ?
+          AND $BASE_NOT_IN
+          AND (
+                t.beschreibung LIKE 'Abrechnung Hausbeitrag%'
+             OR t.beschreibung LIKE 'Abrechnung Netzbeitrag%'
+          )
+        ORDER BY t.tstamp DESC
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
+
+} elseif ($kid === -14) {
+    // 3) Waschmarken (exakt)
+    $sql = "
+        SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
+               t.tstamp, t.beschreibung, t.betrag, t.pfad
+        FROM transfers t
+        JOIN users u ON t.uid = u.uid
+        WHERE t.tstamp >= ? AND t.tstamp < ?
+          AND $BASE_NOT_IN
+          AND t.beschreibung = 'Waschmarken generiert'
+        ORDER BY t.tstamp DESC
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
+
+} elseif ($kid === -13) {
+    // 4) Sonstige: alles außer Druckaufträge, Abrechnungen, Waschmarken
+    $sql = "
+        SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
+               t.tstamp, t.beschreibung, t.betrag, t.pfad
+        FROM transfers t
+        JOIN users u ON t.uid = u.uid
+        WHERE t.tstamp >= ? AND t.tstamp < ?
+          AND $BASE_NOT_IN
+          AND (t.print_id IS NULL OR t.print_id = 0)
+          AND NOT (
+                t.beschreibung LIKE 'Abrechnung Hausbeitrag%'
+             OR t.beschreibung LIKE 'Abrechnung Netzbeitrag%'
+          )
+          AND t.beschreibung <> 'Waschmarken generiert'
+        ORDER BY t.tstamp DESC
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
+
+} else {
+    // Normal: konkrete Kasse
+    $sql = "
+        SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
+               t.tstamp, t.beschreibung, t.betrag, t.pfad
+        FROM transfers t
+        JOIN users u ON t.uid = u.uid
+        WHERE t.tstamp >= ? AND t.tstamp < ? AND t.kasse = ?
+        ORDER BY t.tstamp DESC
+    ";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "iii", $semester_start, $semester_ende, $kid);
+}
+
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
@@ -1286,6 +1584,11 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
           `• ${data.skipped} Transfers wurden übersprungen, da bereits vorhanden`
         ].join('\n');
         banner.textContent = msg;
+        
+        if (data.balance && typeof data.balance.fmt === 'string') {
+            const el = document.getElementById('transfers_x_balance_amount');
+            if (el) el.textContent = `${data.balance.fmt} €`;
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
         // KEIN Reload, KEIN Wegklicken – bleibt stehen bis man die Seite neu lädt
       } else {
@@ -1300,4 +1603,23 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
     }
   });
 })();
+</script>
+<script>
+function openKontostandModal() {
+  const ov = document.getElementById('balance_overlay');
+  const md = document.getElementById('balance_modal');
+  if (!ov || !md) return;
+  ov.style.display = 'block';
+  md.style.display = 'block';
+}
+function closeKontostandModal() {
+  const ov = document.getElementById('balance_overlay');
+  const md = document.getElementById('balance_modal');
+  if (!ov || !md) return;
+  ov.style.display = 'none';
+  md.style.display = 'none';
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeKontostandModal();
+});
 </script>
