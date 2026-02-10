@@ -344,7 +344,7 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs): void
 // =============== AUTH + direkte POST-Action ===============
 // Wichtig: PDF-Export vor JEDER HTML-Ausgabe behandeln!
 if (auth($conn) && $_SESSION['valid']) {
-    $globalAGs = [7, 9, 66, 61, 62, 63];
+    $globalAGs = [7, 8, 9, 66, 61, 62, 63];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($_POST['action'] === 'turmchoice_weh') {
@@ -366,7 +366,7 @@ if (auth($conn) && $_SESSION['valid']) {
 
 // =============== Ab hier erst HTML ausgeben ===============
 load_menu();
-$globalAGs = [7, 9, 66, 61, 62, 63];
+$globalAGs = [7, 8, 9, 66, 61, 62, 63];
 
 $turm = isset($_SESSION["ap_turm_var"]) ? $_SESSION["ap_turm_var"] : $_SESSION["turm"];
 $weh_button_color = ($turm === 'weh') ? 'background-color:#18ec13;' : 'background-color:#fff;';

@@ -564,6 +564,7 @@
                     }
                 },
                 y: {
+                    beginAtZero: true,     // <- das ist der Punkt
                     grid: { color: 'rgba(255, 255, 255, 0.12)' },
                     ticks: {
                         color: '#ffffff',

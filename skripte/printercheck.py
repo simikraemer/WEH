@@ -64,7 +64,7 @@ COLOR_NAMES                = {1: "Cyan", 2: "Magenta", 3: "Gelb", 4: "Schwarz"}
 ALLOWED_PRINTER_STATUS = {3, 4, 5}
 
 # Mail-Empfänger
-ALERT_MAIL_TO = "net@weh.rwth-aachen.de"
+ALERT_MAIL_TO = "drucker@weh.rwth-aachen.de"
 MAIL_SUBJECT_PREFIX = "[Drucker-Monitor]"
 
 # ------------------------------ SNMP Helper -------------------------------- #

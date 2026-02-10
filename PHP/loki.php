@@ -57,7 +57,7 @@ while ($row = mysqli_fetch_assoc($result)) {
     img.src = images[currentImage]; // Setze den Pfad des Bildes
     slideshow.appendChild(img); // Füge das Bild in den Slideshow-Div ein
     currentImage = (currentImage + 1) % images.length; // Gehe zum nächsten Bild
-    setTimeout(nextSlide, 15000); // Wechsle alle 15 Sekunden das Bild
+    setTimeout(nextSlide, 30000); // Wechsle alle 30 Sekunden das Bild
   }
 
   // Starte die Slideshow
