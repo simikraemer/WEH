@@ -17,9 +17,10 @@
         && (
             $_SESSION["NetzAG"]
             || $_SESSION["Vorstand"]
+            || $_SESSION["Kassenwart"]
             || $_SESSION["TvK-Sprecher"]
-            || $_SESSION["WEH-BA"]
-            || $_SESSION["TvK-BA"]
+            || $_SESSION["TvK-Kasse"]
+            || $_SESSION["Kassenpruefer"]
         )
     ) {
         load_menu();
@@ -53,7 +54,7 @@
         // "all"    => alle Kassen (Einzelkassen)
         // "group"  => Netz/Vorstand (Gruppenansicht)
         $view = isset($_GET['view']) ? (string)$_GET['view'] : 'online';
-        if (!in_array($view, ['online', 'cash', 'all', 'group'], true)) {
+        if (!in_array($view, ['online', 'cash', 'all', 'group', 'wehtvk'], true)) {
             $view = 'online';
         }
 
@@ -136,7 +137,8 @@
                     $monthLabels[] = [
                         'index' => $mid,
                         'label' => $monthNames[$curMonth - 1],
-                        'year'  => $curYearM
+                        'year'  => $curYearM,
+                        'month' => $curMonth
                     ];
 
                     // neuer Monat
@@ -152,7 +154,8 @@
             $monthLabels[] = [
                 'index' => $mid,
                 'label' => $monthNames[$curMonth - 1],
-                'year'  => $curYearM
+                'year'  => $curYearM,
+                'month' => $curMonth
             ];
         }
 
@@ -221,6 +224,60 @@
             return $out;
         }
 
+        function fetch_weh_tvk_monthly_user_transfer_stacks($conn, $startTs, $endTsExcl)
+        {
+            // Rückgabe: [1..12][turm]['netz'|'haus'|'wasch'|'druck'] = float
+            $out = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $out[$m] = [
+                    'weh' => ['netz' => 0.0, 'haus' => 0.0, 'wasch' => 0.0, 'druck' => 0.0],
+                    'tvk' => ['netz' => 0.0, 'haus' => 0.0, 'wasch' => 0.0, 'druck' => 0.0],
+                ];
+            }
+
+            $sql = "
+                SELECT
+                    YEAR(FROM_UNIXTIME(t.tstamp))  AS y,
+                    MONTH(FROM_UNIXTIME(t.tstamp)) AS m,
+                    u.turm AS turm,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Netzbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS netz,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Hausbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS haus,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung = 'Waschmarken generiert' THEN ABS(t.betrag) ELSE 0 END) AS wasch,
+                    SUM(CASE WHEN t.print_id IS NOT NULL THEN ABS(t.betrag) ELSE 0 END) AS druck
+                FROM transfers t
+                JOIN users u ON u.uid = t.uid
+                WHERE
+                    t.tstamp IS NOT NULL
+                    AND t.tstamp >= ?
+                    AND t.tstamp < ?
+                    AND u.pid IN (11,12,13,14)
+                    AND u.turm IN ('weh','tvk')
+                GROUP BY y, m, turm
+                ORDER BY y ASC, m ASC
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if (!$stmt) return $out;
+
+            $stmt->bind_param('ii', $startTs, $endTsExcl);
+            $stmt->execute();
+            $stmt->bind_result($y, $m, $turm, $netz, $haus, $wasch, $druck);
+
+            while ($stmt->fetch()) {
+                $mm = (int)$m;
+                $tt = ($turm === 'tvk') ? 'tvk' : 'weh';
+                if ($mm >= 1 && $mm <= 12) {
+                    $out[$mm][$tt]['netz']  = (float)$netz;
+                    $out[$mm][$tt]['haus']  = (float)$haus;
+                    $out[$mm][$tt]['wasch'] = (float)$wasch;
+                    $out[$mm][$tt]['druck'] = (float)$druck;
+                }
+            }
+            $stmt->close();
+
+            return $out;
+        }
+
         function build_cumulative_series($keys, $startBalance, $dailySumsByDate)
         {
             $series = [];
@@ -260,8 +317,57 @@
 
         // ------------------- Datasets (immer 1 Chart) -------------------
         $datasets = [];
+        $chartType = 'line';
 
-        if ($view === 'group') {
+        if ($view === 'wehtvk') {
+            $chartType = 'bar';
+
+            // Mid-Index pro Monat (aus monthLabels)
+            $monthMidByMonth = [];
+            foreach ($monthLabels as $ml) {
+                if (isset($ml['month'], $ml['index'])) {
+                    $monthMidByMonth[(int)$ml['month']] = (int)$ml['index'];
+                }
+            }
+
+            $mStacks = fetch_weh_tvk_monthly_user_transfer_stacks($conn, $startTs, $dataEndTsExcl);
+
+            $catDefs = [
+                ['key' => 'wasch', 'label' => 'Waschmarken'],
+                ['key' => 'netz',  'label' => 'Netzbeitrag'],
+                ['key' => 'haus',  'label' => 'Hausbeitrag'],
+                ['key' => 'druck', 'label' => 'Drucker'],
+            ];
+
+            // Reihenfolge: erst WEH (links), dann TvK (rechts)
+            $towerDefs = [
+                ['key' => 'weh', 'label' => 'WEH'],
+                ['key' => 'tvk', 'label' => 'TvK'], // kleines v
+            ];
+
+            foreach ($towerDefs as $t) {
+                foreach ($catDefs as $ci => $c) {
+                    $data = array_fill(0, count($keys), null);
+
+                    for ($m = 1; $m <= 12; $m++) {
+                        if (!isset($monthMidByMonth[$m])) continue;
+                        $idx = $monthMidByMonth[$m];
+
+                        $val = $mStacks[$m][$t['key']][$c['key']] ?? 0.0;
+                        if (abs((float)$val) < 0.00001) continue; // 0 -> kein Segment zeichnen
+
+                        $data[$idx] = round((float)$val, 2);
+                    }
+
+                    $datasets[] = [
+                        'label' => $t['label'] . ' ' . $c['label'],
+                        'data'  => $data,
+                        'stack' => $t['key'],  // 'weh' oder 'tvk' (für nebeneinander)
+                        'shade' => $ci          // 0..3 (für Farb-Gradient)
+                    ];
+                }
+            }
+        } elseif ($view === 'group') {
             $netz = fetch_start_balance_and_daily_sums($conn, $groupNetzAG, $startTs, $dataEndTsExcl);
             $haus = fetch_start_balance_and_daily_sums($conn, $groupHaus,   $startTs, $dataEndTsExcl);
 
@@ -294,10 +400,11 @@
         $payload = [
             'year' => $year,
             'view' => $view,
-            'keys' => $keys,         // YYYY-MM-DD (Tooltip)
-            'labels' => $labels,     // dd.mm. (wird NICHT für Monatsnamen benutzt, nur Fallback)
+            'chartType' => $chartType,
+            'keys' => $keys,
+            'labels' => $labels,
             'monthLines' => $monthLines,
-            'monthLabels' => $monthLabels, // index + name
+            'monthLabels' => $monthLabels,
             'datasets' => $datasets
         ];
 ?>
@@ -421,6 +528,7 @@
                 <option value="cash"   <?php echo ($view === 'cash' ? 'selected' : ''); ?>>Barkassen</option>
                 <option value="all"    <?php echo ($view === 'all' ? 'selected' : ''); ?>>Alle Kassen</option>
                 <option value="group"  <?php echo ($view === 'group' ? 'selected' : ''); ?>>Netz/Vorstand</option>
+                <option value="wehtvk" <?php echo ($view === 'wehtvk' ? 'selected' : ''); ?>>WEH/TvK</option>
             </select>
         </form>
     </div>
@@ -447,6 +555,32 @@
     Chart.defaults.maintainAspectRatio = false;
 
     const payload = <?php echo json_encode($payload, JSON_UNESCAPED_UNICODE); ?>;
+
+    const chartType = payload.chartType || 'line';
+
+    // Farben
+    const palette = ['#11a50d', '#2563eb', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9', '#10b981', '#f97316', '#111827'];
+    const towerBase = { weh: '#11a50d', tvk: '#ffa600' };
+    const shadeWeights = [0.00, 0.15, 0.3, 0.45]; // je höher, desto heller (Gradient)
+
+    function hexToRgb(hex) {
+        const h = String(hex).replace('#', '').trim();
+        const full = (h.length === 3) ? h.split('').map(ch => ch + ch).join('') : h;
+        const n = parseInt(full, 16);
+        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+    function mixHex(a, b, w) {
+        const A = hexToRgb(a), B = hexToRgb(b);
+        const r = Math.round(A.r * (1 - w) + B.r * w);
+        const g = Math.round(A.g * (1 - w) + B.g * w);
+        const b2 = Math.round(A.b * (1 - w) + B.b * w);
+        return `rgb(${r}, ${g}, ${b2})`;
+    }
+    function towerShade(towerKey, shadeIdx) {
+        const base = towerBase[towerKey] || '#999999';
+        const w = shadeWeights[Math.max(0, Math.min(3, shadeIdx || 0))];
+        return mixHex(base, '#000', w);
+    }
 
     // Plugin: Hintergrund der ChartArea
     const bgPlugin = {
@@ -476,7 +610,6 @@
             const xScale = scales.x;
             ctx.save();
 
-            // vertikale Linien an Monatswechseln
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
             ctx.lineWidth = 1;
 
@@ -488,12 +621,11 @@
                 ctx.stroke();
             });
 
-            // Monatsnamen mittig positionieren
             ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
 
-            const y = chartArea.bottom + 8; // unterhalb der ChartArea
+            const y = chartArea.bottom + 8;
             (payload.monthLabels || []).forEach((m) => {
                 const x = xScale.getPixelForValue(m.index);
                 ctx.fillText(m.label, x, y);
@@ -503,35 +635,160 @@
         }
     };
 
+    const monthRanges = (() => {
+        const n = (payload.labels || []).length;
+        const lines = payload.monthLines || [];
+        const mls = payload.monthLabels || [];
+        const ranges = [];
+
+        let start = 0;
+        for (let i = 0; i < mls.length; i++) {
+            const end = (i < lines.length) ? (lines[i] - 1) : (n - 1);
+            ranges.push({
+                start,
+                end,
+                mid: mls[i].index,
+                label: mls[i].label,
+                year: mls[i].year
+            });
+            start = end + 1;
+        }
+        return ranges;
+    })();
+
+    function rangeForIndex(idx) {
+        for (const r of monthRanges) {
+            if (idx >= r.start && idx <= r.end) return r;
+        }
+        return monthRanges.length ? monthRanges[monthRanges.length - 1] : null;
+    }
+
+    // Tooltip am Cursor positionieren (nur Bar)
+    if (!Chart.Tooltip.positioners.monthCursor) {
+        Chart.Tooltip.positioners.monthCursor = function (_items, pos) {
+            return pos; // {x,y} vom Event
+        };
+    }
+
+    const monthHoverPlugin = {
+        id: 'monthHoverPlugin',
+        afterEvent(chart, args) {
+            if ((payload.chartType || 'line') !== 'bar') return;
+
+            const e = (args && args.event) ? args.event : null;
+            if (!e) return;
+
+            // nur relevante Events
+            if (e.type !== 'mousemove' && e.type !== 'mouseout') return;
+
+            const { chartArea, scales } = chart;
+            if (!chartArea || !scales.x) return;
+
+            const st = chart.$monthHoverState || (chart.$monthHoverState = { raf: 0, pending: null });
+
+            const outside =
+                e.type === 'mouseout' ||
+                e.x < chartArea.left || e.x > chartArea.right ||
+                e.y < chartArea.top  || e.y > chartArea.bottom;
+
+            const xScale = scales.x;
+            const mls = payload.monthLabels || [];
+            const lines = payload.monthLines || [];
+
+            // Monatsindex anhand X-Pixel (Grenzen = Linien + ChartArea-Ränder)
+            const monthIndexAtX = (x) => {
+                if (!mls.length) return 0;
+
+                const edges = [chartArea.left];
+                for (let i = 0; i < lines.length; i++) {
+                    edges.push(xScale.getPixelForValue(lines[i]));
+                }
+                edges.push(chartArea.right);
+
+                // edges.length = mls.length + 1 (typisch), robust clampen
+                const mCount = Math.min(mls.length, edges.length - 1);
+
+                for (let i = 0; i < mCount; i++) {
+                    const a = edges[i];
+                    const b = edges[i + 1];
+                    if (x >= a && (x < b || i === mCount - 1)) return i;
+                }
+                return mCount - 1;
+            };
+
+            let active = [];
+            let pos = { x: e.x, y: e.y };
+
+            if (!outside && mls.length) {
+                const mi = monthIndexAtX(e.x);
+                const mid = mls[mi].index;
+
+                for (let di = 0; di < chart.data.datasets.length; di++) {
+                    const v = chart.data.datasets[di].data[mid];
+                    if (v !== null && typeof v !== 'undefined') {
+                        active.push({ datasetIndex: di, index: mid });
+                    }
+                }
+            }
+
+            // rAF throttling: max. 60 draws/s, trotzdem "breite" Hover-Zone
+            st.pending = { active, pos };
+
+            if (st.raf) return;
+            st.raf = requestAnimationFrame(() => {
+                st.raf = 0;
+                const p = st.pending;
+                if (!p) return;
+
+                chart.tooltip.setActiveElements(p.active, p.pos);
+                chart.draw();
+            });
+        }
+    };
+
     const ctx = document.getElementById('wehKassenChart').getContext('2d');
 
-    // klare Farben, dickere Linien
-    const palette = ['#11a50d', '#2563eb', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9', '#10b981', '#f97316', '#111827'];
+    const datasets = (payload.datasets || []).map((ds, i) => {
+        if (chartType === 'bar') {
+            const c = towerShade(ds.stack, ds.shade);
+            return {
+                label: ds.label,
+                data: ds.data,
+                stack: ds.stack,
+                backgroundColor: c,
+                borderColor: c,
+                borderWidth: 0,
+                barThickness: 34,
+                maxBarThickness: 44
+            };
+        }
 
-    const datasets = (payload.datasets || []).map((ds, i) => ({
-        label: ds.label,
-        data: ds.data,
-        borderColor: palette[i % palette.length],
-        backgroundColor: 'transparent',
-        borderWidth: 4,
-        tension: 0.15,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: '#262525',
-        pointHoverBorderWidth: 2,
-        pointHoverBorderColor: palette[i % palette.length]
-    }));
+        // line
+        return {
+            label: ds.label,
+            data: ds.data,
+            borderColor: palette[i % palette.length],
+            backgroundColor: 'transparent',
+            borderWidth: 4,
+            tension: 0.15,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: '#262525',
+            pointHoverBorderWidth: 2,
+            pointHoverBorderColor: palette[i % palette.length]
+        };
+    });
 
     const chart = new Chart(ctx, {
-        type: 'line',
+        type: chartType,
         data: { labels: payload.labels, datasets },
-        plugins: [bgPlugin, monthPlugin],
+        plugins: (chartType === 'bar') ? [bgPlugin, monthPlugin, monthHoverPlugin] : [bgPlugin, monthPlugin],
         options: {
             normalized: true,
-            interaction: { mode: 'index', intersect: false },
-            layout: {
-                padding: { bottom: 20 }
-            },
+            interaction: (chartType === 'bar')
+                ? { mode: 'nearest', axis: 'x', intersect: false }
+                : { mode: 'index', intersect: false },
+            layout: { padding: { bottom: 20 } },
             plugins: {
                 legend: {
                     position: 'top',
@@ -541,30 +798,40 @@
                     backgroundColor: 'rgba(255, 255, 255, 0.92)',
                     titleColor: '#000',
                     bodyColor: '#000',
+                    position: (chartType === 'bar') ? 'monthCursor' : 'average',
                     callbacks: {
                         title: (items) => {
                             if (!items || !items.length) return '';
+
                             const idx = items[0].dataIndex;
+
+                            if (chartType === 'bar') {
+                                const r = rangeForIndex(idx);
+                                return r ? `${r.label} ${r.year}` : '';
+                            }
+
                             const iso = (payload.keys && payload.keys[idx]) ? payload.keys[idx] : '';
                             if (!iso) return '';
                             const parts = iso.split('-'); // YYYY-MM-DD
                             return `${parts[2]}.${parts[1]}.${parts[0]}`;
                         },
-                        label: (context) => `${context.dataset.label}: ${Number(context.parsed.y).toFixed(2)} €`
-                    }
+                        label: (context) => {
+                            const y = context.parsed && typeof context.parsed.y !== 'undefined' ? context.parsed.y : null;
+                            if (y === null) return null; // wichtig: null nicht als 0 anzeigen
+                            return `${context.dataset.label}: ${Number(y).toFixed(2)} €`;
+                        }
+                    },
                 }
             },
             scales: {
                 x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        display: false
-                    }
+                    stacked: (chartType === 'bar'),
+                    grid: { display: false },
+                    ticks: { display: false }
                 },
                 y: {
-                    beginAtZero: true,     // <- das ist der Punkt
+                    stacked: (chartType === 'bar'),
+                    beginAtZero: true,
                     grid: { color: 'rgba(255, 255, 255, 0.12)' },
                     ticks: {
                         color: '#ffffff',

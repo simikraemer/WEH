@@ -562,6 +562,7 @@ function load_menu() {
                 if ($agName === 'TvK-Sprecher') {                                        
                     echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
                     echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
                     echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
                     echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
@@ -572,6 +573,7 @@ function load_menu() {
                 }
                 if ($agName === 'TvK-Kasse') {                                        
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
+                    echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
                     echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
                 }
                 if ($agName === 'Kassenwart') {
