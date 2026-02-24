@@ -341,7 +341,7 @@ if (auth($conn) && ($_SESSION['NetzAG'] || $_SESSION['Vorstand'] || $_SESSION["T
       $beschreibung = (string)($_POST['beschreibung'] ?? "");
 
       $date = date("d.m.Y");
-      $stringie = utf8_decode("\n" . $date . " Sperre " . $beschreibung . " (" . ($_SESSION['username'] ?? '') . ")");
+      $stringie = utf8_decode("\n" . $date . " Sperre Ruhestoerung (" . ($_SESSION['username'] ?? '') . ")");
       $sql = "UPDATE users SET historie = CONCAT(historie, ?) WHERE uid = ?";
       $stmt = mysqli_prepare($conn, $sql);
       mysqli_stmt_bind_param($stmt, "si", $stringie, $user_id);
