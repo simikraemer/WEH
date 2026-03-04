@@ -142,6 +142,32 @@ def clean_bike_storage(ends, turm):
         nachrückmail(row[3], row[2], turm)
         text += f"* {row[0]} rückte automatisch auf Stellplatz {row[2]} nach, da ein Fahrrad-AG User den alten Stellplatz-User entfernt hat.\n"
         changes = True
+        
+    # CASE 9: Stellplatzwechsel durch Fahrrad-AG (status = 6)
+    cursor.execute("""
+        SELECT users.name, fahrrad.id, fahrrad.platz, fahrrad.platztime, fahrrad.endagent
+        FROM users
+        INNER JOIN fahrrad ON users.uid = fahrrad.uid
+        WHERE fahrrad.status = 6 AND fahrrad.turm = %s
+        ORDER BY fahrrad.platztime, fahrrad.endagent, fahrrad.platz
+    """, (turm,))
+    rows = cursor.fetchall()
+    groups = {} # Gruppieren über (platztime, endagent), da der Swap in PHP in einer Transaktion mit gleichem zeit/agent erfolgt
+    for name, fid, platz, platztime, endagent in rows:
+        key = (platztime, endagent)
+        groups.setdefault(key, []).append((name, fid, platz))
+    for (pt, ea), items in groups.items():
+        if len(items) == 2:
+            (n1, id1, p1), (n2, id2, p2) = items
+            text += f"* {n1} und {n2} haben Stellplatz {p1} und {p2} untereinander getauscht.\n"
+            cursor.execute("UPDATE fahrrad SET status = 0 WHERE id IN (%s,%s)", (id1, id2))
+            changes = True
+        else:
+            # Fallback: falls irgendwas schief gruppiert (sollte praktisch nicht passieren)
+            for n, fid, p in items:
+                text += f"* {n} wurde per Stellplatzwechsel auf Stellplatz {p} gesetzt.\n"
+                cursor.execute("UPDATE fahrrad SET status = 0 WHERE id = %s", (fid,))
+                changes = True
 
     # END: Stellplätze prüfen
     cursor.execute("SELECT COUNT(*) FROM fahrrad WHERE platz > 0 AND turm = %s", (turm,))
