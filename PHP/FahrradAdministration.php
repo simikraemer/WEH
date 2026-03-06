@@ -462,7 +462,7 @@ echo '<h1 class="center">Stellplätze</h1>';
 flash_print();
 
 echo "<table class='leftbike'>";
-echo '<tr><th>Stellplatz</th><th>Einteilung</th><th>Raum</th><th>Name</th><th>Mail</th><th>Kick</th></tr>';
+echo '<tr><th>Stellplatz</th><th>Letzte Änderung</th><th>Raum</th><th>Name</th><th>Mail</th><th>Kick</th></tr>';
 
 foreach ($users_stellplatz as $stellplatz => $users) {
   foreach ($users as $user) {
