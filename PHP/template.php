@@ -356,7 +356,7 @@ function load_menu() {
         echo '<div class="header-submenu">'; 
         echo '<button onclick="window.location.href=\'/IPverwaltung.php\';" style="white-space: nowrap;">IP-Verwaltung</button>'; 
         echo '<button onclick="window.location.href=\'/Troubleshoot.php\';"style="white-space: nowrap;">Troubleshoot</button> ';
-        echo '<button onclick="window.location.href=\'/Printer.php\';">Web-Printer</button> ';
+        echo '<button onclick="window.location.href=\'/Printer2.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'/PSK.php\';"style="white-space: nowrap;">PSK Netz</button> ';
         //echo '<button onclick="window.location.href=\'/Minecraft.php\';"style="white-space: nowrap;">Minecraft Server</button> ';
         echo '</div>';
@@ -400,6 +400,7 @@ function load_menu() {
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'/SetSessions.php\';" style="white-space: nowrap;">Sessions verwalten</button> ';
             echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
+            echo '<button onclick="window.location.href=\'/Printer2.php\';" style="white-space: nowrap;">Webprinter 2.0</button> ';
             echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Konten-Verlauf</button> ';
             echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
             echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
@@ -645,7 +646,7 @@ function load_menu() {
         } elseif ($_SESSION['turm'] === 'tvk') {
             echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen-tvk\';" style="white-space: nowrap;">Waschsystem</button> ';
         }
-        echo '<button onclick="window.location.href=\'Printer.php\';">Web-Printer</button> ';
+        echo '<button onclick="window.location.href=\'Printer2.php\';">Web-Printer</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/webmail\';">Web-Mail</button> ';
         echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/cloud\';">Web-Cloud</button> ';
         echo '</div>';
@@ -1655,18 +1656,33 @@ function shortenFileName($fileName, $maxLength = 20) {
     return $name . $extension; // Zusammenfügen von gekürztem Namen und Endung
 }
 
-function berechne_gesamtpreis($gesamtseiten, $druckmodus, $graustufen) {
-    // Preisdefinitionen für verschiedene Modi
-    $preise = [
+$PRINT_PRICE_SW_SIMPLEX    = 0.02;
+$PRINT_PRICE_SW_DUPLEX     = 0.015;
+$PRINT_PRICE_COLOR_SIMPLEX = 0.08;
+$PRINT_PRICE_COLOR_DUPLEX  = 0.06;
+
+function get_druckpreis_konfiguration(): array
+{
+    global $PRINT_PRICE_SW_SIMPLEX;
+    global $PRINT_PRICE_SW_DUPLEX;
+    global $PRINT_PRICE_COLOR_SIMPLEX;
+    global $PRINT_PRICE_COLOR_DUPLEX;
+
+    return [
         'sw' => [
-            'simplex' => 0.02,    // SW Simplex [2 Cent pro Blatt]
-            'duplex'  => 0.015,   // SW Duplex [1.5 Cent pro Blatt]
+            'simplex' => $PRINT_PRICE_SW_SIMPLEX,
+            'duplex'  => $PRINT_PRICE_SW_DUPLEX,
         ],
         'farbe' => [
-            'simplex' => 0.08,    // Farbe Simplex [8 Cent pro Blatt]
-            'duplex'  => 0.06,    // Farbe Duplex [6 Cent pro Blatt]
-        ]
+            'simplex' => $PRINT_PRICE_COLOR_SIMPLEX,
+            'duplex'  => $PRINT_PRICE_COLOR_DUPLEX,
+        ],
     ];
+}
+
+function berechne_gesamtpreis($gesamtseiten, $druckmodus, $graustufen) {
+    // Preisdefinitionen für verschiedene Modi
+    $preise = get_druckpreis_konfiguration();
 
     // Farbmodus bestimmen
     $modus = $graustufen ? 'sw' : 'farbe';

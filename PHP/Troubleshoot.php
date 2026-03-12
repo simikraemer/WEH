@@ -331,7 +331,7 @@ if (auth($conn) && $_SESSION['valid']) {
             } elseif ($turm == 'tvk') {
 
                 // optional robust: nur "Wort"-Treffer (verhindert Substring-Matches)
-                $remoteCmd = 'grep -Fw -- ' . escapeshellarg($username) . ' /var/log/syslog';
+                $remoteCmd = 'grep -a -Fw -- ' . escapeshellarg($username) . ' /var/log/syslog';
 
                 $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de '
                         . escapeshellarg($remoteCmd . ' 2>&1; echo $?');
@@ -440,7 +440,7 @@ if (auth($conn) && $_SESSION['valid']) {
                             $grepPattern = "'(" . implode('|', $escapedIps) . ")'";
                         }
 
-                        $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de "grep -E ' . $grepPattern . ' /var/log/syslog 2>&1"';
+                        $command = 'ssh -i /etc/credentials/fijinotausprivatekey -p 22 fijinotaus@kvasir.tvk.rwth-aachen.de "grep -a -E ' . $grepPattern . ' /var/log/syslog 2>&1"';
                         $descriptors = [
                             0 => ['pipe', 'r'], // stdin
                             1 => ['pipe', 'w'], // stdout
