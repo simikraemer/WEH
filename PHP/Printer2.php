@@ -6,6 +6,9 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 const WEBMASTERTEST = false;
+const WP2_A4_WIDTH_PT = 595.0;
+const WP2_A4_HEIGHT_PT = 842.0;
+const WP2_A4_TOLERANCE_PT = 5.0;
 
 require_once __DIR__ . '/conn.php';
 mysqli_set_charset($conn, 'utf8mb4');
@@ -252,6 +255,21 @@ function wp2_command_exists(string $command): bool
     return is_string($result) && trim($result) !== '';
 }
 
+function wp2_is_a4_size(float $width, float $height): bool
+{
+    $portrait = (
+        abs($width - WP2_A4_WIDTH_PT) <= WP2_A4_TOLERANCE_PT &&
+        abs($height - WP2_A4_HEIGHT_PT) <= WP2_A4_TOLERANCE_PT
+    );
+
+    $landscape = (
+        abs($width - WP2_A4_HEIGHT_PT) <= WP2_A4_TOLERANCE_PT &&
+        abs($height - WP2_A4_WIDTH_PT) <= WP2_A4_TOLERANCE_PT
+    );
+
+    return $portrait || $landscape;
+}
+
 function wp2_read_pdf_page_count(string $path): ?int
 {
     if (!wp2_command_exists('pdfinfo')) {
@@ -269,6 +287,71 @@ function wp2_read_pdf_page_count(string $path): ?int
     }
 
     return null;
+}
+
+function wp2_read_pdf_page_sizes(string $path): array
+{
+    if (!wp2_command_exists('pdfinfo')) {
+        return [];
+    }
+
+    exec('pdfinfo -box ' . escapeshellarg($path) . ' 2>&1', $output, $returnVar);
+    if ($returnVar !== 0) {
+        return [];
+    }
+
+    $text = implode("\n", $output);
+    $sizes = [];
+
+    if (preg_match_all('/Page\s+(\d+)\s+size:\s+([0-9.]+)\s+x\s+([0-9.]+)/i', $text, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $match) {
+            $sizes[] = [
+                'page' => (int)$match[1],
+                'width' => (float)$match[2],
+                'height' => (float)$match[3],
+            ];
+        }
+        return $sizes;
+    }
+
+    if (preg_match('/Page size:\s+([0-9.]+)\s+x\s+([0-9.]+)/i', $text, $match)) {
+        $sizes[] = [
+            'page' => 1,
+            'width' => (float)$match[1],
+            'height' => (float)$match[2],
+        ];
+    }
+
+    return $sizes;
+}
+
+function wp2_validate_pdf_a4_only(string $path): array
+{
+    $sizes = wp2_read_pdf_page_sizes($path);
+
+    if (empty($sizes)) {
+        return [
+            'ok' => false,
+            'details' => ['Page size could not be determined.'],
+        ];
+    }
+
+    $details = [];
+
+    foreach ($sizes as $size) {
+        $width = (float)$size['width'];
+        $height = (float)$size['height'];
+        $page = (int)$size['page'];
+
+        if (!wp2_is_a4_size($width, $height)) {
+            $details[] = 'Page ' . $page . ' is not A4 (' . $width . ' × ' . $height . ' pt).';
+        }
+    }
+
+    return [
+        'ok' => empty($details),
+        'details' => $details,
+    ];
 }
 
 function wp2_validate_pdf(string $tmpPath, string $originalName, int $size): array
@@ -330,8 +413,12 @@ function wp2_validate_pdf(string $tmpPath, string $originalName, int $size): arr
             $errors[] = 'Page count could not be determined.';
         }
 
-        if (preg_match('/Page size:\s+([0-9.]+)\s+x\s+([0-9.]+)/i', $pdfinfoText, $m)) {
-            $details[] = 'Detected page size: ' . $m[1] . ' × ' . $m[2] . ' pt';
+        $a4Check = wp2_validate_pdf_a4_only($tmpPath);
+        if (!$a4Check['ok']) {
+            $errors[] = 'Only A4 PDFs are allowed.';
+            foreach ($a4Check['details'] as $detail) {
+                $details[] = $detail;
+            }
         }
     }
 
@@ -791,6 +878,22 @@ function wp2_build_compiled_pdf(string $mode): array
     $sanitizedPath = $sessionDir . DIRECTORY_SEPARATOR . 'print_' . bin2hex(random_bytes(8)) . '.pdf';
     $sanitize = wp2_sanitize_pdf_for_print($mergedPath, $sanitizedPath);
 
+    $finalPath = $sanitize['ok'] ? $sanitizedPath : $mergedPath;
+
+    $a4Check = wp2_validate_pdf_a4_only($finalPath);
+    if (!$a4Check['ok']) {
+        @unlink($mergedPath);
+        if (is_file($sanitizedPath)) {
+            @unlink($sanitizedPath);
+        }
+
+        return [
+            'ok' => false,
+            'error' => 'Only A4 PDFs may be sent to the printer.',
+            'details' => implode(' | ', $a4Check['details']),
+        ];
+    }
+
     if ($sanitize['ok']) {
         @unlink($mergedPath);
         return [
@@ -1157,6 +1260,16 @@ if ($isAjax) {
             }
 
             $compiledPath = (string)$build['path'];
+
+            $compiledA4Check = wp2_validate_pdf_a4_only($compiledPath);
+            if (!$compiledA4Check['ok']) {
+                wp2_json([
+                    'ok' => false,
+                    'message' => 'Only A4 PDFs may be sent to CUPS.',
+                    'details' => implode(' | ', $compiledA4Check['details']),
+                ], 400);
+            }
+
             $stats = $build['stats'];
             $effectivePagesPerCopy = (int)$stats['effective_pages_per_copy'];
             $totalPages = $effectivePagesPerCopy * $copies;
@@ -1181,6 +1294,8 @@ if ($isAjax) {
             $lpOptions[] = '-d ' . escapeshellarg((string)$printer['name']);
             $lpOptions[] = '-n ' . (int)$copies;
             $lpOptions[] = '-o media=A4';
+            $lpOptions[] = '-o PageSize=A4';
+            $lpOptions[] = '-o page-size=A4';
             $lpOptions[] = '-o sides=' . ($mode === 'simplex' ? 'one-sided' : 'two-sided-long-edge');
 
             if (!empty($printer['supports_color']) && $grayscale) {
@@ -2099,14 +2214,14 @@ $boot = [
     <div class="wp2-card wp2-panel">
       <div class="wp2-panel-head">
         <h2 class="wp2-panel-title">Upload PDFs</h2>
-        <!-- <p class="wp2-panel-text">Only valid PDF files are accepted.</p> -->
+        <!-- <p class="wp2-panel-text">Only valid A4 PDF files are accepted.</p> -->
       </div>
 
       <div class="wp2-upload-area">
         <label class="wp2-dropzone" id="wp2Dropzone">
           <input type="file" id="wp2FileInput" name="documents[]" multiple accept=".pdf,application/pdf">
-          <p class="wp2-drop-title">Drop PDFs here or click to browse</p>
-          <p class="wp2-drop-text">The document order below is the print order.</p>
+          <p class="wp2-drop-title">Drop A4 PDFs here or click to browse</p>
+          <p class="wp2-drop-text">Only A4 PDF files are allowed. The document order below is the print order.</p>
         </label>
 
         <div id="wp2UploadErrors" class="wp2-alerts"></div>
@@ -2560,7 +2675,7 @@ $boot = [
     if (!files.length) return;
 
     try {
-      showLoader('Uploading and validating PDFs…');
+      showLoader('Uploading and validating A4 PDFs…');
       const result = await api('upload_documents', {}, files);
       state.documents = Array.isArray(result.documents) ? result.documents : [];
       renderDocuments();
@@ -2699,7 +2814,7 @@ $boot = [
     collectOptions();
 
     try {
-      showLoader('Sending job to Printer…');
+      showLoader('Sending A4 job to printer…');
       const result = await api('submit_print', {
         printer_id: state.selectedPrinterId,
         mode: state.options.mode,

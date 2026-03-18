@@ -104,7 +104,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
 
-        if ($ag == 7 || $ag == 9) { # NetzAG&Vorstand dürfen doppelten Wert fraisen
+        if ($ag == 7 || $ag == 9 || $ag ==  11 || $ag == 25) { # NetzAG&Vorstand&WaschAG&FahrradAG dürfen doppelten Wert fraisen
             $budgetpP = $budgetpP * 2;
         }
         $offenohnetrinkgeld = ($budgetpP * $count_members) - $spent;
