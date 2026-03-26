@@ -580,7 +580,7 @@ if (isset($_POST['save_transfer_id'])) {
               $kasse = 5;
           } elseif ($insert_betrag < 0) {
               $konto = 8;
-              $kasse = 5;
+              $kasse = 3;
           } else {
               $skip = true;
               echo "<p style='color:red; text-align:center;'>Betrag ist 0. Kein Eintrag hinzugefügt.</p>";

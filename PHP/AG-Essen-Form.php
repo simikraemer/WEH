@@ -109,7 +109,10 @@ if (auth($conn) && ($_SESSION['valid'])) {
         }
         $offenohnetrinkgeld = ($budgetpP * $count_members) - $spent;
         $offen = $offenohnetrinkgeld * $trinkgeldfaktor;
-
+        
+        // nur für die Anzeige auf 0 deckeln
+        $offenohnetrinkgeld_anzeige = max(0, $offenohnetrinkgeld);
+        $offen_anzeige = max(0, $offen);
 
         if (isset($_POST["reload"]) && $_POST["reload"] == 1) { // Notwendig, damit Seite aktualisieren nicht den Post erneut schickt
             if (isset($_POST["esseneintragen"])) {
@@ -141,7 +144,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 if ($betrag > $offen) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Der Betrag ist zu hoch!
-                    <br>Ihr könnt maximal noch ".number_format($offen, 2, ',', '.') . ' €'." in diesem Semester ausgeben.</p>";
+                    <br>Ihr könnt maximal noch ".number_format($offen_anzeige, 2, ',', '.') . ' €'." in diesem Semester ausgeben.</p>";
                     echo "</div>";
                 } elseif ($count_teilnehmer < $mindestteilnehmer) {                
                     echo "<div style='text-align: center;'>";
@@ -264,11 +267,11 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo 'Offenes Essensbudget im '.$semester.'';
         echo '</div>';
         echo '<div style="text-align: center; font-size: 40px; color: white;">';
-        echo number_format($offenohnetrinkgeld, 2, ',', '.') . ' €';
+        echo number_format($offenohnetrinkgeld_anzeige, 2, ',', '.') . ' €';
         echo '</div>';           
         echo '<div style="text-align: center; font-size: 25px; color: white;">';
-        echo "(".number_format($offen, 2, ',', '.') . ' € mit Trinkgeld)';
-        echo '</div>';   
+        echo "(".number_format($offen_anzeige, 2, ',', '.') . ' € mit Trinkgeld)';
+        echo '</div>';
 
         if ($schonwaseingetragen) {
             # -------------------------------------------------
