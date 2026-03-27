@@ -532,6 +532,7 @@ function load_menu() {
                         echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
                         echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     }
+                    echo '<button onclick="window.location.href=\'/KartedesRumtreibers.php\';" style="white-space: nowrap;">Karte des Rumtreibers</button> ';
                     echo '<button onclick="window.location.href=\'/Lastradius.php\';" style="white-space: nowrap;">Last Radius</button> ';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
                     echo '<button onclick="window.location.href=\'/APs.php\';">APs</button> ';
