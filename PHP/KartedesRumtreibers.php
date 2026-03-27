@@ -1975,6 +1975,115 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             font-size: 12px;
             white-space: pre-line;
         }
+
+        @media (max-width: 768px) {
+            .tower-controls {
+                top: calc(env(safe-area-inset-top, 0px) + 10px);
+                left: 8px;
+                right: 8px;
+                width: auto;
+                max-width: none;
+                padding: 10px;
+                gap: 8px;
+                border-radius: 14px;
+            }
+
+            .tower-controls-row {
+                gap: 8px;
+            }
+
+            .tower-controls label,
+            .tower-controls select,
+            .tower-controls button,
+            .tower-controls input,
+            .tower-controls span {
+                font-size: 12px;
+            }
+
+            .tower-controls button {
+                padding: 7px 10px;
+            }
+
+            .tower-controls .check {
+                gap: 5px;
+                min-width: 0;
+                white-space: normal;
+            }
+
+            .tower-controls .range {
+                width: 100%;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .tower-controls .range select,
+            .tower-controls .range button {
+                min-width: 0;
+            }
+
+            .tower-controls-row:nth-child(1) {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                align-items: center;
+            }
+
+            .tower-controls-row:nth-child(1) > * {
+                min-width: 0;
+            }
+
+            .tower-controls-row:nth-child(2) {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .view-select {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .user-search-wrap {
+                width: 100%;
+            }
+
+            .tower-controls-row:nth-child(4) {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+            }
+
+            .tower-controls-row:nth-child(4) > button {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .all-users-progress {
+                min-width: 0;
+                text-align: right;
+            }
+
+            .tower-controls-row:nth-child(5) {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 6px;
+                align-items: center;
+            }
+
+            .tower-controls-row:nth-child(5) .check {
+                min-width: 0;
+                white-space: nowrap;
+                gap: 4px;
+                font-size: 11px;
+                line-height: 1.1;
+                align-items: center;
+            }
+
+            .tower-controls-row:nth-child(5) .check {
+                align-items: flex-start;
+            }
+        }
+
     </style>
 
     <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
@@ -1989,7 +2098,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 </head>
 <body>
     <div class="tower-controls">
-        <div class="tower-controls-row">
+        <div class="tower-controls-row" style="display:none;">
             <button type="button" id="openNagiosDebug">Nagios Debug</button>
             <button type="button" id="openWlcDebug">WLC Debug</button>
             <label class="check">
@@ -2048,7 +2157,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
                 Gebäude-APs
             </label>
 
-            <label class="check">
+            <label class="check" style="display:none;">
                 <input type="checkbox" id="toggleUserDevices">
                 User-Devices
             </label>
@@ -2134,6 +2243,8 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         const FLOOR_MIN = FLOOR_DEFS[0].value;
         const FLOOR_MAX = FLOOR_DEFS[FLOOR_DEFS.length - 1].value;
+        const IS_MOBILE_LAYOUT = window.matchMedia('(max-width: 768px)').matches;
+        const MOBILE_CAMERA_Y_OFFSET = IS_MOBILE_LAYOUT ? 2.2 : 0;
 
         const towerViewMode = document.getElementById('towerViewMode');
         const floorFromSelect = document.getElementById('floorFrom');
@@ -2214,12 +2325,16 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             0.1,
             2000
         );
-        camera.position.set(19, 11, 20);
+        camera.position.set(
+            IS_MOBILE_LAYOUT ? 22 : 19,
+            IS_MOBILE_LAYOUT ? 13.5 : 11,
+            IS_MOBILE_LAYOUT ? 24 : 20
+        );
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.target.set(5.5, 7, GRID_Z / 2);
+        controls.target.set(5.5, 7 + MOBILE_CAMERA_Y_OFFSET, GRID_Z / 2);
         controls.minDistance = 8;
         controls.maxDistance = 140;
         controls.maxPolarAngle = Math.PI;
@@ -2969,7 +3084,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         function updateCameraTarget(minFloor, maxFloor) {
             const centerY = (minFloor + maxFloor + 1) / 2;
-            controls.target.set(5.5, centerY, GRID_Z / 2);
+            controls.target.set(5.5, centerY + MOBILE_CAMERA_Y_OFFSET, GRID_Z / 2);
         }
 
         function applyFloorSelection() {
