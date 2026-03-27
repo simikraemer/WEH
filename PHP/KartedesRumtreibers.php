@@ -399,6 +399,75 @@ function weh_get_user_devices(mysqli $conn, int $uid): array
     return array_values($devices);
 }
 
+function weh_get_pid11_user_map_for_macs(mysqli $conn, array $macs): array
+{
+    $wanted = [];
+    foreach ($macs as $mac) {
+        $norm = weh_normalize_mac((string)$mac);
+        if ($norm !== '') {
+            $wanted[$norm] = true;
+        }
+    }
+
+    if (empty($wanted)) {
+        return [];
+    }
+
+    $sql = "
+        SELECT
+            u.uid,
+            u.username,
+            u.room,
+            u.firstname,
+            u.lastname,
+            u.name,
+            m.id,
+            m.tstamp,
+            m.hostname,
+            m.mac1,
+            m.mac2,
+            m.mac3
+        FROM users u
+        INNER JOIN macauth m
+            ON m.uid = u.uid
+        WHERE u.turm = 'weh'
+          AND u.pid IN (11)
+        ORDER BY m.tstamp DESC, m.id DESC, u.uid DESC
+    ";
+
+    $result = mysqli_query($conn, $sql);
+    if (!$result) {
+        return [];
+    }
+
+    $map = [];
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        $userLabel = weh_user_display_label($row);
+        $rowHostname = trim((string)($row['hostname'] ?? ''));
+
+        foreach (['mac1', 'mac2', 'mac3'] as $field) {
+            $mac = weh_normalize_mac((string)($row[$field] ?? ''));
+            if ($mac === '' || !isset($wanted[$mac]) || isset($map[$mac])) {
+                continue;
+            }
+
+            $map[$mac] = [
+                'uid' => (int)$row['uid'],
+                'username' => (string)$row['username'],
+                'room' => isset($row['room']) ? (int)$row['room'] : 0,
+                'label' => $userLabel,
+                'hostname' => $rowHostname,
+                'tstamp' => isset($row['tstamp']) ? (int)$row['tstamp'] : 0,
+            ];
+        }
+    }
+
+    mysqli_free_result($result);
+
+    return $map;
+}
+
 function weh_tcl_escape(string $value): string
 {
     return strtr($value, [
@@ -471,6 +540,61 @@ function weh_build_expect_batch_script(string $host, string $username, string $p
     return implode("\n", $lines) . "\n";
 }
 
+function weh_build_expect_command_script(string $host, string $username, string $password, string $command, int $timeoutSeconds): string
+{
+    $safeCommand = weh_tcl_escape($command);
+
+    $lines = [];
+    $lines[] = '#!/usr/bin/expect -f';
+    $lines[] = 'set timeout ' . max(5, $timeoutSeconds);
+    $lines[] = 'log_user 1';
+    $lines[] = '';
+    $lines[] = 'set host "' . weh_tcl_escape($host) . '"';
+    $lines[] = 'set user "' . weh_tcl_escape($username) . '"';
+    $lines[] = 'set pass "' . weh_tcl_escape($password) . '"';
+    $lines[] = '';
+    $lines[] = 'spawn ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $host';
+    $lines[] = '';
+    $lines[] = 'expect "User:"';
+    $lines[] = 'send "$user\r"';
+    $lines[] = '';
+    $lines[] = 'expect "Password:"';
+    $lines[] = 'send "$pass\r"';
+    $lines[] = '';
+    $lines[] = 'expect "(Cisco Controller) >"';
+    $lines[] = 'send "config paging disable\r"';
+    $lines[] = '';
+    $lines[] = 'expect "(Cisco Controller) >"';
+    $lines[] = 'puts "__WLC_CMD_BEGIN__"';
+    $lines[] = 'send "' . $safeCommand . '\r"';
+    $lines[] = 'expect {';
+    $lines[] = '    "(Cisco Controller) >" {';
+    $lines[] = '        puts "__WLC_CMD_END__"';
+    $lines[] = '    }';
+    $lines[] = '    timeout {';
+    $lines[] = '        puts "__WLC_CMD_TIMEOUT__"';
+    $lines[] = '        exit 31';
+    $lines[] = '    }';
+    $lines[] = '}';
+    $lines[] = '';
+    $lines[] = 'send "logout\r"';
+    $lines[] = '';
+    $lines[] = 'expect {';
+    $lines[] = '    "Would you like to save them now? (y/N)" {';
+    $lines[] = '        send "N\r"';
+    $lines[] = '    }';
+    $lines[] = '    eof {}';
+    $lines[] = '    timeout {';
+    $lines[] = '        puts "TIMEOUT_BEI_LOGOUT_PROMPT"';
+    $lines[] = '        exit 32';
+    $lines[] = '    }';
+    $lines[] = '}';
+    $lines[] = '';
+    $lines[] = 'expect eof';
+
+    return implode("\n", $lines) . "\n";
+}
+
 function weh_split_batch_output_by_mac(string $output, array $macs): array
 {
     $normalized = str_replace(["\r\n", "\r"], "\n", $output);
@@ -535,6 +659,51 @@ function weh_split_batch_output_by_mac(string $output, array $macs): array
     }
 
     return $result;
+}
+
+function weh_extract_single_command_output(string $output, string $command): array
+{
+    $normalized = str_replace(["\r\n", "\r"], "\n", $output);
+
+    $begin = '__WLC_CMD_BEGIN__';
+    $end = '__WLC_CMD_END__';
+    $timeout = '__WLC_CMD_TIMEOUT__';
+
+    $beginPos = strpos($normalized, $begin);
+    if ($beginPos === false) {
+        return [
+            'raw' => trim($normalized),
+            'timed_out' => strpos($normalized, $timeout) !== false,
+        ];
+    }
+
+    $contentStart = $beginPos + strlen($begin);
+    $contentEnd = strlen($normalized);
+
+    $endPos = strpos($normalized, $end, $contentStart);
+    if ($endPos !== false) {
+        $contentEnd = min($contentEnd, $endPos);
+    }
+
+    $timeoutPos = strpos($normalized, $timeout, $contentStart);
+    $timedOut = false;
+    if ($timeoutPos !== false) {
+        $contentEnd = min($contentEnd, $timeoutPos);
+        $timedOut = true;
+    }
+
+    $chunk = substr($normalized, $contentStart, $contentEnd - $contentStart);
+    $chunk = trim($chunk);
+
+    $quotedCommand = preg_quote($command, '/');
+    $chunk = preg_replace('/^\s*' . $quotedCommand . '\s*$/mi', '', $chunk);
+    $chunk = preg_replace('/^\s*\(Cisco Controller\)\s*>\s*/mi', '', $chunk);
+    $chunk = trim($chunk);
+
+    return [
+        'raw' => $chunk,
+        'timed_out' => $timedOut,
+    ];
 }
 
 function weh_run_wlc_expect_batch(array $wlcConfig, array $macs, array &$debug, int $timeoutSeconds = 30): array
@@ -684,6 +853,182 @@ function weh_run_wlc_expect_batch(array $wlcConfig, array $macs, array &$debug, 
     ];
 }
 
+function weh_run_wlc_expect_command(array $wlcConfig, string $wlcCommand, array &$debug, int $timeoutSeconds = 45): array
+{
+    $expectPath = trim((string)@shell_exec('command -v expect 2>/dev/null'));
+    if ($expectPath === '') {
+        $debug['error'] = 'expect nicht gefunden';
+        return [
+            'success' => false,
+            'command_output' => '',
+            'raw_output' => '',
+            'exit_code' => null,
+            'timed_out' => false,
+        ];
+    }
+
+    $host = trim((string)($wlcConfig['host'] ?? ''));
+    $username = trim((string)($wlcConfig['username'] ?? ''));
+    $password = (string)($wlcConfig['password'] ?? '');
+
+    if ($host === '' || $username === '' || $password === '') {
+        $debug['error'] = 'WLC-Konfiguration unvollständig';
+        return [
+            'success' => false,
+            'command_output' => '',
+            'raw_output' => '',
+            'exit_code' => null,
+            'timed_out' => false,
+        ];
+    }
+
+    $expectScript = weh_build_expect_command_script($host, $username, $password, $wlcCommand, $timeoutSeconds);
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'wlc_cmd_');
+    if ($tmpFile === false) {
+        $debug['error'] = 'tempnam() fehlgeschlagen';
+        return [
+            'success' => false,
+            'command_output' => '',
+            'raw_output' => '',
+            'exit_code' => null,
+            'timed_out' => false,
+        ];
+    }
+
+    file_put_contents($tmpFile, $expectScript);
+    @chmod($tmpFile, 0700);
+
+    $debug['expect_path'] = $expectPath;
+    $debug['script_path'] = $tmpFile;
+    $debug['wlc_command'] = $wlcCommand;
+
+    $command = $expectPath . ' ' . escapeshellarg($tmpFile);
+    $debug['command'] = $command;
+
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $process = proc_open($command, $descriptors, $pipes);
+    if (!is_resource($process)) {
+        @unlink($tmpFile);
+        $debug['error'] = 'proc_open() fehlgeschlagen';
+        return [
+            'success' => false,
+            'command_output' => '',
+            'raw_output' => '',
+            'exit_code' => null,
+            'timed_out' => false,
+        ];
+    }
+
+    fclose($pipes[0]);
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+
+    $stdout = '';
+    $stderr = '';
+    $start = microtime(true);
+    $hardTimeout = max(5, $timeoutSeconds);
+
+    while (true) {
+        $status = proc_get_status($process);
+        $running = is_array($status) ? (bool)$status['running'] : false;
+
+        $read = [];
+        if (is_resource($pipes[1])) $read[] = $pipes[1];
+        if (is_resource($pipes[2])) $read[] = $pipes[2];
+
+        if (!empty($read)) {
+            $write = null;
+            $except = null;
+            $changed = @stream_select($read, $write, $except, 0, 250000);
+
+            if ($changed !== false && $changed > 0) {
+                foreach ($read as $stream) {
+                    $chunk = stream_get_contents($stream);
+                    if ($chunk !== false && $chunk !== '') {
+                        if ($stream === $pipes[1]) {
+                            $stdout .= $chunk;
+                        } else {
+                            $stderr .= $chunk;
+                        }
+                    }
+                }
+            }
+        }
+
+        $now = microtime(true);
+
+        if (($now - $start) > $hardTimeout) {
+            $debug['timed_out'] = true;
+            @proc_terminate($process);
+            break;
+        }
+
+        if (!$running) {
+            break;
+        }
+    }
+
+    $stdoutRest = stream_get_contents($pipes[1]);
+    $stderrRest = stream_get_contents($pipes[2]);
+
+    if ($stdoutRest !== false && $stdoutRest !== '') {
+        $stdout .= $stdoutRest;
+    }
+    if ($stderrRest !== false && $stderrRest !== '') {
+        $stderr .= $stderrRest;
+    }
+
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    $exitCode = proc_close($process);
+    @unlink($tmpFile);
+
+    $rawOutput = trim($stdout . ($stderr !== '' ? "\n" . $stderr : ''));
+    $parsed = weh_extract_single_command_output($rawOutput, $wlcCommand);
+
+    $debug['exit_code'] = $exitCode;
+    $debug['duration_seconds'] = round(microtime(true) - $start, 2);
+    $debug['raw_output'] = $rawOutput;
+
+    return [
+        'success' => true,
+        'command_output' => (string)$parsed['raw'],
+        'raw_output' => $rawOutput,
+        'exit_code' => $exitCode,
+        'timed_out' => !empty($parsed['timed_out']),
+    ];
+}
+
+function weh_parse_wlc_client_summary_macs(string $raw): array
+{
+    $matches = [];
+
+    preg_match_all(
+        '/(?:[0-9A-Fa-f]{2}(?:[:\-])){5}[0-9A-Fa-f]{2}|(?:[0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4}/',
+        $raw,
+        $matches
+    );
+
+    $macs = [];
+    if (!empty($matches[0])) {
+        foreach ($matches[0] as $candidate) {
+            $mac = weh_normalize_mac((string)$candidate);
+            if ($mac !== '') {
+                $macs[$mac] = true;
+            }
+        }
+    }
+
+    return array_values(array_keys($macs));
+}
+
 function weh_parse_wlc_client_output(string $raw, array $apsByHostname): array
 {
     $associatedAp = null;
@@ -769,11 +1114,19 @@ function weh_rssi_weight(?int $rssi, bool $isPrimary = false): float
     return $weight;
 }
 
+
 function weh_estimate_position(array $parsed, array $apsByHostname): ?array
 {
     $candidates = [];
 
-    $addCandidate = static function (&$candidates, string $hostname, float $weight, ?int $rssi, string $source, array $ap) {
+    $addCandidate = static function (
+        array &$candidates,
+        string $hostname,
+        float $weight,
+        ?int $rssi,
+        string $source,
+        array $ap
+    ): void {
         if (!isset($candidates[$hostname])) {
             $candidates[$hostname] = [
                 'hostname' => $hostname,
@@ -799,20 +1152,14 @@ function weh_estimate_position(array $parsed, array $apsByHostname): ?array
         }
     };
 
+    $rssiToWeight = static function (int $rssi, int $bestRssi): float {
+        return exp(((float)$rssi - (float)$bestRssi) / 6.0);
+    };
+
     $associatedAp = strtolower(trim((string)($parsed['associated_ap'] ?? '')));
     $associatedRssi = isset($parsed['associated_rssi']) ? (int)$parsed['associated_rssi'] : null;
 
-    if ($associatedAp !== '' && isset($apsByHostname[$associatedAp])) {
-        $addCandidate(
-            $candidates,
-            $associatedAp,
-            weh_rssi_weight($associatedRssi, true),
-            $associatedRssi,
-            'associated',
-            $apsByHostname[$associatedAp]
-        );
-    }
-
+    $validNearby = [];
     if (isset($parsed['nearby_aps']) && is_array($parsed['nearby_aps'])) {
         foreach ($parsed['nearby_aps'] as $hostname => $rssi) {
             $hostname = strtolower(trim((string)$hostname));
@@ -820,15 +1167,93 @@ function weh_estimate_position(array $parsed, array $apsByHostname): ?array
                 continue;
             }
 
-            $addCandidate(
-                $candidates,
-                $hostname,
-                weh_rssi_weight((int)$rssi, $hostname === $associatedAp),
-                (int)$rssi,
-                'nearby',
-                $apsByHostname[$hostname]
-            );
+            $validNearby[] = [
+                'hostname' => $hostname,
+                'rssi' => (int)$rssi,
+                'ap' => $apsByHostname[$hostname],
+            ];
         }
+    }
+
+    usort($validNearby, static function (array $a, array $b): int {
+        return $b['rssi'] <=> $a['rssi'];
+    });
+
+    if ($associatedAp === '' || !isset($apsByHostname[$associatedAp])) {
+        if (!empty($validNearby)) {
+            $associatedAp = $validNearby[0]['hostname'];
+            $associatedRssi = $validNearby[0]['rssi'];
+        }
+    }
+
+    if ($associatedAp === '' || !isset($apsByHostname[$associatedAp])) {
+        return null;
+    }
+
+    $bestRssi = $associatedRssi ?? -90;
+    if (!empty($validNearby)) {
+        $bestRssi = max($bestRssi, (int)$validNearby[0]['rssi']);
+    }
+
+    $keptNearby = [];
+    foreach ($validNearby as $item) {
+        if ($item['hostname'] === $associatedAp) {
+            continue;
+        }
+
+        if ($item['rssi'] < -82) {
+            continue;
+        }
+
+        if (($bestRssi - $item['rssi']) > 15) {
+            continue;
+        }
+
+        $keptNearby[] = $item;
+
+        if (count($keptNearby) >= 5) {
+            break;
+        }
+    }
+
+    if ($associatedRssi !== null) {
+        if ($associatedRssi >= -55) {
+            $associatedBoost = 1.65;
+        } elseif ($associatedRssi >= -62) {
+            $associatedBoost = 1.50;
+        } elseif ($associatedRssi >= -70) {
+            $associatedBoost = 1.32;
+        } elseif ($associatedRssi >= -78) {
+            $associatedBoost = 1.18;
+        } else {
+            $associatedBoost = 1.05;
+        }
+
+        $associatedWeight = $rssiToWeight($associatedRssi, $bestRssi) * $associatedBoost;
+    } else {
+        $associatedWeight = 1.10;
+    }
+
+    $addCandidate(
+        $candidates,
+        $associatedAp,
+        $associatedWeight,
+        $associatedRssi,
+        'associated',
+        $apsByHostname[$associatedAp]
+    );
+
+    foreach ($keptNearby as $item) {
+        $nearbyWeight = $rssiToWeight((int)$item['rssi'], $bestRssi);
+
+        $addCandidate(
+            $candidates,
+            $item['hostname'],
+            $nearbyWeight,
+            (int)$item['rssi'],
+            'nearby',
+            $item['ap']
+        );
     }
 
     if (empty($candidates)) {
@@ -843,13 +1268,45 @@ function weh_estimate_position(array $parsed, array $apsByHostname): ?array
     foreach ($candidates as $candidate) {
         $weight = (float)$candidate['weight'];
         $sumWeight += $weight;
-        $sumX += $candidate['x'] * $weight;
-        $sumY += $candidate['y'] * $weight;
-        $sumZ += $candidate['z'] * $weight;
+        $sumX += (float)$candidate['x'] * $weight;
+        $sumY += (float)$candidate['y'] * $weight;
+        $sumZ += (float)$candidate['z'] * $weight;
     }
 
     if ($sumWeight <= 0.0) {
         return null;
+    }
+
+    $x = $sumX / $sumWeight;
+    $y = $sumY / $sumWeight;
+    $z = $sumZ / $sumWeight;
+
+    if (!empty($keptNearby)) {
+        $assocX = (float)$apsByHostname[$associatedAp]['x'];
+        $assocY = (float)$apsByHostname[$associatedAp]['y'];
+        $assocZ = (float)$apsByHostname[$associatedAp]['z'];
+
+        $dx = $x - $assocX;
+        $dy = $y - $assocY;
+        $dz = $z - $assocZ;
+
+        $horizontalDistance = sqrt(($dx * $dx) + ($dz * $dz));
+        $maxHorizontalDistance = 2.35;
+
+        if ($horizontalDistance > $maxHorizontalDistance && $horizontalDistance > 0.0) {
+            $scale = $maxHorizontalDistance / $horizontalDistance;
+            $dx *= $scale;
+            $dz *= $scale;
+        }
+
+        $maxVerticalDistance = 0.45;
+        if (abs($dy) > $maxVerticalDistance) {
+            $dy = ($dy < 0 ? -1.0 : 1.0) * $maxVerticalDistance;
+        }
+
+        $x = $assocX + $dx;
+        $y = $assocY + $dy;
+        $z = $assocZ + $dz;
     }
 
     uasort($candidates, static function ($a, $b) {
@@ -857,13 +1314,14 @@ function weh_estimate_position(array $parsed, array $apsByHostname): ?array
     });
 
     return [
-        'x' => round($sumX / $sumWeight, 2),
-        'y' => round($sumY / $sumWeight, 2),
-        'z' => round($sumZ / $sumWeight, 2),
+        'x' => round($x, 2),
+        'y' => round($y, 2),
+        'z' => round($z, 2),
         'used_aps' => array_values($candidates),
-        'primary_ap' => $associatedAp !== '' ? $associatedAp : null,
+        'primary_ap' => $associatedAp,
     ];
 }
+
 
 if (
     (isset($_GET['ajax']) && $_GET['ajax'] === '1') ||
@@ -929,6 +1387,7 @@ if (
         $batchResult = weh_run_wlc_expect_batch($config['wlcweh'], $macs, $batchDebug, 30);
 
         $wlcDebug = [
+            'mode' => 'single_user',
             'user' => [
                 'uid' => (int)$user['uid'],
                 'username' => (string)$user['username'],
@@ -978,6 +1437,7 @@ if (
             $hoverLabel = trim((string)$device['hostname']) !== '' ? (string)$device['hostname'] : $mac;
 
             $deviceResults[] = [
+                'kind' => 'selected',
                 'mac' => $mac,
                 'hostname' => (string)$device['hostname'],
                 'hover_label' => $hoverLabel,
@@ -1008,6 +1468,212 @@ if (
         ]);
     }
 
+    if ($ajaxAction === 'locate_all_users_start') {
+        @set_time_limit(120);
+
+        if (
+            !isset($config['wlcweh']) ||
+            !is_array($config['wlcweh']) ||
+            !isset($config['wlcweh']['host'], $config['wlcweh']['username'], $config['wlcweh']['password'])
+        ) {
+            weh_json_response([
+                'success' => false,
+                'error' => 'WLC-Konfiguration fehlt.',
+            ], 500);
+        }
+
+        $summaryDebug = [];
+        $summaryResult = weh_run_wlc_expect_command($config['wlcweh'], 'show client summary', $summaryDebug, 60);
+
+        $debug = [
+            'mode' => 'all_users_start',
+            'summary_debug' => $summaryDebug,
+            'current_client_count' => 0,
+            'matched_pid11_device_count' => 0,
+            'queue_count' => 0,
+        ];
+
+        if (!$summaryResult['success']) {
+            weh_json_response([
+                'success' => false,
+                'error' => 'WLC-Summary-Abfrage fehlgeschlagen.',
+                'debug' => $debug,
+            ], 500);
+        }
+
+        $currentMacs = weh_parse_wlc_client_summary_macs((string)$summaryResult['command_output']);
+        $debug['current_client_count'] = count($currentMacs);
+
+        $userMap = weh_get_pid11_user_map_for_macs($conn, $currentMacs);
+
+        $queue = [];
+        foreach ($currentMacs as $mac) {
+            if (!isset($userMap[$mac])) {
+                continue;
+            }
+
+            $queue[] = [
+                'mac' => $mac,
+                'user_uid' => (int)$userMap[$mac]['uid'],
+                'user_label' => (string)$userMap[$mac]['label'],
+                'username' => (string)$userMap[$mac]['username'],
+                'room' => (int)$userMap[$mac]['room'],
+                'hostname' => (string)$userMap[$mac]['hostname'],
+            ];
+        }
+
+        $debug['matched_pid11_device_count'] = count($userMap);
+        $debug['queue_count'] = count($queue);
+
+        weh_json_response([
+            'success' => true,
+            'total' => count($queue),
+            'items' => $queue,
+            'debug' => $debug,
+        ]);
+    }
+
+    if ($ajaxAction === 'locate_all_users_chunk') {
+        @set_time_limit(60);
+
+        if (
+            !isset($config['wlcweh']) ||
+            !is_array($config['wlcweh']) ||
+            !isset($config['wlcweh']['host'], $config['wlcweh']['username'], $config['wlcweh']['password'])
+        ) {
+            weh_json_response([
+                'success' => false,
+                'error' => 'WLC-Konfiguration fehlt.',
+            ], 500);
+        }
+
+        $itemsJson = isset($_POST['items_json']) ? (string)$_POST['items_json'] : '[]';
+        $items = json_decode($itemsJson, true);
+
+        if (!is_array($items)) {
+            weh_json_response([
+                'success' => false,
+                'error' => 'Ungültige Chunk-Daten.',
+            ], 400);
+        }
+
+        $items = array_values(array_filter($items, static function ($item) {
+            return is_array($item) && !empty($item['mac']);
+        }));
+
+        if (empty($items)) {
+            weh_json_response([
+                'success' => true,
+                'devices' => [],
+                'processed_count' => 0,
+                'debug' => [
+                    'mode' => 'all_users_chunk',
+                    'chunk_size' => 0,
+                    'attempts' => [],
+                ],
+            ]);
+        }
+
+        $macs = [];
+        foreach ($items as $item) {
+            $mac = weh_normalize_mac((string)($item['mac'] ?? ''));
+            if ($mac !== '' && !in_array($mac, $macs, true)) {
+                $macs[] = $mac;
+            }
+        }
+
+        $apLoad = weh_load_aps($conn, []);
+        $apsByHostname = $apLoad['aps_by_hostname'];
+
+        $batchDebug = [
+            'mac_count' => count($macs),
+        ];
+        $batchResult = weh_run_wlc_expect_batch($config['wlcweh'], $macs, $batchDebug, 45);
+
+        $debug = [
+            'mode' => 'all_users_chunk',
+            'chunk_size' => count($items),
+            'queried_mac_count' => count($macs),
+            'displayed_device_count' => 0,
+            'batch_debug' => $batchDebug,
+            'attempts' => [],
+        ];
+
+        if (!$batchResult['success']) {
+            weh_json_response([
+                'success' => false,
+                'error' => 'WLC-Chunk-Abfrage fehlgeschlagen.',
+                'debug' => $debug,
+            ], 500);
+        }
+
+        $outputsByMac = $batchResult['outputs'] ?? [];
+        $deviceResults = [];
+
+        foreach ($items as $item) {
+            $mac = weh_normalize_mac((string)($item['mac'] ?? ''));
+            if ($mac === '') {
+                continue;
+            }
+
+            $raw = isset($outputsByMac[$mac]['raw']) ? (string)$outputsByMac[$mac]['raw'] : '';
+            $timedOut = !empty($outputsByMac[$mac]['timed_out']);
+
+            $parsed = weh_parse_wlc_client_output($raw, $apsByHostname);
+            $estimated = weh_estimate_position($parsed, $apsByHostname);
+
+            $attemptDebug = [
+                'mac' => $mac,
+                'user_uid' => isset($item['user_uid']) ? (int)$item['user_uid'] : 0,
+                'user_label' => (string)($item['user_label'] ?? ''),
+                'hostname' => (string)($item['hostname'] ?? ''),
+                'timed_out' => $timedOut,
+                'raw' => $raw,
+                'parsed' => $parsed,
+                'estimated' => $estimated,
+            ];
+
+            $debug['attempts'][] = $attemptDebug;
+
+            if ($estimated === null) {
+                continue;
+            }
+
+            $userLabel = trim((string)($item['user_label'] ?? '')) !== '' ? (string)$item['user_label'] : 'Unbekannter User';
+            $hoverLabel = $userLabel . "\n" . $mac;
+
+            $deviceResults[] = [
+                'kind' => 'bulk',
+                'user_uid' => isset($item['user_uid']) ? (int)$item['user_uid'] : 0,
+                'user_label' => $userLabel,
+                'username' => (string)($item['username'] ?? ''),
+                'room' => isset($item['room']) ? (int)$item['room'] : 0,
+                'mac' => $mac,
+                'hostname' => (string)($item['hostname'] ?? ''),
+                'hover_label' => $hoverLabel,
+                'position' => [
+                    'x' => (float)$estimated['x'],
+                    'y' => (float)$estimated['y'],
+                    'z' => (float)$estimated['z'],
+                ],
+                'primary_ap' => $estimated['primary_ap'] ?? null,
+                'used_aps' => $estimated['used_aps'] ?? [],
+                'parsed' => $parsed,
+                'timed_out' => $timedOut,
+                'found_on_wlc' => trim($raw) !== '',
+            ];
+        }
+
+        $debug['displayed_device_count'] = count($deviceResults);
+
+        weh_json_response([
+            'success' => true,
+            'devices' => $deviceResults,
+            'processed_count' => count($items),
+            'debug' => $debug,
+        ]);
+    }
+
     weh_json_response([
         'success' => false,
         'error' => 'Unbekannte AJAX-Action.',
@@ -1016,6 +1682,7 @@ if (
 ?>
 <!DOCTYPE html>
 <html lang="de">
+    <title>Karte des Rumtreibers</title>
 <?php
 require('template.php');
 
@@ -1081,7 +1748,6 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             background: rgba(255, 255, 255, 0.90);
             backdrop-filter: blur(8px);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
-            min-width: 620px;
         }
 
         .tower-controls-row {
@@ -1094,7 +1760,8 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         .tower-controls label,
         .tower-controls select,
         .tower-controls button,
-        .tower-controls input {
+        .tower-controls input,
+        .tower-controls span {
             font-size: 14px;
         }
 
@@ -1127,6 +1794,10 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             background: #4b5563;
             color: #fff;
             cursor: pointer;
+        }
+
+        .tower-controls button.is-running {
+            background: #b91c1c;
         }
 
         .view-select {
@@ -1199,6 +1870,13 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         .user-suggestion-item:hover {
             background: #f3f4f6;
+        }
+
+        .all-users-progress {
+            min-width: 84px;
+            display: inline-block;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            color: #111827;
         }
 
         @keyframes spin {
@@ -1295,7 +1973,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             background: rgba(17, 24, 39, 0.92);
             color: #fff;
             font-size: 12px;
-            white-space: nowrap;
+            white-space: pre-line;
         }
     </style>
 
@@ -1347,6 +2025,11 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
                 <span id="userInlineSpinner" class="user-inline-spinner"></span>
                 <div id="userSuggestions" class="user-suggestions"></div>
             </div>
+        </div>
+
+        <div class="tower-controls-row">
+            <button type="button" id="loadAllUserDevicesButton">Alle Devices abfragen</button>
+            <span id="allUserDevicesProgress" class="all-users-progress">0/0</span>
         </div>
 
         <div class="tower-controls-row">
@@ -1423,7 +2106,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         const BLOCK_GAP = 0.04;
         const AP_RADIUS = 2.0;
         const LOCATE_TIMEOUT_MS = 30000;
-        const ORIGIN_LABEL_SCALE = 3;
+        const ALL_USERS_CHUNK_SIZE = 10;
 
         const FLOOR_DEFS = [
             { value: -3, label: 'Tiefkeller', short: 'Tiefkeller' },
@@ -1461,6 +2144,9 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         const userSuggestions = document.getElementById('userSuggestions');
         const userInlineSpinner = document.getElementById('userInlineSpinner');
 
+        const loadAllUserDevicesButton = document.getElementById('loadAllUserDevicesButton');
+        const allUserDevicesProgress = document.getElementById('allUserDevicesProgress');
+
         const toggleRoomAps = document.getElementById('toggleRoomAps');
         const toggleKaminAps = document.getElementById('toggleKaminAps');
         const toggleBuildingAps = document.getElementById('toggleBuildingAps');
@@ -1481,12 +2167,17 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         let selectedUser = null;
         let currentSearchAbortController = null;
         let currentLocateAbortController = null;
+        let currentAllUsersAbortController = null;
         let latestWlcDebug = null;
         let searchDebounceTimer = null;
-        let deviceMeshes = [];
+
+        let selectedDeviceMeshes = [];
+        let bulkDeviceMeshes = [];
         let apGroups = [];
         let apHoverMeshes = [];
         let floorLabelSprites = [];
+
+        let allUsersRunState = null;
 
         for (const floor of FLOOR_DEFS) {
             const optionFrom = document.createElement('option');
@@ -1789,7 +2480,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             const logicalWidth = textWidth + paddingX * 2;
             const logicalHeight = textHeight + paddingY * 2;
 
-            const renderScale = 4; // höhere interne Auflösung gegen Blur
+            const renderScale = 4;
             const canvas = document.createElement('canvas');
             canvas.width = logicalWidth * renderScale;
             canvas.height = logicalHeight * renderScale;
@@ -1842,29 +2533,26 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         originGroup.add(originDot);
 
         const xLabel = createTextSprite('X', {
-            fontSize: 56,
+            fontSize: 84,
             textColor: '#d62828',
-            scaleX: 0.30 * ORIGIN_LABEL_SCALE,
-            scaleY: 0.18 * ORIGIN_LABEL_SCALE
+            worldHeight: 0.54
         });
         xLabel.position.set(15.5, 0.2, 0);
         originGroup.add(xLabel);
 
         const zLabel = createTextSprite('Z', {
-            fontSize: 56,
+            fontSize: 84,
             textColor: '#1d4ed8',
-            scaleX: 0.30 * ORIGIN_LABEL_SCALE,
-            scaleY: 0.18 * ORIGIN_LABEL_SCALE
+            worldHeight: 0.54
         });
         zLabel.position.set(0, 0.2, 12.5);
         originGroup.add(zLabel);
 
         for (let x = 0; x <= GRID_X; x++) {
             const marker = createTextSprite(String(x), {
-                fontSize: 42,
+                fontSize: 72,
                 textColor: '#b91c1c',
-                scaleX: 0.22 * ORIGIN_LABEL_SCALE,
-                scaleY: 0.14 * ORIGIN_LABEL_SCALE
+                worldHeight: 0.40
             });
             marker.position.set(x, 0.22, -0.28);
             originGroup.add(marker);
@@ -1872,10 +2560,9 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         for (let z = 0; z <= GRID_Z; z++) {
             const marker = createTextSprite(String(z), {
-                fontSize: 42,
+                fontSize: 72,
                 textColor: '#1d4ed8',
-                scaleX: 0.22 * ORIGIN_LABEL_SCALE,
-                scaleY: 0.14 * ORIGIN_LABEL_SCALE
+                worldHeight: 0.40
             });
             marker.position.set(-0.28, 0.22, z);
             originGroup.add(marker);
@@ -2130,20 +2817,33 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             apGroups.push(aura);
         }
 
-        const deviceGroup = new THREE.Group();
-        scene.add(deviceGroup);
+        const selectedDeviceGroup = new THREE.Group();
+        scene.add(selectedDeviceGroup);
 
-        function clearDeviceMarkers() {
-            for (const mesh of deviceMeshes) {
-                deviceGroup.remove(mesh);
+        const bulkDeviceGroup = new THREE.Group();
+        scene.add(bulkDeviceGroup);
+
+        function clearSelectedDeviceMarkers() {
+            for (const mesh of selectedDeviceMeshes) {
+                selectedDeviceGroup.remove(mesh);
                 mesh.geometry.dispose?.();
                 mesh.material.dispose?.();
             }
-            deviceMeshes = [];
+            selectedDeviceMeshes = [];
             hoverTooltip.style.display = 'none';
         }
 
-        function createDeviceMarker(device) {
+        function clearBulkDeviceMarkers() {
+            for (const mesh of bulkDeviceMeshes) {
+                bulkDeviceGroup.remove(mesh);
+                mesh.geometry.dispose?.();
+                mesh.material.dispose?.();
+            }
+            bulkDeviceMeshes = [];
+            hoverTooltip.style.display = 'none';
+        }
+
+        function createSelectedDeviceMarker(device) {
             const geometry = new THREE.SphereGeometry(0.22, 20, 20);
             const material = new THREE.MeshStandardMaterial({
                 color: 0x2563eb,
@@ -2156,14 +2856,38 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             const mesh = new THREE.Mesh(geometry, material);
             mesh.position.set(device.position.x, device.position.y, device.position.z);
             mesh.userData = {
-                type: 'device',
+                type: 'device_selected',
                 hoverLabel: device.hover_label,
                 mac: device.mac,
                 hostname: device.hostname
             };
 
-            deviceGroup.add(mesh);
-            deviceMeshes.push(mesh);
+            selectedDeviceGroup.add(mesh);
+            selectedDeviceMeshes.push(mesh);
+        }
+
+        function createBulkDeviceMarker(device) {
+            const geometry = new THREE.SphereGeometry(0.16, 18, 18);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x2563eb,
+                emissive: 0x1d4ed8,
+                emissiveIntensity: 0.18,
+                roughness: 0.40,
+                metalness: 0.08
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(device.position.x, device.position.y, device.position.z);
+            mesh.userData = {
+                type: 'device_bulk',
+                hoverLabel: device.hover_label,
+                mac: device.mac,
+                hostname: device.hostname,
+                userLabel: device.user_label
+            };
+
+            bulkDeviceGroup.add(mesh);
+            bulkDeviceMeshes.push(mesh);
         }
 
         function getSelectedRange() {
@@ -2221,15 +2945,24 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         }
 
         function updateDeviceVisibility(minFloor, maxFloor) {
-            const showUserDevices = toggleUserDevices.checked && selectedUser !== null && deviceMeshes.length > 0;
-            deviceGroup.visible = showUserDevices;
+            const showUserDevices = toggleUserDevices.checked;
+            const hasSelected = selectedDeviceMeshes.length > 0;
+            const hasBulk = bulkDeviceMeshes.length > 0;
 
-            for (const mesh of deviceMeshes) {
+            selectedDeviceGroup.visible = showUserDevices && hasSelected;
+            bulkDeviceGroup.visible = showUserDevices && hasBulk;
+
+            for (const mesh of selectedDeviceMeshes) {
                 const y = mesh.position.y;
                 mesh.visible = showUserDevices && y >= minFloor && y <= (maxFloor + 1);
             }
 
-            if (!deviceGroup.visible) {
+            for (const mesh of bulkDeviceMeshes) {
+                const y = mesh.position.y;
+                mesh.visible = showUserDevices && y >= minFloor && y <= (maxFloor + 1);
+            }
+
+            if (!selectedDeviceGroup.visible && !bulkDeviceGroup.visible) {
                 hoverTooltip.style.display = 'none';
             }
         }
@@ -2272,6 +3005,29 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             userSearchInput.classList.add('is-selected');
         }
 
+        function setAllUsersProgress(done, total) {
+            allUserDevicesProgress.textContent = `${done}/${total}`;
+        }
+
+        function setAllUsersButtonRunning(isRunning) {
+            loadAllUserDevicesButton.classList.toggle('is-running', !!isRunning);
+            loadAllUserDevicesButton.textContent = isRunning ? 'Abbrechen' : 'Alle Devices abfragen';
+        }
+
+        function abortAllUsersRun() {
+            if (allUsersRunState) {
+                allUsersRunState.aborted = true;
+            }
+
+            if (currentAllUsersAbortController) {
+                currentAllUsersAbortController.abort();
+                currentAllUsersAbortController = null;
+            }
+
+            allUsersRunState = null;
+            setAllUsersButtonRunning(false);
+        }
+
         function clearSelectedUser(options = {}) {
             const resetDebug = !!options.resetDebug;
 
@@ -2286,8 +3042,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             userSearchInput.classList.remove('is-selected');
             userSuggestions.classList.remove('is-open');
             userSuggestions.innerHTML = '';
-            toggleUserDevices.checked = false;
-            clearDeviceMarkers();
+            clearSelectedDeviceMarkers();
             setUserLoading(false);
             applyFloorSelection();
 
@@ -2295,6 +3050,25 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
                 latestWlcDebug = null;
                 wlcDebugPre.textContent = 'Noch keine WLC-Abfrage durchgeführt.';
             }
+        }
+
+        function clearAllBulkDevices(options = {}) {
+            const resetProgress = options.resetProgress !== false;
+
+            abortAllUsersRun();
+            clearBulkDeviceMarkers();
+
+            if (resetProgress) {
+                setAllUsersProgress(0, 0);
+            }
+
+            applyFloorSelection();
+        }
+
+        async function fetchJson(url, options = {}) {
+            const response = await fetch(url, options);
+            const data = await response.json();
+            return data;
         }
 
         async function searchUsers(query) {
@@ -2309,13 +3083,12 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             url.searchParams.set('action', 'search_users');
             url.searchParams.set('q', query);
 
-            const response = await fetch(url.toString(), {
+            const data = await fetchJson(url.toString(), {
                 method: 'GET',
                 credentials: 'same-origin',
                 signal: currentSearchAbortController.signal
             });
 
-            const data = await response.json();
             return data.items || [];
         }
 
@@ -2342,6 +3115,10 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         }
 
         async function locateUser(user) {
+            abortAllUsersRun();
+            clearBulkDeviceMarkers();
+            setAllUsersProgress(0, 0);
+
             if (currentLocateAbortController) {
                 currentLocateAbortController.abort();
             }
@@ -2355,7 +3132,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
             setSelectedUser(user);
             setUserLoading(true);
-            clearDeviceMarkers();
+            clearSelectedDeviceMarkers();
             toggleUserDevices.checked = false;
             latestWlcDebug = {
                 status: 'running',
@@ -2369,14 +3146,13 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             formData.append('uid', String(user.uid));
 
             try {
-                const response = await fetch(AJAX_URL, {
+                const data = await fetchJson(AJAX_URL, {
                     method: 'POST',
                     body: formData,
                     credentials: 'same-origin',
                     signal: abortController.signal
                 });
 
-                const data = await response.json();
                 latestWlcDebug = data.debug || { raw_response: data };
                 wlcDebugPre.textContent = JSON.stringify(data, null, 2);
 
@@ -2391,7 +3167,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
                 if (Array.isArray(data.devices)) {
                     for (const device of data.devices) {
                         if (device.position) {
-                            createDeviceMarker(device);
+                            createSelectedDeviceMarker(device);
                         }
                     }
                 }
@@ -2417,6 +3193,126 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             } finally {
                 window.clearTimeout(timeoutId);
                 setUserLoading(false);
+            }
+        }
+
+        async function startAllUserDevicesRun() {
+            if (allUsersRunState && !allUsersRunState.aborted) {
+                abortAllUsersRun();
+                return;
+            }
+
+            clearSelectedUser({ resetDebug: false });
+            clearBulkDeviceMarkers();
+            setAllUsersProgress(0, 0);
+            toggleUserDevices.checked = true;
+            applyFloorSelection();
+
+            const runState = {
+                aborted: false,
+                processed: 0,
+                total: 0
+            };
+            allUsersRunState = runState;
+            setAllUsersButtonRunning(true);
+            latestWlcDebug = {
+                status: 'running',
+                message: 'Aktive PID11-Devices werden geladen...'
+            };
+            wlcDebugPre.textContent = JSON.stringify(latestWlcDebug, null, 2);
+
+            try {
+                currentAllUsersAbortController = new AbortController();
+
+                const startForm = new FormData();
+                startForm.append('ajax', '1');
+                startForm.append('action', 'locate_all_users_start');
+
+                const startData = await fetchJson(AJAX_URL, {
+                    method: 'POST',
+                    body: startForm,
+                    credentials: 'same-origin',
+                    signal: currentAllUsersAbortController.signal
+                });
+
+                latestWlcDebug = startData.debug || { raw_response: startData };
+                wlcDebugPre.textContent = JSON.stringify(startData, null, 2);
+
+                if (runState.aborted) {
+                    return;
+                }
+
+                if (!startData.success) {
+                    toggleUserDevices.checked = false;
+                    applyFloorSelection();
+                    return;
+                }
+
+                const items = Array.isArray(startData.items) ? startData.items : [];
+                runState.total = Number(startData.total || items.length || 0);
+                runState.processed = 0;
+                setAllUsersProgress(runState.processed, runState.total);
+
+                if (runState.total <= 0) {
+                    applyFloorSelection();
+                    return;
+                }
+
+                for (let offset = 0; offset < items.length; offset += ALL_USERS_CHUNK_SIZE) {
+                    if (runState.aborted) {
+                        break;
+                    }
+
+                    const chunkItems = items.slice(offset, offset + ALL_USERS_CHUNK_SIZE);
+                    currentAllUsersAbortController = new AbortController();
+
+                    const chunkForm = new FormData();
+                    chunkForm.append('ajax', '1');
+                    chunkForm.append('action', 'locate_all_users_chunk');
+                    chunkForm.append('items_json', JSON.stringify(chunkItems));
+
+                    const chunkData = await fetchJson(AJAX_URL, {
+                        method: 'POST',
+                        body: chunkForm,
+                        credentials: 'same-origin',
+                        signal: currentAllUsersAbortController.signal
+                    });
+
+                    latestWlcDebug = chunkData.debug || { raw_response: chunkData };
+                    wlcDebugPre.textContent = JSON.stringify(chunkData, null, 2);
+
+                    if (runState.aborted) {
+                        break;
+                    }
+
+                    if (!chunkData.success) {
+                        break;
+                    }
+
+                    if (Array.isArray(chunkData.devices)) {
+                        for (const device of chunkData.devices) {
+                            if (device.position) {
+                                createBulkDeviceMarker(device);
+                            }
+                        }
+                    }
+
+                    runState.processed += Number(chunkData.processed_count || chunkItems.length || 0);
+                    setAllUsersProgress(runState.processed, runState.total);
+                    applyFloorSelection();
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    latestWlcDebug = {
+                        error: String(error)
+                    };
+                    wlcDebugPre.textContent = JSON.stringify(latestWlcDebug, null, 2);
+                }
+            } finally {
+                currentAllUsersAbortController = null;
+                allUsersRunState = null;
+                setAllUsersButtonRunning(false);
+                applyFloorSelection();
             }
         }
 
@@ -2473,6 +3369,8 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             floorToSelect.value = String(FLOOR_MAX);
             applyFloorSelection();
         });
+
+        loadAllUserDevicesButton.addEventListener('click', startAllUserDevicesRun);
 
         toggleRoomAps.addEventListener('change', () => {
             const { minFloor, maxFloor } = getSelectedRange();
@@ -2552,8 +3450,13 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
             const hoverTargets = [];
 
-            for (const mesh of deviceMeshes) {
-                hoverTargets.push(mesh);
+            if (toggleUserDevices.checked) {
+                for (const mesh of selectedDeviceMeshes) {
+                    hoverTargets.push(mesh);
+                }
+                for (const mesh of bulkDeviceMeshes) {
+                    hoverTargets.push(mesh);
+                }
             }
 
             if (toggleRoomAps.checked || toggleKaminAps.checked || toggleBuildingAps.checked) {
@@ -2589,7 +3492,8 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         applyFloorSelection();
         updateOriginVisibility();
-        clearSelectedUser({ resetDebug: true });
+        setSelectedUser(null);
+        setAllUsersProgress(0, 0);
 
         function animate() {
             requestAnimationFrame(animate);
