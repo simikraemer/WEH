@@ -2743,7 +2743,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             new THREE.MeshBasicMaterial({
                 color: 0x7f8791,
                 transparent: true,
-                opacity: 0.10,
+                opacity: 0.50,
                 depthWrite: false,
                 depthTest: false,
                 side: THREE.DoubleSide
