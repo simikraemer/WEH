@@ -689,44 +689,94 @@ if (auth($conn) && ($_SESSION["NetzAG"] || $_SESSION["Vorstand"] || $_SESSION["T
 
 
 
-  if (isset($_POST["sublet_return"])) {
-    $user_id = $_POST["sublet_return"];
+if (isset($_POST["sublet_return"])) {
+    $user_id = (int)$_POST["sublet_return"];
+
     $sql = "SELECT name, oldroom, turm FROM users WHERE uid = ?";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "i", $user_id);
     mysqli_stmt_execute($stmt);
     $result = get_result($stmt);
+    mysqli_stmt_close($stmt);
+
     $name_subletter = $result[0]["name"];
-    $room = $result[0]["oldroom"];
+    $room = (int)$result[0]["oldroom"];
     $turm = $result[0]["turm"];
 
-    
-    $sql = "SELECT name FROM users WHERE room = ? AND turm = ?";
+    $sql = "SELECT uid, name, username, lastradius FROM users WHERE room = ? AND turm = ? LIMIT 1";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "is", $room, $turm);
     mysqli_stmt_execute($stmt);
     $result = get_result($stmt);
+    mysqli_stmt_close($stmt);
 
-    echo "<div class='confirmation-form'>";
+    $raumbelegt = !empty($result);
+
+    if ($raumbelegt) {
+        $name_sublet = $result[0]["name"];
+        $sublet_uid = (int)$result[0]["uid"];
+        $sublet_username = $result[0]["username"];
+        $lastradius = (int)$result[0]["lastradius"];
+
+        $zeit = time();
+
+        if ($lastradius === 0) {
+            $lastradiusstring = "Noch nie!";
+            $lastradiuscolor = "red";
+        } else {
+            $abstand_in_sekunden = $zeit - $lastradius + 3600;
+            $abstand_tage = floor($abstand_in_sekunden / (24 * 60 * 60));
+            $abstand_stunden = floor(($abstand_in_sekunden % (24 * 60 * 60)) / 3600);
+
+            if ($abstand_in_sekunden <= 3 * 3600) {
+                $lastradiusstring = "Aktuell verbunden";
+                $lastradiuscolor = "red";
+            } elseif ($abstand_tage > 0) {
+                $lastradiusstring = $abstand_tage . " Tage, " . $abstand_stunden . " Stunden";
+                $lastradiuscolor = "yellow";
+            } elseif ($abstand_stunden == 1) {
+                $lastradiusstring = "1 Stunde";
+                $lastradiuscolor = "red";
+            } else {
+                $lastradiusstring = $abstand_stunden . " Stunden";
+                $lastradiuscolor = "red";
+            }
+        }
+    }
+
+    echo "<div class='confirmation-form' style='margin-top: 30px;'>";
     echo "<form method='post'>";
-    if (isset($result[0]["name"])) {
-      $name_sublet = $result[0]["name"];
-      echo "<p>Sicher, dass $name_subletter bereits zurück ist?<br><br>$name_sublet verliert mit sofortiger Wirkung seinen Zugang!</p>";
-      echo "<input type='hidden' name='emptyroom' value='0'>";
+    if ($raumbelegt) {
+        echo "<p>
+                Sicher, dass " . htmlspecialchars($name_subletter, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . " bereits zurück ist?<br><br>
+                <span style='color:red; font-size: larger;'>" . htmlspecialchars($name_sublet, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . " verliert mit sofortiger Wirkung seinen/ihren Zugang!</span><br><br>
+                <span style='color:red'>
+                    Raum: " . htmlspecialchars((string)$room, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . "<br>
+                    Name: " . htmlspecialchars($name_sublet, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . "<br>
+                    Username: " . htmlspecialchars($sublet_username, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . "<br>
+                    UID: " . htmlspecialchars((string)$sublet_uid, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . "
+                </span><br>
+                <span style='color:" . $lastradiuscolor . "'>Letzter Radius Auth: " . htmlspecialchars($lastradiusstring, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . "</span>
+              </p>";
+        echo "<input type='hidden' name='emptyroom' value='0'>";
     } else {
-      echo "<p>Sicher, dass $name_subletter bereits zurück ist?<br><br>Aktuell gibt es keinen Bewohner für den Raum,<br>also ist der Untermieter wohl bereits ausgezogen.</p>";
-      echo "<input type='hidden' name='emptyroom' value='1'>";
+        echo "<p>
+                Sicher, dass " . htmlspecialchars($name_subletter, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . " bereits zurück ist?<br><br>
+                Aktuell gibt es keinen Bewohner für den Raum,<br>
+                also ist der Untermieter wohl bereits ausgezogen.
+              </p>";
+        echo "<input type='hidden' name='emptyroom' value='1'>";
     }
     echo "<input type='hidden' name='reload' value='1'>";
     echo "<input type='submit' name='processSubletReturn' value='Bestätigen'>";
-    echo "<input type='hidden' name='user_id' value='$user_id'>";
+    echo "<input type='hidden' name='user_id' value='" . htmlspecialchars((string)$user_id, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . "'>";
     echo "</form>";
     echo "<form method='post'>";
     echo "<input type='submit' name='processSubletReturn' value='Abbrechen'>";
     echo "</form>";
     echo "</div>";
 
-  } elseif (isset($_POST["subletter"])){ 
+} elseif (isset($_POST["subletter"])) {
 
       $query = "SELECT uid, oldroom, turm, firstname, lastname, username, subletterend FROM users WHERE pid = 12 ORDER BY subletterend";
       renderCustomUserTable($conn, $query, "Sublet Ende");   

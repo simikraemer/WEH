@@ -85,28 +85,28 @@ if ($isAuthed) {
   }
 
   function validate_iban(string $iban): bool {
-    // Normalize
-    $iban = strtoupper(preg_replace('/\s+/', '', $iban));
+      // Normalize: remove all whitespace, uppercase
+      $iban = strtoupper(preg_replace('/\s+/', '', $iban));
 
-    // Basic structure: CCkk + 11–30 alphanum
-    if (!preg_match('/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/', $iban)) {
-        return false;
-    }
+      // Basic structure: CCkk + 11–30 alphanum
+      if (!preg_match('/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/', $iban)) {
+          return false;
+      }
 
-    // Move first 4 chars to the end
-    $rearranged = substr($iban, 4) . substr($iban, 0, 4);
+      // Move first 4 chars to the end
+      $rearranged = substr($iban, 4) . substr($iban, 0, 4);
 
-    // Convert letters to numbers (A=10 ... Z=35) and compute mod 97 in chunks
-    $chunk = '';
-    foreach (str_split($rearranged) as $ch) {
-        $chunk .= ctype_alpha($ch) ? (string)(ord($ch) - 55) : $ch;
+      // Convert letters to numbers (A=10 ... Z=35) and compute mod 97 in chunks
+      $chunk = '';
+      foreach (str_split($rearranged) as $ch) {
+          $chunk .= ctype_alpha($ch) ? (string)(ord($ch) - 55) : $ch;
 
-        // Reduce in safe chunk sizes to avoid big ints
-        if (strlen($chunk) > 9) {
-            $chunk = (string)((int)$chunk % 97);
-        }
-    }
-    return ((int)$chunk % 97) === 1;
+          if (strlen($chunk) > 9) {
+              $chunk = (string)((int)$chunk % 97);
+          }
+      }
+
+      return ((int)$chunk % 97) === 1;
   }
 
   // Handle POST (create abmeldung) - password validation removed
@@ -130,12 +130,14 @@ if ($isAuthed) {
       $status  = 0;
       $betrag  = 0;
       $tstamp  = time();
-      $iban  = isset($_POST["iban"]) ? strtoupper(trim($_POST["iban"])) : "";
+
+      $ibanRaw = isset($_POST["iban"]) ? trim($_POST["iban"]) : "";
+      $iban    = strtoupper(preg_replace('/\s+/', '', $ibanRaw));
       $alMail  = isset($_POST["forwardemail"]) ? trim($_POST["forwardemail"]) : "";
 
       if ($iban === "" || !validate_iban($iban)) {
-        echo '<div class="form-container"><div class="error">Bitte eine gültige IBAN angeben (z. B. DE89…)</div></div>';
-        exit; // stop before INSERT
+          echo '<div class="form-container"><div class="error">Bitte eine gültige IBAN angeben (Leerzeichen sind erlaubt, z. B. DE89 3704 0044 0532 0130 00)</div></div>';
+          exit;
       }
 
       mysqli_stmt_bind_param(
@@ -258,9 +260,10 @@ if ($isAuthed) {
           <input type="date" name="dod" class="form-input" required>
 
           <label id="iban-label" class="form-label">IBAN:</label>
-          <input type="text" id="iban" name="iban" class="form-input" value="" required maxlength="34"
-                 pattern="[A-Z]{2}[0-9A-Z]{13,32}"
-                 title="Please enter a valid IBAN (e.g. DE89... or FR76...)" style="text-transform: uppercase;">
+          <input type="text" id="iban" name="iban" class="form-input" value="" required maxlength="42"
+            pattern="[A-Za-z]{2}[0-9A-Za-z ]{13,40}"
+            title="Please enter a valid IBAN. Spaces are allowed (e.g. DE89 3704 0044 0532 0130 00)"
+            style="text-transform: uppercase;">
 
           <div style="margin-top:14px;">
             <input type="checkbox" id="email_account" name="email_account">
