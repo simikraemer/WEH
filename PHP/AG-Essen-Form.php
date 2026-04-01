@@ -9,6 +9,7 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
+
 if (auth($conn) && ($_SESSION['valid'])) {
     load_menu();
 
@@ -63,8 +64,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
         $agname = $ag_complete[$ag]["name"];
         $trinkgeldfaktor = 1.1;
         $zeit = time();
-        $startOfSemester = unixtime2startofsemester($zeit);
-        $semester = unixtime2semester($zeit);
+        $startOfSemester = unixtime2startofsemesteragessen($zeit);
+        $semester = unixtime2semesteragessen($zeit);
 
         $sql = "SELECT SUM(betrag) FROM agessen WHERE ag = ? AND tstamp > ?";
         $stmt = mysqli_prepare($conn, $sql);

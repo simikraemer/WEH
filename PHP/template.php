@@ -1023,6 +1023,42 @@ function unixtime2startofsemester($tstamp) {
     return $start_of_semester;
 }
 
+
+function unixtime2startofsemesteragessen(int $unixtime): int
+{
+    $year = (int)date('Y', $unixtime);
+    $monthDay = date('m-d', $unixtime);
+
+    if ($monthDay >= '04-14' && $monthDay < '10-14') {
+        // Sommersemester: ab 14.04.
+        return mktime(0, 0, 0, 4, 14, $year);
+    }
+
+    if ($monthDay >= '10-14') {
+        // Wintersemester: ab 14.10.
+        return mktime(0, 0, 0, 10, 14, $year);
+    }
+
+    // Januar bis einschließlich 13.04. -> noch Wintersemester des Vorjahres
+    return mktime(0, 0, 0, 10, 14, $year - 1);
+}
+
+function unixtime2semesteragessen(int $unixtime): string
+{
+    $year = (int)date('Y', $unixtime);
+    $monthDay = date('m-d', $unixtime);
+
+    if ($monthDay >= '04-14' && $monthDay < '10-14') {
+        return 'SS ' . $year;
+    }
+
+    if ($monthDay >= '10-14') {
+        return 'WS ' . $year . '/' . substr((string)($year + 1), -2);
+    }
+
+    return 'WS ' . ($year - 1) . '/' . substr((string)$year, -2);
+}
+
 function displayRundmails($conn) {
     echo '<br><br><br><hr><br><br><br>';
     #echo '<h1 style="font-size: 40px; color: white; text-align: center;">Übersicht aktuelle Rundmails</h1><br><br>';

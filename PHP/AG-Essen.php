@@ -9,6 +9,7 @@
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
+
 if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSION['Kassenpruefer']) ) {
     load_menu();
 
@@ -72,8 +73,8 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     }
 
     $zeit = time();
-    $startOfCurrentSemester = unixtime2startofsemester($zeit);
-    $semester = unixtime2semester($zeit);
+    $startOfCurrentSemester = unixtime2startofsemesteragessen($zeit);
+    $semester = unixtime2semesteragessen($zeit);
 
     echo '<div style="text-align: center; font-size: 50px; color: white;">';
     echo 'Offene Zahlungen';
@@ -141,8 +142,8 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     mysqli_stmt_execute($stmt);
     mysqli_stmt_bind_result($stmt, $tstamp);
     while (mysqli_stmt_fetch($stmt)) {
-        $startOfSemester = unixtime2startofsemester($tstamp);
-        $semester = unixtime2semester($tstamp);
+        $startOfSemester = unixtime2startofsemesteragessen($tstamp);
+        $semester = unixtime2semesteragessen($tstamp);
         
         if (!isset($bisherige_semester[$semester])) {
             $bisherige_semester[$semester] = $startOfSemester;
@@ -151,8 +152,8 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
 
     // Aktuelles Semester bestimmen
     $current_time = time();
-    $current_semester = unixtime2semester($current_time);
-    $current_semester_start = unixtime2startofsemester($current_time);
+    $current_semester = unixtime2semesteragessen($current_time);
+    $current_semester_start = unixtime2startofsemesteragessen($current_time);
 
     // Falls über POST ein Semester ausgewählt wurde, dieses verwenden
     $selected_semester_start = isset($_POST["selected_semester"]) ? $_POST["selected_semester"] : $current_semester_start;
