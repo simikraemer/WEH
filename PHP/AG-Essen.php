@@ -10,6 +10,13 @@
 require('template.php');
 mysqli_set_charset($conn, "utf8");
 
+$ibanLabels = [
+    'Bar 1'  => 'Netzbarkasse 1',
+    'Bar 2'  => 'Netzbarkasse 2',
+    'Bar 93' => 'Kassenwartkasse 1',
+    'Bar 94' => 'Kassenwartkasse 2',
+];
+
 if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSION['Kassenpruefer']) ) {
     load_menu();
 
@@ -109,7 +116,8 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
         $pfad_show = '<a href="'.$pfad.'" target="_blank" class="white-text">[Link]</a>';
         $agname = $ag_complete[$ag]['name'];
         $betrag_show = number_format($betrag, 2, ',', '.') . ' €';
-        echo "<tr><td>$tstamp_show</td><td>$agname</td><td>$betrag_show</td><td>$iban</td><td>$kontoinhaber</td><td>$pfad_show</td><td>$teilnehmerstring</td>";
+        $iban_show = $ibanLabels[$iban] ?? $iban;
+        echo "<tr><td>$tstamp_show</td><td>$agname</td><td>$betrag_show</td><td>$iban_show</td><td>$kontoinhaber</td><td>$pfad_show</td><td>$teilnehmerstring</td>";
         echo "<td><form method='post'>";
         echo "<input type='hidden' name='id' value='$id'>";
         echo "<input type='hidden' name='tstamp' value='$tstamp'>";
@@ -184,9 +192,9 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     $table_start_date = date("Y-m-d", $table_start);
 
     if (date("m", $table_start) == 4) {
-        $table_end_date = date("Y-m-d", strtotime("01-10-" . date("Y", $table_start)));
+        $table_end_date = date("Y-m-d", strtotime("14-10-" . date("Y", $table_start)));
     } elseif (date("m", $table_start) == 10) {
-        $table_end_date = date("Y-m-d", strtotime("01-04-" . (date("Y", $table_start) + 1)));
+        $table_end_date = date("Y-m-d", strtotime("14-04-" . (date("Y", $table_start) + 1)));
     }
     $table_end = strtotime($table_end_date);
 
@@ -216,7 +224,8 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
         $pfad_show = '<a href="'.$pfad.'" target="_blank" class="white-text">[Link]</a>';
         $agname = $ag_complete[$ag]['name'];
         $betrag_show = number_format($betrag, 2, ',', '.') . ' €';
-        echo "<tr><td>$tstamp_show</td><td>$agname</td><td>$betrag_show</td><td>$iban</td><td>$pfad_show</td><td>$teilnehmerstring</td></tr>";
+        $iban_show = $ibanLabels[$iban] ?? $iban;
+        echo "<tr><td>$tstamp_show</td><td>$agname</td><td>$betrag_show</td><td>$iban_show</td><td>$pfad_show</td><td>$teilnehmerstring</td></tr>";
     }
     echo "</table>";
     mysqli_stmt_close($stmt);

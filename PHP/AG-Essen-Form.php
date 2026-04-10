@@ -13,10 +13,9 @@ mysqli_set_charset($conn, "utf8");
 if (auth($conn) && ($_SESSION['valid'])) {
     load_menu();
 
-    
     $hasAgMembership = false;
     foreach ($ag_complete as $num => $data) {
-      if (isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] == true) {            
+        if (isset($_SESSION[$data["session"]]) && $_SESSION[$data["session"]] == true) {
             $hasAgMembership = true;
         }
     }
@@ -34,11 +33,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 }
             }
 
-        
             // Prüfe, ob nur eine AG verfügbar ist
             if (count($availableAgs) === 1) {
                 $singleAgKey = array_key_first($availableAgs);
-                // Automatisches POST
                 echo '<form id="auto-ag-form" method="post">
                         <input type="hidden" name="ag" value="' . $singleAgKey . '">
                       </form>';
@@ -48,17 +45,17 @@ if (auth($conn) && ($_SESSION['valid'])) {
             } else {
                 echo '<h1 style="font-size: 60px; color: white; text-align: center;">Select AG:</h1>';
                 echo '<form method="post" style="display:flex; justify-content:center; align-items:center; flex-wrap: wrap;">';
-            
+
                 foreach ($availableAgs as $key => $value) {
                     echo '<button type="submit" name="ag" value="' . $key . '" class="house-button" style="font-size:50px; margin:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">' . $value . '</button>';
                 }
-            
+
                 echo '</form>';
                 echo "<br><br>";
             }
         }
-    } else { 
-    # AG wurde ausgewählt
+    } else {
+        # AG wurde ausgewählt
 
         $ag = strval($_POST["ag"]);
         $agname = $ag_complete[$ag]["name"];
@@ -84,7 +81,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
         $sql = "SELECT COUNT(uid) FROM users WHERE CONCAT(',', groups, ',') LIKE CONCAT('%,', ?, ',%') AND pid in (11,64) ORDER BY room";
         $stmt = mysqli_prepare($conn, $sql);
         $ag_str = strval($ag);
-    mysqli_stmt_bind_param($stmt, "s", $ag_str);
+        mysqli_stmt_bind_param($stmt, "s", $ag_str);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_bind_result($stmt, $count_members);
         mysqli_stmt_fetch($stmt);
@@ -97,7 +94,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
 
-        
         $sql = "SELECT wert FROM constants WHERE name = 'essen_count'";
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_execute($stmt);
@@ -105,67 +101,73 @@ if (auth($conn) && ($_SESSION['valid'])) {
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
 
-        if ($ag == 7 || $ag == 9 || $ag ==  11 || $ag == 25) { # NetzAG&Vorstand&WaschAG&FahrradAG dürfen doppelten Wert fraisen
+        $mindestteilnehmer_effektiv = min((int)$mindestteilnehmer, (int)$count_members);
+        if ($mindestteilnehmer_effektiv < 1) {
+            $mindestteilnehmer_effektiv = 1;
+        }
+
+        if ($ag == 7 || $ag == 9 || $ag == 11 || $ag == 25) { # NetzAG&Vorstand&WaschAG&FahrradAG dürfen doppelten Wert fraisen
             $budgetpP = $budgetpP * 2;
         }
         $offenohnetrinkgeld = ($budgetpP * $count_members) - $spent;
         $offen = $offenohnetrinkgeld * $trinkgeldfaktor;
-        
+
         // nur für die Anzeige auf 0 deckeln
         $offenohnetrinkgeld_anzeige = max(0, $offenohnetrinkgeld);
         $offen_anzeige = max(0, $offen);
 
         if (isset($_POST["reload"]) && $_POST["reload"] == 1) { // Notwendig, damit Seite aktualisieren nicht den Post erneut schickt
             if (isset($_POST["esseneintragen"])) {
-                if(isset($_POST['iban'])) {
+                if (isset($_POST['iban'])) {
                     $iban = $_POST['iban'];
                     $iban = rtrim(chunk_split(str_replace(' ', '', $iban), 4, ' '));
                 } else {
                     $iban = '';
                 }
-                
+
+                $isBarAntrag = false;
                 if (isset($_POST['barkasseCheckbox']) && $_POST['barkasseCheckbox'] == '1') {
                     if (isset($_POST['bar']) && $_POST['bar'] != "") {
-                        $iban = $_POST['bar']; // z.B. "Bar 93"
+                        $iban = trim($_POST['bar']); // z.B. "Bar 93"
+                        $isBarAntrag = true;
                     } else {
-                        $iban = ''; // leer lassen → führt zur Fehlermeldung unten
+                        $iban = '';
                     }
                 }
 
-                $betrag = $_POST['betrag'];
+                $betrag = (float)$_POST['betrag'];
                 $betragstring = number_format($betrag, 2, ',', '.') . ' €';
-                $teilnehmer_array = $_POST['selected_users'];
+                $teilnehmer_array = isset($_POST['selected_users']) && is_array($_POST['selected_users']) ? $_POST['selected_users'] : [];
                 $count_teilnehmer = count($teilnehmer_array);
-                $teilnehmer = $_POST['selected_users_list'];
+                $teilnehmer = implode(',', $teilnehmer_array);
                 $tstamp = $zeit;
                 $uid = $_SESSION['user'];
                 $limit = $budgetpP * $count_teilnehmer * $trinkgeldfaktor;
                 $limitstring = number_format($limit, 2, ',', '.') . ' €';
-        
+
                 if ($betrag > $offen) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Der Betrag ist zu hoch!
-                    <br>Ihr könnt maximal noch ".number_format($offen_anzeige, 2, ',', '.') . ' €'." in diesem Semester ausgeben.</p>";
+                    <br>Ihr könnt maximal noch " . number_format($offen_anzeige, 2, ',', '.') . ' €' . " in diesem Semester ausgeben.</p>";
                     echo "</div>";
-                } elseif ($count_teilnehmer < $mindestteilnehmer) {                
+                } elseif ($count_teilnehmer < $mindestteilnehmer_effektiv) {
                     echo "<div style='text-align: center;'>";
-                    echo "<p style='color:red; text-align:center;'>Es müssen mindestens $mindestteilnehmer Teilnehmer an einem AG-Essen teilnehmen!</p>";
+                    echo "<p style='color:red; text-align:center;'>Es müssen mindestens $mindestteilnehmer_effektiv Teilnehmer an einem AG-Essen teilnehmen!</p>";
                     echo "</div>";
                 } elseif ($betrag <= 0) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Der Betrag muss größer als 0 sein!</p>";
                     echo "</div>";
-                } elseif ($betrag > $limit) {               
+                } elseif ($betrag > $limit) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Der Betrag ist zu hoch!
                     <br>Für $count_teilnehmer Teilnehmer ist das Betragslimit bei $limitstring!</p>";
                     echo "</div>";
-                } elseif (!isValidIBAN($iban) && strpos($iban, "Bar") === false) {
+                } elseif (!isValidIBAN($iban) && strpos($iban, "Bar ") !== 0) {
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Die IBAN $iban hat ein falsches Format!</p>";
                     echo "</div>";
                 } elseif (!isset($_FILES['file']) || $_FILES['file']['error'] != UPLOAD_ERR_OK) {
-                    // Debugging-Ausgaben
                     echo "<div style='text-align: center;'>";
                     echo "<p style='color:red; text-align:center;'>Es wurde keine Datei hochgeladen.</p>";
                     echo "<p>Debug Info:</p>";
@@ -177,18 +179,17 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     echo "</div>";
                 } else {
                     $file_path = null;
-        
+
                     if (!is_dir('rechnungen')) {
                         mkdir('rechnungen', 0777, true);
                     }
-        
+
                     if (isset($_FILES['file']) && $_FILES['file']['error'] == UPLOAD_ERR_OK) {
-                        $unixtime = time(); // aktuelle Unixzeit
+                        $unixtime = time();
                         $file_extension = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
                         $file_name = 'essen-' . $unixtime . '.' . $file_extension;
                         $file_path = 'rechnungen/' . $file_name;
-        
-                        // Überprüfung auf erlaubte Dateitypen (Erweiterungen)
+
                         $allowed_extensions = array('jpg', 'jpeg', 'png', 'pdf');
                         if (!in_array($file_extension, $allowed_extensions)) {
                             echo "<div style='text-align: center;'>";
@@ -196,8 +197,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                             echo "</div>";
                             exit();
                         }
-                    
-                        // Überprüfung auf erlaubte MIME-Typen
+
                         $allowed_mime_types = array('image/jpeg', 'image/png', 'application/pdf');
                         $file_mime_type = mime_content_type($_FILES['file']['tmp_name']);
                         if (!in_array($file_mime_type, $allowed_mime_types)) {
@@ -206,7 +206,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                             echo "</div>";
                             exit();
                         }
-        
+
                         if (!move_uploaded_file($_FILES['file']['tmp_name'], $file_path)) {
                             echo "<div style='text-align: center;'>";
                             echo "<p style='color:red; text-align:center;'>Fehler beim Hochladen der Datei.</p>";
@@ -214,76 +214,141 @@ if (auth($conn) && ($_SESSION['valid'])) {
                             exit();
                         }
                     }
-        
-                    $insert_sql = "INSERT INTO agessen (uid, tstamp, ag, betrag, teilnehmer, iban, pfad) VALUES (?,?,?,?,?,?,?)";
-                    $stmt = mysqli_prepare($conn, $insert_sql);
-                    mysqli_stmt_bind_param($stmt, "iisssss", $uid, $zeit, $ag, $betrag, $teilnehmer, $iban, $file_path);
-                    mysqli_stmt_execute($stmt);
-        
-                    $message = "Hallo Kassenwarte," . PHP_EOL .
-                    "\nEs wurde ein neues AG-Essen eingetragen." . PHP_EOL .
-                    "Weitere Verarbeitung auf folgender Seite:" . PHP_EOL .
-                    "https://backend.weh.rwth-aachen.de/AG-Essen.php" . PHP_EOL .
-                    "\nViele Grüße," . PHP_EOL .
-                    "AG-Essen-Form.php";     
-                    $to = "kasse@weh.rwth-aachen.de, fiji@weh.rwth-aachen.de";
-                    $subject = "WEH - AG Essen";
-                    $headers = "From: " . $mailconfig['address'] . "\r\n";
-                    $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
-                    if (!mail($to, $subject, $message, $headers)) {
-                        echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
-                                <span style='color: red; font-size: 20px;'>Fehler beim Versenden der Mail.</span>
-                              </div>";
+
+                    $mail_ok = true;
+                    $save_ok = true;
+
+                    if ($isBarAntrag) {
+                        mysqli_begin_transaction($conn);
+
+                        $status = 1;
+                        $insert_sql = "INSERT INTO agessen (uid, tstamp, ag, betrag, teilnehmer, iban, pfad, status) VALUES (?,?,?,?,?,?,?,?)";
+                        $stmt = mysqli_prepare($conn, $insert_sql);
+                        mysqli_stmt_bind_param($stmt, "iisdsssi", $uid, $zeit, $ag, $betrag, $teilnehmer, $iban, $file_path, $status);
+                        $save_ok = mysqli_stmt_execute($stmt);
+                        mysqli_stmt_close($stmt);
+
+                        if ($save_ok) {
+                            $insert_betrag = (-1) * $betrag;
+                            $dummy_uid = 492;
+                            $agent = $_SESSION["uid"];
+                            $insert_beschreibung = "AG-Essen " . $ag_complete[$ag]['name'];
+
+                            $x_string = substr($iban, strpos($iban, "Bar") + strlen("Bar"));
+                            $kasse = intval(trim($x_string));
+                            $konto = ($insert_betrag >= 0) ? 4 : 8;
+                            $zeitstempel = date("d.m.Y H:i", $zeit);
+                            $changelog = "[" . $zeitstempel . "] Agent " . $_SESSION["uid"] . "\nAG-Essen bestätigt\n";
+
+                            $insert_sql = "
+                                INSERT INTO transfers (tstamp, uid, beschreibung, betrag, kasse, konto, pfad, agent, changelog)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                            $stmt = mysqli_prepare($conn, $insert_sql);
+                            mysqli_stmt_bind_param($stmt, "iisdiisss", $zeit, $dummy_uid, $insert_beschreibung, $insert_betrag, $kasse, $konto, $file_path, $agent, $changelog);
+                            $save_ok = mysqli_stmt_execute($stmt);
+                            mysqli_stmt_close($stmt);
+                        }
+
+                        if ($save_ok) {
+                            mysqli_commit($conn);
+                        } else {
+                            mysqli_rollback($conn);
+                        }
+
+                        if ($save_ok) {
+                            $message = "Hallo Kassenwarte," . PHP_EOL .
+                            "\nEs wurde ein Barkassen-AG-Essen eingetragen und direkt genehmigt." . PHP_EOL .
+                            "Weitere Verarbeitung / Einsicht auf folgender Seite:" . PHP_EOL .
+                            "https://backend.weh.rwth-aachen.de/AG-Essen.php" . PHP_EOL .
+                            "\nViele Grüße," . PHP_EOL .
+                            "AG-Essen-Form.php";
+                            $to = "kasse@weh.rwth-aachen.de";
+                            $subject = "WEH - AG Essen (Barkasse direkt genehmigt)";
+                            $headers = "From: " . $mailconfig['address'] . "\r\n";
+                            $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
+                            $mail_ok = mail($to, $subject, $message, $headers);
+                        }
+                    } else {
+                        $insert_sql = "INSERT INTO agessen (uid, tstamp, ag, betrag, teilnehmer, iban, pfad) VALUES (?,?,?,?,?,?,?)";
+                        $stmt = mysqli_prepare($conn, $insert_sql);
+                        mysqli_stmt_bind_param($stmt, "iisdsss", $uid, $zeit, $ag, $betrag, $teilnehmer, $iban, $file_path);
+                        $save_ok = mysqli_stmt_execute($stmt);
+                        mysqli_stmt_close($stmt);
+
+                        if ($save_ok) {
+                            $message = "Hallo Kassenwarte," . PHP_EOL .
+                            "\nEs wurde ein neues AG-Essen eingetragen." . PHP_EOL .
+                            "Weitere Verarbeitung auf folgender Seite:" . PHP_EOL .
+                            "https://backend.weh.rwth-aachen.de/AG-Essen.php" . PHP_EOL .
+                            "\nViele Grüße," . PHP_EOL .
+                            "AG-Essen-Form.php";
+                            $to = "kasse@weh.rwth-aachen.de";
+                            $subject = "WEH - AG Essen";
+                            $headers = "From: " . $mailconfig['address'] . "\r\n";
+                            $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
+                            $mail_ok = mail($to, $subject, $message, $headers);
+                        }
                     }
-        
-                    echo "<div style='text-align: center; font-size: 50px; color: #66FF99'>";
-                    echo "Deine Anfrage wurde gesendet.";
-                    echo "</div>";
-                    echo "<br><br>";
-                    # -------------------------------------------------
-                    echo "<br>";
-                    echo '<hr style="border-top: 1px solid white;">';
-                    echo "<br>";
-                    # -------------------------------------------------
-        
-                    echo '<form id="agForm" method="post" style="display:none;">';
-                    echo '<input type="hidden" name="ag" value="' . $ag . '">';
-                    echo '</form>';
-        
-                    echo '<script>
-                        setTimeout(function() {
-                            document.getElementById("agForm").action = window.location.href;
-                            document.getElementById("agForm").submit();
-                        }, 0000);
-                    </script>';
+
+                    if (!$save_ok) {
+                        echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+                                <span style='color: red; font-size: 20px;'>Fehler beim Speichern des Eintrags.</span>
+                              </div>";
+                    } else {
+                        if (!$mail_ok) {
+                            echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
+                                    <span style='color: red; font-size: 20px;'>Fehler beim Versenden der Mail.</span>
+                                  </div>";
+                        }
+
+                        echo "<div style='text-align: center; font-size: 50px; color: #66FF99'>";
+                        if ($isBarAntrag) {
+                            echo "Deine Anfrage wurde direkt genehmigt.";
+                        } else {
+                            echo "Deine Anfrage wurde gesendet.";
+                        }
+                        echo "</div>";
+                        echo "<br><br>";
+                        echo "<br>";
+                        echo '<hr style="border-top: 1px solid white;">';
+                        echo "<br>";
+
+                        echo '<form id="agForm" method="post" style="display:none;">';
+                        echo '<input type="hidden" name="ag" value="' . $ag . '">';
+                        echo '</form>';
+
+                        echo '<script>
+                            setTimeout(function() {
+                                document.getElementById("agForm").action = window.location.href;
+                                document.getElementById("agForm").submit();
+                            }, 0);
+                        </script>';
+                    }
                 }
             }
         }
-        
-        
+
         echo '<div style="text-align: center; font-size: 60px; color: white;">';
         echo $agname;
         echo '</div><br><br><br>';
         echo '<div style="text-align: center; font-size: 30px; color: white;">';
-        echo 'Offenes Essensbudget im '.$semester.'';
+        echo 'Offenes Essensbudget im ' . $semester . '';
         echo '</div>';
         echo '<div style="text-align: center; font-size: 40px; color: white;">';
         echo number_format($offenohnetrinkgeld_anzeige, 2, ',', '.') . ' €';
-        echo '</div>';           
+        echo '</div>';
         echo '<div style="text-align: center; font-size: 25px; color: white;">';
-        echo "(".number_format($offen_anzeige, 2, ',', '.') . ' € mit Trinkgeld)';
+        echo "(" . number_format($offen_anzeige, 2, ',', '.') . ' € mit Trinkgeld)';
         echo '</div>';
 
         if ($schonwaseingetragen) {
-            # -------------------------------------------------
             echo "<br>";
             echo '<hr style="border-top: 1px solid white;">';
             echo "<br>";
-            # -------------------------------------------------
 
             echo '<div style="text-align: center; font-size: 60px; color: white;">';
             echo "Einträge im $semester";
-            echo '</div><br><br><br>'; 
+            echo '</div><br><br><br>';
 
             echo "<style>
                 table {
@@ -298,16 +363,16 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     border-bottom: 1px solid white;
                 }
             </style>";
-            
+
             echo "<table class='agessentable'>";
             echo "<tr><th>Datum</th><th>Status</th><th>Betrag</th><th>IBAN</th><th>Teilnehmer</th></tr>";
 
             $sql = "SELECT a.tstamp, a.status, a.betrag, a.iban, 
             GROUP_CONCAT(
                 CONCAT(
-                    SUBSTRING_INDEX(u.firstname, ' ', 1), -- Abschneiden bei Leerzeichen
+                    SUBSTRING_INDEX(u.firstname, ' ', 1),
                     ' ',
-                    LEFT(u.lastname, 1), -- Erster Buchstabe des Nachnamens
+                    LEFT(u.lastname, 1),
                     '.'
                 ) ORDER BY FIND_IN_SET(u.uid, REPLACE(a.teilnehmer, ',', ',')) SEPARATOR ', '
             ) AS teilnehmer_namen
@@ -331,44 +396,40 @@ if (auth($conn) && ($_SESSION['valid'])) {
         }
         echo "<br><br><br><br>";
 
-        # -------------------------------------------------
         echo "<br>";
         echo '<hr style="border-top: 1px solid white;">';
         echo "<br>";
-        # -------------------------------------------------
 
         echo '<div style="text-align: center; font-size: 60px; color: white;">';
         echo "Neues AG-Essen eintragen";
-        echo '</div><br><br><br>';    
-        
-        echo '<div style="width: 70%; margin: 0 auto; text-align: center;">';
-        echo '<form method="post" enctype="multipart/form-data">';    
+        echo '</div><br><br><br>';
 
-        
+        echo '<div style="width: 70%; margin: 0 auto; text-align: center;">';
+        echo '<form method="post" enctype="multipart/form-data">';
+
         $options = [
-                1  => "Netzbarkasse 1",
-                2  => "Netzbarkasse 2",
-                93 => "Kassenwartkasse 1",
-                94 => "Kassenwartkasse 2",
-                95 => "Tresor"
-            ];
-            
-        
+            1  => "Netzbarkasse 1",
+            2  => "Netzbarkasse 2",
+            93 => "Kassenwartkasse 1",
+            94 => "Kassenwartkasse 2",
+            95 => "Tresor"
+        ];
+
         echo '<div id="ibanContainer" style="text-align: center; margin-bottom: 10px;">';
         echo '<label for="iban" style="display: inline-block; width: 150px; color: white; font-size:25px; text-align: left;">IBAN:</label>';
         echo '<input type="text" id="iban" name="iban" style="width: 200px;">';
         echo '</div>';
-        
+
         if ($_SESSION['NetzAG'] || $_SESSION['Vorstand']) {
             echo '<div id="dropdownContainer" style="display: none; text-align: center; margin-bottom: 10px;">';
             echo '<label for="bar" style="display: inline-block; width: 158px; color: white; font-size:25px; text-align: left;">Kasse:</label>';
             echo '<select id="bar" name="bar" style="width: 200px;">';
-            echo '<option value="">Bitte auswählen</option>'; // erste leere Option
+            echo '<option value="">Bitte auswählen</option>';
             foreach ($options as $value => $label) {
                 echo '<option value="Bar ' . $value . '">' . $label . '</option>';
             }
             echo '</select>';
-            echo '</div>';            
+            echo '</div>';
 
             echo '<input type="checkbox" id="barkasseCheckbox" name="barkasseCheckbox" value="1" onclick="toggleIBAN()" style="color: white;"> <label for="barkasseCheckbox" style="color: white;">Von Barkasse bezahlt</label>';
             echo "<br><br>";
@@ -381,14 +442,14 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
         echo '<div style="align-items: center; margin-bottom: 10px;">';
         echo '<label for="file" style="display: inline-block; width: 150px; color: white; font-size: 25px; text-align: left;">Rechnung:</label>';
-        echo '<input type="file" id="file" name="file" style="width: 190px; background-color: white; border: 2px solid black; padding: 5px">';    
-        echo '</div>';    
+        echo '<input type="file" id="file" name="file" style="width: 190px; background-color: white; border: 2px solid black; padding: 5px">';
+        echo '</div>';
         echo '<br>';
 
         $sql = "SELECT uid, firstname, lastname FROM users WHERE CONCAT(',', groups, ',') LIKE CONCAT('%,', ?, ',%') AND pid in (11,64) ORDER BY room";
         $stmt = mysqli_prepare($conn, $sql);
         $ag_str = strval($ag);
-    mysqli_stmt_bind_param($stmt, "s", $ag_str);
+        mysqli_stmt_bind_param($stmt, "s", $ag_str);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_bind_result($stmt, $uid, $firstName, $lastName);
         while (mysqli_stmt_fetch($stmt)) {
@@ -399,9 +460,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '<input type="checkbox" id="user_' . $uid . '" name="selected_users[]" value="' . $uid . '"> ' . $name;
             echo '</label>';
             echo '</div>';
-
         }
         mysqli_stmt_close($stmt);
+
         echo '<input type="hidden" id="selected_users_list" name="selected_users_list" value="">';
         echo '<script>';
         echo 'document.addEventListener("DOMContentLoaded", function() {';
@@ -420,17 +481,14 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
         echo '<br>';
 
-        
         echo '<div style="text-align: center; margin-bottom: 10px;">';
         echo '<input type="hidden" name="ag" value="' . $ag . '">';
         echo '<input type="hidden" name="reload" value=1>';
-        echo '<button type="submit" name="esseneintragen"  class="center-btn" style="display: block; margin: 0 auto;">Absenden</button>';
+        echo '<button type="submit" name="esseneintragen" class="center-btn" style="display: block; margin: 0 auto;">Absenden</button>';
         echo '</div>';
         echo '</form>';
         echo '</div>';
-        
-        
-        
+
         echo '<script>
             function toggleIBAN() {
                 var ibanContainer = document.getElementById("ibanContainer");
@@ -446,11 +504,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
             }
         </script>';
     }
+} else {
+    header("Location: denied.php");
 }
-else {
-  header("Location: denied.php");
-}
-// Close the connection to the database
 $conn->close();
 ?>
 </body>
