@@ -8,6 +8,7 @@ from datetime import datetime
 from fcol import send_mail
 from fcol import connect_weh
 
+
 ## Grundprogramm ##
 
 def subletreminder():
@@ -21,61 +22,107 @@ def subletreminder():
     wehcursor = wehdb.cursor()
     print("WEH-Datenbankcursor erstellt")
 
-    # Subletters abfragen, deren Zeitraum abgelaufen ist
-    sql_subletters = """
-        SELECT oldroom, firstname, email, subletterend 
-        FROM users 
-        WHERE subletterend != 0 AND subletterend < %s AND pid = 12 
-        ORDER BY subletterend
+    # Abgelaufene Sublet-Paare direkt mit gleichem Raum UND gleichem Turm abfragen
+    sql_pairs = """
+        SELECT
+            subletter.oldroom,
+            subletter.turm,
+            subletter.firstname,
+            subletter.email,
+            subletter.subletterend,
+            sublet.firstname,
+            sublet.email,
+            sublet.subtenanttill
+        FROM users AS subletter
+        INNER JOIN users AS sublet
+            ON subletter.oldroom = sublet.room
+           AND subletter.turm = sublet.turm
+        WHERE subletter.subletterend != 0
+          AND subletter.subletterend < %s
+          AND subletter.pid = 12
+          AND subletter.oldroom != 0
+          AND subletter.turm IN ('weh', 'tvk')
+          AND sublet.subtenanttill != 0
+          AND sublet.subtenanttill < %s
+          AND sublet.pid = 11
+          AND sublet.room != 0
+          AND sublet.turm IN ('weh', 'tvk')
+        ORDER BY subletter.turm, subletter.oldroom, GREATEST(subletter.subletterend, sublet.subtenanttill)
     """
-    wehcursor.execute(sql_subletters, (current_time,))
-    subletters = wehcursor.fetchall()
-
-    # Sublets abfragen, deren Zeitraum abgelaufen ist
-    sql_sublets = """
-        SELECT room, firstname, email, subtenanttill 
-        FROM users 
-        WHERE subtenanttill != 0 AND subtenanttill < %s AND pid = 11 AND room != 0 
-        ORDER BY subtenanttill
-    """
-    wehcursor.execute(sql_sublets, (current_time,))
-    sublets = wehcursor.fetchall()
+    wehcursor.execute(sql_pairs, (current_time, current_time))
+    rows = wehcursor.fetchall()
 
     # Verbindung schließen
     wehcursor.close()
     wehdb.close()
     print("Verbindung zur WEH-Datenbank geschlossen")
 
-    # Paare bilden (oldroom = room)
     pairs = []
-    for subletter in subletters:
-        for sublet in sublets:
-            if subletter[0] == sublet[0]:  # Vergleich: oldroom == room
-                pair = {
-                    "subletter_email": subletter[2],
-                    "sublet_email": sublet[2],
-                    "subletter_firstname": subletter[1].split()[0],  # Nur der erste Vorname
-                    "sublet_firstname": sublet[1].split()[0],  # Nur der erste Vorname
-                    "room": subletter[0],
-                    "end_time": max(subletter[3], sublet[3])  # Ende des längeren Zeitraums
-                }
-                pairs.append(pair)
-                print(f"Paar erstellt: {pair}")
+    seen = set()
+
+    for row in rows:
+        room = row[0]
+        turm = row[1]
+        subletter_firstname = (row[2] or "").split()[0] if row[2] else ""
+        subletter_email = (row[3] or "").strip()
+        subletter_end = row[4]
+        sublet_firstname = (row[5] or "").split()[0] if row[5] else ""
+        sublet_email = (row[6] or "").strip()
+        sublet_till = row[7]
+
+        # Ende des längeren Zeitraums
+        end_time = max(subletter_end, sublet_till)
+
+        # Leere Mailadressen überspringen
+        if not subletter_email or not sublet_email:
+            print(
+                f"Überspringe Paar wegen fehlender Mailadresse: "
+                f"turm={turm}, room={room}, subletter_email='{subletter_email}', sublet_email='{sublet_email}'"
+            )
+            continue
+
+        # Doppelte Paare vermeiden
+        pair_key = (turm, room, subletter_email.lower(), sublet_email.lower(), end_time)
+        if pair_key in seen:
+            print(f"Überspringe doppeltes Paar: {pair_key}")
+            continue
+        seen.add(pair_key)
+
+        pair = {
+            "subletter_email": subletter_email,
+            "sublet_email": sublet_email,
+            "subletter_firstname": subletter_firstname,
+            "sublet_firstname": sublet_firstname,
+            "room": room,
+            "turm": turm,
+            "end_time": end_time
+        }
+        pairs.append(pair)
+        print(f"Paar erstellt: {pair}")
 
     # E-Mails verschicken
     for pair in pairs:
-        print(f"Vorbereitet zum Senden einer E-Mail an: {pair['subletter_email']} und {pair['sublet_email']}")
-        print(f"Vornamen: {pair['subletter_firstname']} und {pair['sublet_firstname']}")
-        print(f"Zimmer: {pair['room']}, Endzeit: {pair['end_time']} (Unix-Timestamp)")
+        print(
+            f"Vorbereitet zum Senden einer E-Mail an: "
+            f"{pair['subletter_email']} und {pair['sublet_email']}"
+        )
+        print(
+            f"Vornamen: {pair['subletter_firstname']} und {pair['sublet_firstname']}"
+        )
+        print(
+            f"Turm: {pair['turm']}, Zimmer: {pair['room']}, "
+            f"Endzeit: {pair['end_time']} (Unix-Timestamp)"
+        )
         mail(
             to_emails=[pair["subletter_email"], pair["sublet_email"]],
             firstnames=[pair["subletter_firstname"], pair["sublet_firstname"]],
             room=pair["room"],
+            turm=pair["turm"],
             end_time=pair["end_time"]
         )
 
 
-def mail(to_emails, firstnames, room, end_time):
+def mail(to_emails, firstnames, room, turm, end_time):
     subject = "Current State of Your Sublet"
     firstname1, firstname2 = firstnames
 
@@ -84,7 +131,7 @@ def mail(to_emails, firstnames, room, end_time):
 
     message = (
         f"Hello {firstname1} and {firstname2},\n\n"
-        f"We have noticed that the subletting period for room {room} ended on {end_date}.\n\n"
+        f"We have noticed that the subletting period for room {room} in {turm.upper()} ended on {end_date}.\n\n"
         "If the subletter has already returned, we kindly ask them to contact the NetzAG to have their account reactivated. "
         "This ensures uninterrupted access to the network for the room.\n\n"
         "If the subtenant has moved to a different room, it is important that this information is reported to the NetzAG as soon as possible. "
@@ -94,7 +141,6 @@ def mail(to_emails, firstnames, room, end_time):
         "Best Regards,\n"
         "Netzwerk-AG"
     )
-
 
     # E-Mail an jede Adresse einzeln senden
     for email in to_emails:
