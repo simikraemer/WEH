@@ -1,300 +1,672 @@
 <?php
-  session_start();
+session_start();
+
+require('conn.php');
+mysqli_set_charset($conn, "utf8");
+
+/*
+ * template.php kann Output erzeugen.
+ * Deshalb puffern wir es, damit AJAX trotzdem sauber funktioniert.
+ */
+ob_start();
+require('template.php');
+$templateOutput = ob_get_clean();
+
+$agName = "Kassenprüfer";
+$ag = 26;
+$agStr = (string)$ag;
+
+function h($value): string {
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function buildDisplayName($firstname, $lastname, $name, $username): string {
+    $firstname = trim((string)$firstname);
+    $lastname  = trim((string)$lastname);
+    $name      = trim((string)$name);
+    $username  = trim((string)$username);
+
+    $full = trim($firstname . ' ' . $lastname);
+    if ($full !== '') {
+        return $full;
+    }
+    if ($name !== '') {
+        return $name;
+    }
+    if ($username !== '') {
+        return $username;
+    }
+
+    return 'Unbekannt';
+}
+
+function getRoomValue($pid, $room, $oldroom): string {
+    $pid = (int)$pid;
+    $room = (int)$room;
+    $oldroom = (int)$oldroom;
+
+    if ($pid === 12 || $pid === 13) {
+        if ($oldroom > 0) {
+            return (string)$oldroom;
+        }
+    }
+
+    if ($room > 0) {
+        return (string)$room;
+    }
+
+    if ($oldroom > 0) {
+        return (string)$oldroom;
+    }
+
+    return '-';
+}
+
+function userHasGroup($groups, $groupId): bool {
+    $groups = trim(str_replace(' ', '', (string)$groups), ',');
+    if ($groups === '') {
+        return false;
+    }
+
+    $parts = explode(',', $groups);
+    foreach ($parts as $part) {
+        if ((string)$part === (string)$groupId) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function redirectToSelf(string $notice = '', string $search = ''): void {
+    $target = $_SERVER['PHP_SELF'];
+    $params = [];
+
+    if ($notice !== '') {
+        $params[] = 'notice=' . urlencode($notice);
+    }
+    if ($search !== '') {
+        $params[] = 'search=' . urlencode($search);
+    }
+
+    if (!empty($params)) {
+        $target .= '?' . implode('&', $params);
+    }
+
+    header('Location: ' . $target);
+    exit;
+}
+
+function renderSearchResults(array $searchResults, int $ag, string $search): string {
+    ob_start();
+
+    if ($search === '') {
+        return ob_get_clean();
+    }
+
+    if (empty($searchResults)) {
+        echo '<div class="kp-empty">Keine passenden User gefunden.</div>';
+        return ob_get_clean();
+    }
+
+    echo '<div class="kp-table-wrap">';
+    echo '<table class="kp-table">';
+    echo '<tr>';
+    echo '<th>Name</th>';
+    echo '<th>Raum</th>';
+    echo '<th>Turm</th>';
+    echo '<th></th>';
+    echo '</tr>';
+
+    foreach ($searchResults as $user) {
+        $displayName = buildDisplayName($user['firstname'], $user['lastname'], $user['name'], $user['username']);
+        $roomValue   = getRoomValue($user['pid'], $user['room'], $user['oldroom']);
+        $turmLabel   = formatTurm((string)$user['turm']);
+        $isMember    = userHasGroup($user['groups'], $ag);
+
+        echo '<tr>';
+        echo '<td>' . h($displayName) . '</td>';
+        echo '<td>' . h($roomValue) . '</td>';
+        echo '<td>' . h($turmLabel) . '</td>';
+        echo '<td class="kp-action-cell">';
+
+        if ($isMember) {
+            echo '<button type="button" class="kp-btn kp-btn-disabled">Schon drin</button>';
+        } else {
+            echo '<form method="post" class="kp-action-form">';
+            echo '<input type="hidden" name="uid" value="' . h($user['uid']) . '">';
+            echo '<input type="hidden" name="search" value="' . h($search) . '">';
+            echo '<button type="submit" name="process_add" value="1" class="kp-btn kp-btn-add">Hinzufügen</button>';
+            echo '</form>';
+        }
+
+        echo '</td>';
+        echo '</tr>';
+    }
+
+    echo '</table>';
+    echo '</div>';
+
+    return ob_get_clean();
+}
+
+if (!auth($conn) || (empty($_SESSION["Kassenwart"]) && empty($_SESSION["Webmaster"]))) {
+    header("Location: denied.php");
+    exit;
+}
+
+/*
+ * AJAX-Suche
+ */
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'search') {
+    $search = trim((string)($_GET['q'] ?? ''));
+    $searchResults = [];
+
+    if ($search !== '') {
+        $like = '%' . $search . '%';
+
+        $sqlSearch = "
+            SELECT uid, username, firstname, lastname, name, room, oldroom, turm, pid, groups
+            FROM users
+            WHERE pid IN (11, 12, 13)
+              AND (
+                    username LIKE ?
+                 OR firstname LIKE ?
+                 OR lastname LIKE ?
+                 OR name LIKE ?
+                 OR email LIKE ?
+                 OR telefon LIKE ?
+                 OR aliase LIKE ?
+                 OR LOWER(COALESCE(turm, '')) LIKE LOWER(?)
+                 OR CAST(uid AS CHAR) LIKE ?
+                 OR CAST(room AS CHAR) LIKE ?
+                 OR CAST(oldroom AS CHAR) LIKE ?
+              )
+            ORDER BY
+                CASE
+                    WHEN CAST(room AS CHAR) = ? OR CAST(oldroom AS CHAR) = ? THEN 0
+                    WHEN LOWER(COALESCE(lastname, '')) LIKE LOWER(?) OR LOWER(COALESCE(firstname, '')) LIKE LOWER(?) OR LOWER(COALESCE(name, '')) LIKE LOWER(?) THEN 1
+                    ELSE 2
+                END,
+                CASE
+                    WHEN pid = 11 THEN 0
+                    WHEN pid = 12 THEN 1
+                    WHEN pid = 13 THEN 2
+                    ELSE 3
+                END,
+                LOWER(COALESCE(turm, '')) ASC,
+                CASE
+                    WHEN room IS NOT NULL AND room > 0 THEN room
+                    WHEN oldroom IS NOT NULL AND oldroom > 0 THEN oldroom
+                    ELSE 999999
+                END ASC,
+                LOWER(COALESCE(lastname, '')) ASC,
+                LOWER(COALESCE(firstname, '')) ASC,
+                LOWER(COALESCE(username, '')) ASC
+            LIMIT 30
+        ";
+
+        $stmtSearch = mysqli_prepare($conn, $sqlSearch);
+        if ($stmtSearch) {
+            mysqli_stmt_bind_param(
+                $stmtSearch,
+                "ssssssssssssssss",
+                $like,   // username
+                $like,   // firstname
+                $like,   // lastname
+                $like,   // name
+                $like,   // email
+                $like,   // telefon
+                $like,   // aliase
+                $like,   // turm
+                $like,   // uid
+                $like,   // room
+                $like,   // oldroom
+                $search, // exact room
+                $search, // exact oldroom
+                $like,   // lastname
+                $like,   // firstname
+                $like    // name
+            );
+
+            mysqli_stmt_execute($stmtSearch);
+            mysqli_stmt_bind_result(
+                $stmtSearch,
+                $sUid,
+                $sUsername,
+                $sFirstname,
+                $sLastname,
+                $sName,
+                $sRoom,
+                $sOldroom,
+                $sTurm,
+                $sPid,
+                $sGroups
+            );
+
+            while (mysqli_stmt_fetch($stmtSearch)) {
+                $searchResults[] = [
+                    'uid'       => $sUid,
+                    'username'  => $sUsername,
+                    'firstname' => $sFirstname,
+                    'lastname'  => $sLastname,
+                    'name'      => $sName,
+                    'room'      => $sRoom,
+                    'oldroom'   => $sOldroom,
+                    'turm'      => $sTurm,
+                    'pid'       => $sPid,
+                    'groups'    => $sGroups
+                ];
+            }
+
+            mysqli_stmt_close($stmtSearch);
+        }
+    }
+
+    echo renderSearchResults($searchResults, $ag, $search);
+    $conn->close();
+    exit;
+}
+
+$search = trim((string)($_POST['search'] ?? $_GET['search'] ?? ''));
+$notice = (string)($_GET['notice'] ?? '');
+
+if (isset($_POST['process_add'])) {
+    $uid = isset($_POST['uid']) ? (int)$_POST['uid'] : 0;
+
+    if ($uid > 0) {
+        $sql = "
+            UPDATE users
+            SET groups = CASE
+                WHEN TRIM(REPLACE(COALESCE(groups, ''), ' ', '')) = '' THEN ?
+                WHEN CONCAT(',', REPLACE(COALESCE(groups, ''), ' ', ''), ',') LIKE CONCAT('%,', ?, ',%') THEN TRIM(BOTH ',' FROM REPLACE(COALESCE(groups, ''), ' ', ''))
+                ELSE CONCAT(TRIM(BOTH ',' FROM REPLACE(COALESCE(groups, ''), ' ', '')), ',', ?)
+            END
+            WHERE uid = ?
+        ";
+        $stmt = mysqli_prepare($conn, $sql);
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "sssi", $agStr, $agStr, $agStr, $uid);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
+    }
+
+    redirectToSelf('added', $search);
+}
+
+if (isset($_POST['process_kick'])) {
+    $uid = isset($_POST['uid']) ? (int)$_POST['uid'] : 0;
+
+    if ($uid > 0) {
+        $sql = "
+            UPDATE users
+            SET groups = TRIM(
+                BOTH ','
+                FROM REPLACE(
+                    CONCAT(',', REPLACE(COALESCE(groups, ''), ' ', ''), ','),
+                    CONCAT(',', ?, ','),
+                    ','
+                )
+            )
+            WHERE uid = ?
+        ";
+        $stmt = mysqli_prepare($conn, $sql);
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "si", $agStr, $uid);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
+    }
+
+    redirectToSelf('removed', $search);
+}
+
+$currentMembers = [];
+$sqlMembers = "
+    SELECT uid, username, firstname, lastname, name, room, oldroom, turm, pid
+    FROM users
+    WHERE CONCAT(',', REPLACE(COALESCE(groups, ''), ' ', ''), ',') LIKE CONCAT('%,', ?, ',%')
+      AND pid IN (11, 12, 13, 14)
+    ORDER BY
+        LOWER(COALESCE(turm, '')) ASC,
+        CASE
+            WHEN room IS NOT NULL AND room > 0 THEN room
+            WHEN oldroom IS NOT NULL AND oldroom > 0 THEN oldroom
+            ELSE 999999
+        END ASC,
+        LOWER(COALESCE(lastname, '')) ASC,
+        LOWER(COALESCE(firstname, '')) ASC,
+        LOWER(COALESCE(username, '')) ASC
+";
+$stmtMembers = mysqli_prepare($conn, $sqlMembers);
+if ($stmtMembers) {
+    mysqli_stmt_bind_param($stmtMembers, "s", $agStr);
+    mysqli_stmt_execute($stmtMembers);
+    mysqli_stmt_bind_result(
+        $stmtMembers,
+        $mUid,
+        $mUsername,
+        $mFirstname,
+        $mLastname,
+        $mName,
+        $mRoom,
+        $mOldroom,
+        $mTurm,
+        $mPid
+    );
+
+    while (mysqli_stmt_fetch($stmtMembers)) {
+        $currentMembers[] = [
+            'uid'       => $mUid,
+            'username'  => $mUsername,
+            'firstname' => $mFirstname,
+            'lastname'  => $mLastname,
+            'name'      => $mName,
+            'room'      => $mRoom,
+            'oldroom'   => $mOldroom,
+            'turm'      => $mTurm,
+            'pid'       => $mPid
+        ];
+    }
+
+    mysqli_stmt_close($stmtMembers);
+}
 ?>
 <!DOCTYPE html>
 <html>
-    <head>
+<head>
+    <meta charset="UTF-8">
     <link rel="stylesheet" href="WEH.css" media="screen">
+    <style>
+        body {
+            color: white;
+        }
 
-	<script>
-	function updateButton(button) {
-  	button.style.backgroundColor = "green";
-  	button.innerHTML = "Saved";
- 	setTimeout(function() {
-    	button.style.backgroundColor = "";
-    	button.innerHTML = "Speichern";
-  	}, 2000);
-	}
-	</script>
+        .kp-page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 18px 14px 40px 14px;
+        }
 
-    </head>
+        .kp-title {
+            text-align: center;
+            font-size: 42px;
+            margin: 22px 0 10px 0;
+        }
+
+        .kp-subtitle {
+            text-align: center;
+            font-size: 20px;
+            line-height: 1.4;
+            margin: 0 auto 22px auto;
+            max-width: 820px;
+        }
+
+        .kp-notice {
+            margin: 0 auto 18px auto;
+            padding: 12px 14px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .kp-notice.success {
+            background: rgba(24, 112, 43, 0.28);
+            border: 1px solid rgba(72, 180, 102, 0.55);
+            color: #c7ffd4;
+        }
+
+        .kp-card {
+            background: rgba(20, 20, 20, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 16px;
+            margin: 0 auto 18px auto;
+            box-sizing: border-box;
+        }
+
+        .kp-card h2 {
+            margin: 0 0 12px 0;
+            font-size: 26px;
+        }
+
+        .kp-search-input {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 18px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            background: #111;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .kp-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+
+        .kp-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .kp-table th,
+        .kp-table td {
+            padding: 11px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.10);
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .kp-empty {
+            color: #d3d3d3;
+            padding: 12px 0 2px 0;
+        }
+
+        .kp-action-form {
+            margin: 0;
+        }
+
+        .kp-action-cell {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .kp-btn {
+            appearance: none;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .kp-btn-add {
+            background: #1f8f48;
+            color: white;
+        }
+
+        .kp-btn-add:hover {
+            background: #25a853;
+        }
+
+        .kp-btn-remove {
+            background: #b93838;
+            color: white;
+        }
+
+        .kp-btn-remove:hover {
+            background: #cf4242;
+        }
+
+        .kp-btn-disabled {
+            background: #555;
+            color: #ddd;
+            cursor: default;
+        }
+
+        .kp-loading {
+            opacity: 0.7;
+        }
+
+        @media (max-width: 780px) {
+            .kp-title {
+                font-size: 34px;
+            }
+
+            .kp-subtitle {
+                font-size: 18px;
+            }
+
+            .kp-card h2 {
+                font-size: 22px;
+            }
+
+            .kp-table th,
+            .kp-table td {
+                padding: 10px 6px;
+            }
+
+            .kp-btn {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
 <?php
-require('template.php');
-mysqli_set_charset($conn, "utf8");
-$agName = "Kassenprüfer";
-$ag = 26;
-$sprecherAGnumber = 26;
+echo $templateOutput;
+load_menu();
+?>
 
-if (auth($conn) && ($_SESSION["Kassenwart"] || $_SESSION["Webmaster"])) {
-    load_menu();
-	echo '<div style="text-align: center;">';
+<div class="kp-page">
+    <div class="kp-title"><?php echo h($agName); ?></div>
 
-	if (isset($_POST["process_austritt"]) && $_POST["reload"] == 1) {
-		$uid = $_SESSION["uid"];
+    <div class="kp-subtitle">
+        Die Kassenprüfer hier hinzufügen, damit sie Zugriff auf <b>Kassenprüfung.php</b> bekommen.
+    </div>
 
-        if ($_SESSION["sprecher"] === $ag) {
-		    $sql = "UPDATE users SET sprecher = 0, groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', ? , ','), ',')) WHERE uid = ?";
-            $_SESSION["sprecher"] = 0;
-        } else {
-            $sql = "UPDATE users SET groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', ? , ','), ',')) WHERE uid = ?";
-        }			
-		$stmt = mysqli_prepare($conn, $sql);
-		mysqli_stmt_bind_param($stmt, "ii", $ag, $uid);	
-		mysqli_stmt_execute($stmt);
-		mysqli_stmt_free_result($stmt);
-		mysqli_stmt_close($stmt);
+    <?php if ($notice === 'added') { ?>
+        <div class="kp-notice success">Kassenprüfer hinzugefügt.</div>
+    <?php } elseif ($notice === 'removed') { ?>
+        <div class="kp-notice success">Kassenprüfer entfernt.</div>
+    <?php } ?>
 
-        $_SESSION[$agName] = false;
+    <div class="kp-card">
+        <h2>Hinzufügen</h2>
+        <input
+            type="text"
+            id="liveSearch"
+            class="kp-search-input"
+            placeholder="User suchen ..."
+            value="<?php echo h($search); ?>"
+            autocomplete="off"
+        >
+        <div id="searchResults"></div>
+    </div>
 
-		echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-		echo "<script>
-			setTimeout(function() {
-				document.forms['reload'].submit();
-			}, 0000);
-		</script>";
+    <div class="kp-card">
+        <h2>Aktuelle Kassenprüfer</h2>
 
-		echo "<span style='color: green; font-size: 20px;'>Erfolgreich ausgetreten.</span><br><br>";
+        <?php if (empty($currentMembers)) { ?>
+            <div class="kp-empty">Aktuell sind keine Kassenprüfer eingetragen.</div>
+        <?php } else { ?>
+            <div class="kp-table-wrap">
+                <table class="kp-table">
+                    <tr>
+                        <th>Name</th>
+                        <th>Raum</th>
+                        <th>Turm</th>
+                        <th></th>
+                    </tr>
 
-	} elseif (isset($_POST["process_transfer"]) && $_POST["reload"] == 1) {
-		$uidNewSprecher = $_POST["uid"];
-		$uidOldSprecher = $_SESSION["uid"];
+                    <?php foreach ($currentMembers as $member) { ?>
+                        <?php
+                            $displayName = buildDisplayName($member['firstname'], $member['lastname'], $member['name'], $member['username']);
+                            $roomValue = getRoomValue($member['pid'], $member['room'], $member['oldroom']);
+                            $turmLabel = formatTurm((string)$member['turm']);
+                        ?>
+                        <tr>
+                            <td><?php echo h($displayName); ?></td>
+                            <td><?php echo h($roomValue); ?></td>
+                            <td><?php echo h($turmLabel); ?></td>
+                            <td class="kp-action-cell">
+                                <form method="post" class="kp-action-form" onsubmit="return confirm('Diesen Kassenprüfer entfernen?');">
+                                    <input type="hidden" name="uid" value="<?php echo h($member['uid']); ?>">
+                                    <input type="hidden" name="search" value="<?php echo h($search); ?>">
+                                    <button type="submit" name="process_kick" value="1" class="kp-btn kp-btn-remove">Entfernen</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </table>
+            </div>
+        <?php } ?>
+    </div>
+</div>
 
-		$sql = "UPDATE users SET sprecher = ? WHERE uid = ?";
-		$stmt = mysqli_prepare($conn, $sql);
-		mysqli_stmt_bind_param($stmt, "ii", $sprecherAGnumber, $uidNewSprecher);
-		mysqli_stmt_execute($stmt);
-		mysqli_stmt_free_result($stmt);
-		mysqli_stmt_close($stmt);
-	
-		if (isset($_POST["leave_ag"])) {
-			$sql = "UPDATE users SET sprecher = 0, groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', ? , ','), ',')) WHERE uid = ?";			
-			$stmt = mysqli_prepare($conn, $sql);
-			mysqli_stmt_bind_param($stmt, "ii", $sprecherAGnumber, $uidOldSprecher);			
-		} else {
-			$sql = "UPDATE users SET sprecher = 0 WHERE uid = ?";
-			$stmt = mysqli_prepare($conn, $sql);
-			mysqli_stmt_bind_param($stmt, "i", $uidOldSprecher);
-		}
-		mysqli_stmt_execute($stmt);
-		mysqli_stmt_free_result($stmt);
-		mysqli_stmt_close($stmt);
+<script>
+(function () {
+    const input = document.getElementById('liveSearch');
+    const results = document.getElementById('searchResults');
+    let debounceTimer = null;
+    let activeRequest = 0;
 
-		$_SESSION["sprecher"] = 0;
-		isset($_POST["leave_ag"]) && $_SESSION[$agName] = false;			
-		
-		echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-		echo "<script>
-			setTimeout(function() {
-				document.forms['reload'].submit();
-			}, 0000);
-		</script>";
+    function loadResults(query) {
+        const requestId = ++activeRequest;
+        const trimmed = query.trim();
 
-		echo "<span style='color: green; font-size: 20px;'>Erfolgreich abgetreten.</span><br><br>";
-
-	} else {
-		if (isset($_POST["process_kick"]) && $_POST["reload"] == 1) {
-			$uid = $_POST["uid"];
-			
-			$sql = "UPDATE users SET groups = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', groups, ','), CONCAT(',', ? , ','), ',')) WHERE uid = ?";			
-			$stmt = mysqli_prepare($conn, $sql);
-			mysqli_stmt_bind_param($stmt, "ii", $sprecherAGnumber, $uid);	
-			mysqli_stmt_execute($stmt);
-			mysqli_stmt_free_result($stmt);
-			mysqli_stmt_close($stmt);
-			echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-			echo "<script>
-				setTimeout(function() {
-					document.forms['reload'].submit();
-				}, 0000);
-			</script>";
-	
-			echo "<span style='color: green; font-size: 20px;'>Der User wurde erfolgreich entfernt.</span><br><br>";
-		} elseif (isset($_POST["process_add"]) && $_POST["reload"] == 1) {
-			$uid = $_POST["uid"];
-			
-			$sql = "UPDATE users SET groups = CONCAT(groups, ',{$sprecherAGnumber}') WHERE uid = ?";
-			$stmt = mysqli_prepare($conn, $sql);
-			mysqli_stmt_bind_param($stmt, "i", $uid);
-			mysqli_stmt_execute($stmt);
-			mysqli_stmt_free_result($stmt);
-			mysqli_stmt_close($stmt);
-			echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-			echo "<script>
-				setTimeout(function() {
-					document.forms['reload'].submit();
-				}, 0000);
-			</script>";
-
-	
-			echo "<span style='color: green; font-size: 20px;'>Der User wurde erfolgreich hinzugefügt.</span><br><br>";
-		} elseif (isset($_POST["id_update"]) && $_POST["reload"] == 1) {
-			$id = $_POST['id2'];
-			$status = $_POST['status'];
-			$nachricht = $_POST['nachricht'];
-			$agent = $_SESSION['uid'];
-		  
-			$sql = "UPDATE buchungen SET status=?, agent=?, kommentar=? WHERE id=?";
-			$stmt = mysqli_prepare($conn, $sql);
-			mysqli_stmt_bind_param($stmt, "iisi", $status, $agent, $nachricht, $id);
-			mysqli_stmt_execute($stmt);
-			$stmt->close();
-	
-			echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-			echo "<script>
-				setTimeout(function() {
-					document.forms['reload'].submit();
-				}, 0000);
-			</script>";
-			
-			echo "<span style='color: green; font-size: 20px;'>Erfolgreich bearbeitet.</span><br><br>";
-
-		}
-
-		echo "<span style='color: white; font-size: 50px;'>$agName</span><br><br>";
-        echo "<br>";
-        
-        echo "<span style='color: white; font-size: 25px;'>
-        Die Kassenprüfer kurz vor der Kassenprüfung hier hinzufügen,<br>
-        damit sie Zugriff auf Kassenprüfung.php bekommen (An PHP-Session gebunden)<br>
-        und die digitale Dokumentation der Barkassen überprüfen und bestätigen können!
-        </span><br><br>"; 
-		echo '<div style="text-align: center;">';
-		echo "<br>";
-		echo('<form method="post">');
-		echo('<input type="hidden" name="action" value="run">');
-		 echo '<button type="submit" name="button_add" value="0" class="center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Neuen Kassenprüfer hinzufügen</button><br>';
-		echo('</form>');
-		echo('<br>');
-
-        $sql = "SELECT uid, firstname, lastname, room, sprecher, pid FROM users WHERE CONCAT(',', groups, ',') LIKE CONCAT('%,', ?, ',%') AND (pid=11 OR pid=12 OR pid=13 OR pid=14) ORDER BY room";
-        $stmt = mysqli_prepare($conn, $sql);
-        if (!$stmt) {
-            echo "Fehler beim Vorbereiten der SQL-Abfrage: " . mysqli_error($conn);
-            die();
-        }
-        $ag_str = strval($ag);
-    mysqli_stmt_bind_param($stmt, "s", $ag_str);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $uid, $firstName, $lastName, $room, $sprecher, $pid);
-
-		echo '<table class="grey-table">';	
-		echo '<tr>';
-		echo '<th>Name</th>';
-		echo '<th>Raum</th>';            
-		echo '<th>Kick</th>';
-		echo '</tr>';
-
-        while (mysqli_stmt_fetch($stmt)) {		
-            $firstname = strtok($firstName, ' ');
-            $lastname = strtok($lastName, ' ');
-            $name = $firstname . ' ' . $lastname;
-            echo '<tr>';
-            echo '<td>' . htmlspecialchars($name) . '</td>';
-			$roomText = '';
-			if ($pid == 12) {
-				$roomText = 'Subletter';
-			} elseif ($pid == 13) {
-				$roomText = 'Ausgezogen';
-			} elseif ($pid == 14) {
-				$roomText = 'Abgemeldet';
-			} else {
-				$roomText = htmlspecialchars($room);
-			}
-			
-			echo '<td>' . htmlspecialchars($roomText) . '</td>';
-            echo '<td>';
-            echo '<form method="post">';
-            echo '<input type="hidden" name="uid" value="'.$uid.'">';
-            echo '<input type="hidden" name="name" value="'.$name.'">';
-            echo '<button type="submit" name="button_kick" value="2" class="red-center-btn" style="margin: 0 auto; display: inline-block; font-size: 20px;">Mitglied entfernen</button>';
-            echo '</form>';
-            echo '</td>';
-            echo '</tr>';
+        if (trimmed === '') {
+            results.innerHTML = '';
+            return;
         }
 
-		echo '</table>';
-		$stmt->close();
+        results.classList.add('kp-loading');
 
-		if (isset($_POST['button_add'])) {
-			echo('<div class="overlay"></div>
-			<div class="anmeldung-form-container form-container">
-			  <form method="post"">
-				<button type="submit" name="close" value="close" class="close-btn">X</button>
-			  </form>
-			  <br>
-			  <form method="post">
-				<label class="form-label" style="font-size:25px;">Room Number:</label>
-				<br><br>
-				<input type="text" name="room" class="form-input" value="">
-				<br><br>
-				<div class="center-container">
-				  <input type="submit" name="really_add" value="Let´s go!" class="center-btn">
-				</div>
-			  </form>
-			</div>');
-		} elseif (isset($_POST['button_kick'])) {
-			$name = $_POST["name"];		
-			$uid = $_POST["uid"];
+        fetch('<?php echo h($_SERVER['PHP_SELF']); ?>?ajax=search&q=' + encodeURIComponent(trimmed), {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+        .then(function (response) {
+            return response.text();
+        })
+        .then(function (html) {
+            if (requestId !== activeRequest) {
+                return;
+            }
+            results.innerHTML = html;
+        })
+        .catch(function () {
+            if (requestId !== activeRequest) {
+                return;
+            }
+            results.innerHTML = '<div class="kp-empty">Suche fehlgeschlagen.</div>';
+        })
+        .finally(function () {
+            if (requestId === activeRequest) {
+                results.classList.remove('kp-loading');
+            }
+        });
+    }
 
-			echo('<div class="overlay"></div>
-			<div class="anmeldung-form-container form-container">
-			  <form method="post"">
-				<button type="submit" name="close" value="close" class="close-btn">X</button>
-			  </form>
-			  <br>
-			  <form method="post">
-				<span style="font-size:25px; color:white;">Du bist gerade dabei '.$name.' als Kassenprüfer zu entfernen.</span>
-				<br><br><br>
-				<span style="font-size:25px; color:white;">Bitte bestätige den Vorgang:</span>
-				<input type="hidden" name="uid" class="form-input" value="'.$uid.'">
-				<br><br>
-				<div class="center-container">		  
-				  <input type="hidden" name="reload" value=1>
-				  <input type="submit" name="process_kick" value="Yeah!" class="center-btn">
-				</div>
-			  </form>
-			</div>');
-		} elseif (isset($_POST['really_add'])) {
-			$room = $_POST["room"];
+    input.addEventListener('input', function () {
+        const value = this.value;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            loadResults(value);
+        }, 180);
+    });
 
-			$sql = "SELECT name, uid FROM users WHERE room = ?";
-			$stmt = mysqli_prepare($conn, $sql);
-			mysqli_stmt_bind_param($stmt, "s", $room);
-			mysqli_stmt_execute($stmt);
-			mysqli_stmt_bind_result($stmt, $name, $uid);
-			mysqli_stmt_fetch($stmt);
-			$stmt->close();
+    if (input.value.trim() !== '') {
+        loadResults(input.value);
+    }
+})();
+</script>
 
-
-			echo('<div class="overlay"></div>
-			<div class="anmeldung-form-container form-container">
-			  <form method="post"">
-				<button type="submit" name="close" value="close" class="close-btn">X</button>
-			  </form>
-			  <br>
-			  <form method="post">
-				<span style="font-size:25px; color:white;">Aktuell lebt '.$name.' in '.$room.'.</span>
-				<br><br>
-				<span style="font-size:25px; color:white;">Ist das der User, den du hinzufügen willst?</span>
-				<br><br><br>
-				<span style="font-size:25px; color:white;">Bitte bestätige den Vorgang:</span>
-				<input type="hidden" name="uid" class="form-input" value="'.$uid.'">
-				<br><br>
-				<div class="center-container">		  
-				  <input type="hidden" name="reload" value=1>
-				  <input type="submit" name="process_add" value="Yeah!" class="center-btn">
-				</div>
-			  </form>
-			</div>');
-		}
-
-	}
-}
-else {
-  header("Location: denied.php");
-}
-
-// Close the connection to the database
+<?php
 $conn->close();
 ?>
 </body>
