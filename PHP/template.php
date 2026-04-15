@@ -465,17 +465,18 @@ function load_menu() {
             echo '<span class="vertical-line"></span>';                    
             echo '<div class="header-menu">';
             echo '<div class="header-menu-item">';
-            echo '<button class="center-btn">Aktiv</button>';
+            echo '<button class="center-btn">Aktivitas</button>';
             echo '<div class="header-submenu">';
-            echo '<button onclick="window.location.href=\'/AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
-            echo '<button onclick="window.location.href=\'/AG-Mail.php\';" style="white-space: nowrap;">AG-Mail</button> ';
-            echo '<button onclick="window.location.href=\'/AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
+            echo '<button onclick="window.location.href=\'/AGedit.php\';" style="white-space: nowrap;">Mitglieder verwalten</button>';
+            echo '<button onclick="window.location.href=\'/AG-Mail.php\';" style="white-space: nowrap;">Personen kontaktieren</button>';
+            echo '<button onclick="window.location.href=\'/Rundmail.php\';" style="white-space: nowrap;">Rundmail</button>';
+            echo '<button onclick="window.location.href=\'/AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button>';
 
             // Nur anzeigen, wenn der User einer AG mit agessen=1 angehört
             $stmt = mysqli_prepare($conn, "
-                SELECT session 
-                FROM `groups` 
-                WHERE active = 1 
+                SELECT session
+                FROM `groups`
+                WHERE active = 1
                 AND agessen = 1
             ");
             mysqli_stmt_execute($stmt);
