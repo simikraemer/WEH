@@ -468,6 +468,7 @@ function load_menu() {
             echo '<button class="center-btn">Aktiv</button>';
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'/AGedit.php\';" style="white-space: nowrap;">AG-Mitgliedschaft</button> ';
+            echo '<button onclick="window.location.href=\'/AG-Mail.php\';" style="white-space: nowrap;">AG-Mail</button> ';
             echo '<button onclick="window.location.href=\'/AG-Essen-Form.php\';" style="white-space: nowrap;">AG-Essen</button> ';
 
             // Nur anzeigen, wenn der User einer AG mit agessen=1 angehört
@@ -566,6 +567,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konto Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
                     echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
+                    /* echo '<button onclick="window.location.href=\'/Fahrradmail.php\';">Nachricht an Stellplatzuser</button> '; */
                     echo '<button onclick="window.location.href=\'/Demographie.php\';" style="white-space: nowrap;">Demographie Gesamt</button>';
                     echo '<button onclick="window.location.href=\'/NationVerteilung.php\';" style="white-space: nowrap;">Demographie Etage</button>';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
@@ -618,7 +620,7 @@ function load_menu() {
                 }
                 if ($agName === 'FahrradAG') {
                     echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
-                    echo '<button onclick="window.location.href=\'/Fahrradmail.php\';">Nachricht an Stellplatzuser</button> ';
+                    /* echo '<button onclick="window.location.href=\'/Fahrradmail.php\';">Nachricht an Stellplatzuser</button> '; */
                     echo '<button onclick="window.location.href=\'/Fahrrad.php\';">Fahrradstellplatz</button> ';
                 }
                 if ($agName === 'PartyAG') {
@@ -772,6 +774,7 @@ function getAgsIcons($ags, $icon_size) {
         "24" => "hausmeister",
         "25" => "fahrrad",
         "27" => "hausmeister",
+        "29" => "drucker",
         "32" => "musik",
         "33" => "wasch",
         "51" => "ba",
