@@ -26,6 +26,27 @@ function flash_print(): void {
 $zeit = time();
 $turm = $_SESSION['turm'] ?? 'weh';
 
+$bikePriorityExcludedGroups = [1, 16, 19, 20, 22, 24, 26, 27, 55];
+
+$hasBikeQueuePriority = static function (?string $groupsCsv) use ($bikePriorityExcludedGroups): bool {
+  if ($groupsCsv === null || trim($groupsCsv) === '') {
+    return false;
+  }
+
+  $groupIds = array_filter(array_map('trim', explode(',', $groupsCsv)), static function ($v) {
+    return $v !== '';
+  });
+
+  foreach ($groupIds as $groupId) {
+    $groupId = (int)$groupId;
+    if ($groupId > 0 && !in_array($groupId, $bikePriorityExcludedGroups, true)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 /* -----------------------------
    Auth + Rollencheck
 ----------------------------- */
@@ -71,10 +92,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       $sql = "SELECT f.id, f.uid
               FROM fahrrad f
               INNER JOIN users u ON u.uid = f.uid
-              WHERE f.platz = 0 AND (f.endtime IS NULL OR f.endtime > ?) AND f.turm = ?
+              WHERE f.platz = 0
+                AND (f.endtime IS NULL OR f.endtime > ?)
+                AND f.turm = ?
               ORDER BY
                   CASE
-                    WHEN u.groups NOT LIKE '1' AND u.groups NOT LIKE '1,19' THEN 0
+                    WHEN EXISTS (
+                      SELECT 1
+                      FROM `groups` g
+                      WHERE g.turm = u.turm
+                        AND FIND_IN_SET(CAST(g.id AS CHAR), REPLACE(COALESCE(u.groups, ''), ' ', '')) > 0
+                        AND g.id NOT IN (1,16,19,20,22,24,26,27,55)
+                        -- AND g.active = 1
+                    ) THEN 0
                     ELSE 1
                   END,
                   f.starttime ASC
@@ -222,10 +252,19 @@ $queueTopUid  = null;
 $sql = "SELECT users.name, users.room, users.uid
         FROM users
         INNER JOIN fahrrad ON users.uid = fahrrad.uid
-        WHERE fahrrad.platz = 0 AND (fahrrad.endtime IS NULL OR fahrrad.endtime > ?) AND fahrrad.turm = ?
+        WHERE fahrrad.platz = 0
+          AND (fahrrad.endtime IS NULL OR fahrrad.endtime > ?)
+          AND fahrrad.turm = ?
         ORDER BY
             CASE
-              WHEN users.groups NOT LIKE '1' AND users.groups NOT LIKE '1,19' THEN 0
+              WHEN EXISTS (
+                SELECT 1
+                FROM `groups` g
+                WHERE g.turm = users.turm
+                  AND FIND_IN_SET(CAST(g.id AS CHAR), REPLACE(COALESCE(users.groups, ''), ' ', '')) > 0
+                  AND g.id NOT IN (1,16,19,20,22,24,26,27,55)
+                  -- AND g.active = 1
+              ) THEN 0
               ELSE 1
             END,
             fahrrad.starttime ASC
@@ -276,15 +315,15 @@ $users_stellplatz = [];
 
 foreach ($users_by_stellplatz as $bike_storageid => $users) {
   if ($bike_storageid < 1) {
-    usort($users, function ($a, $b) {
-      $groupPriority = function ($group) {
-        $priority = ["1" => 1, "1,19" => 1];
-        return isset($priority[$group]) ? $priority[$group] : 0;
-      };
-      $priorityA = $groupPriority($a["groups"]);
-      $priorityB = $groupPriority($b["groups"]);
-      if ($priorityA != $priorityB) return $priorityA - $priorityB;
-      return $a["tstamp"] - $b["tstamp"];
+    usort($users, function ($a, $b) use ($hasBikeQueuePriority) {
+      $priorityA = $hasBikeQueuePriority($a["groups"]) ? 0 : 1;
+      $priorityB = $hasBikeQueuePriority($b["groups"]) ? 0 : 1;
+
+      if ($priorityA !== $priorityB) {
+        return $priorityA <=> $priorityB;
+      }
+
+      return $a["tstamp"] <=> $b["tstamp"];
     });
     $users_queue[$bike_storageid] = $users;
   } else {

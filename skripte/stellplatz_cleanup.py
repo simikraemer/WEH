@@ -9,7 +9,28 @@ from fcol import send_mail
 from fcol import connect_weh
 
 DEBUG = False
-    
+
+# Diese Gruppen sollen NICHT als AG-Mitglied mit Priorität zählen
+EXCLUDED_PRIORITY_GROUP_IDS = (1, 16, 19, 20, 22, 24, 26, 27, 55)
+
+
+def get_queue_order_sql(user_alias: str = "users", groups_column: str = "groups", turm_column: str = "turm") -> str:
+    excluded = ",".join(str(gid) for gid in EXCLUDED_PRIORITY_GROUP_IDS)
+    return f"""
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM weh.`groups` g
+            WHERE g.turm = {user_alias}.{turm_column}
+              AND FIND_IN_SET(CAST(g.id AS CHAR), REPLACE(COALESCE({user_alias}.{groups_column}, ''), ' ', '')) > 0
+              AND g.id NOT IN ({excluded})
+              -- AND g.active = 1
+        ) THEN 0
+        ELSE 1
+    END
+    """
+
+
 def clean_bike_storage(ends, turm):
     if DEBUG:
         sendto = "webmaster@weh.rwth-aachen.de"
@@ -18,36 +39,43 @@ def clean_bike_storage(ends, turm):
             sendto = "sprecher@tvk.rwth-aachen.de"
         else:
             sendto = "fahrrad@weh.rwth-aachen.de"
-    
+
     subject = "Fahrradstellplatz - Änderungen"
     text = ""
-    zeit = time.time()
+    zeit = int(time.time())
     changes = False
 
-    print("Starte die Bereinigung des Fahrradkellers...")
+    print(f"Starte die Bereinigung des Fahrradkellers für {turm}...")
     text += "Es haben sich folgende Änderungen an der Belegung des Fahrradkellers ergeben:\n\n"
 
     cursor = conn.cursor()
 
+    queue_priority_order = get_queue_order_sql("users", "groups", "turm")
+
     # Nachrückerliste definieren
     print("Hole die Nachrückerliste...")
-    sql = """
+    sql = f"""
     SELECT users.name, fahrrad.id, users.uid, users.groups
     FROM weh.users
     INNER JOIN weh.fahrrad ON users.uid = fahrrad.uid
-    WHERE fahrrad.platz = 0 AND (fahrrad.endtime IS NULL OR fahrrad.endtime > %s) AND fahrrad.turm = %s
-    ORDER BY 
-        CASE
-            WHEN users.groups NOT LIKE '1' AND users.groups NOT LIKE '1,19' THEN 0
-            ELSE 1
-        END,
+    WHERE fahrrad.platz = 0
+      AND (fahrrad.endtime IS NULL OR fahrrad.endtime > %s)
+      AND fahrrad.turm = %s
+    ORDER BY
+        {queue_priority_order},
         fahrrad.starttime ASC
     """
     cursor.execute(sql, (zeit, turm))
     nachrücker = cursor.fetchall()
 
     # CASE 1: Neue Wartelisten-User
-    sql = "SELECT users.name, fahrrad.id FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.status = 1 AND fahrrad.turm = %s"
+    sql = """
+    SELECT users.name, fahrrad.id
+    FROM users
+    INNER JOIN fahrrad ON users.uid = fahrrad.uid
+    WHERE fahrrad.status = 1
+      AND fahrrad.turm = %s
+    """
     cursor.execute(sql, (turm,))
     neueuser = cursor.fetchall()
     for row in neueuser:
@@ -55,49 +83,78 @@ def clean_bike_storage(ends, turm):
         cursor.execute("UPDATE fahrrad SET status = 0 WHERE id = %s", (row[1],))
         changes = True
 
-      
     # CASE 2: Subletter Rückkehr
-    sql = "SELECT users.name, fahrrad.id FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.status = 5 AND users.pid = 11 AND fahrrad.turm = %s"
+    sql = """
+    SELECT users.name, fahrrad.id
+    FROM users
+    INNER JOIN fahrrad ON users.uid = fahrrad.uid
+    WHERE fahrrad.status = 5
+      AND users.pid = 11
+      AND fahrrad.turm = %s
+    """
     cursor.execute(sql, (turm,))
     subletter = cursor.fetchall()
     for row in subletter:
-        sql = "SELECT starttime FROM fahrrad WHERE platz = 0 AND endtime IS NULL AND turm = %s ORDER BY starttime ASC LIMIT 1"
+        sql = """
+        SELECT starttime
+        FROM fahrrad
+        WHERE platz = 0
+          AND endtime IS NULL
+          AND turm = %s
+        ORDER BY starttime ASC
+        LIMIT 1
+        """
         cursor.execute(sql, (turm,))
-        newtime = cursor.fetchone()[0] - 1
-        cursor.execute("UPDATE fahrrad SET starttime = %s, status = 0, endtime = NULL, platztime = NULL WHERE id = %s", (newtime, row[1]))
+        first_queue_row = cursor.fetchone()
+        newtime = (first_queue_row[0] - 1) if first_queue_row else zeit
+        cursor.execute(
+            "UPDATE fahrrad SET starttime = %s, status = 0, endtime = NULL, platztime = NULL WHERE id = %s",
+            (newtime, row[1])
+        )
         text += f"* {row[0]} ist von seiner Untervermietung zurück und wurde wieder auf die Warteliste gesetzt.\n"
         changes = True
 
     # CASE 3: Warteliste-User ausgezogen
     sql = """
-    SELECT users.name, fahrrad.id 
-    FROM users 
-    INNER JOIN fahrrad ON users.uid = fahrrad.uid 
-    WHERE (users.pid != 11 AND users.pid != 12) AND fahrrad.platz = 0 
-      AND (fahrrad.endtime IS NULL OR fahrrad.endtime > %s) AND fahrrad.turm = %s
+    SELECT users.name, fahrrad.id
+    FROM users
+    INNER JOIN fahrrad ON users.uid = fahrrad.uid
+    WHERE users.pid NOT IN (11, 12)
+      AND fahrrad.platz = 0
+      AND (fahrrad.endtime IS NULL OR fahrrad.endtime > %s)
+      AND fahrrad.turm = %s
     """
     cursor.execute(sql, (zeit, turm))
     for row in cursor.fetchall():
         text += f"* {row[0]} wird aus der Warteliste gelöscht, weil diese Person nicht mehr im Haus wohnt.\n"
         cursor.execute("UPDATE fahrrad SET endtime = %s WHERE id = %s", (zeit, row[1]))
         changes = True
-        
+
     # CASE 4: Fahrrad-AG entfernt Wartelisten-User
-    cursor.execute("SELECT users.name, fahrrad.id FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.status = 4 AND fahrrad.turm = %s", (turm,))
+    cursor.execute("""
+        SELECT users.name, fahrrad.id
+        FROM users
+        INNER JOIN fahrrad ON users.uid = fahrrad.uid
+        WHERE fahrrad.status = 4
+          AND fahrrad.turm = %s
+    """, (turm,))
     for row in cursor.fetchall():
         text += f"* {row[0]} wurde von einem Fahrrad-AG User von der Warteliste entfernt.\n"
         cursor.execute("UPDATE fahrrad SET status = 0 WHERE id = %s", (row[1],))
         changes = True
-    
+
     # CASE 5: Ausgezogene Stellplatz-User
     sql = """
-    SELECT users.name, fahrrad.platz, fahrrad.id 
-    FROM users 
-    INNER JOIN fahrrad ON users.uid = fahrrad.uid 
-    WHERE (users.pid NOT IN (11,12)) 
-      AND ((users.ausgezogen < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY)) AND users.ausgezogen != 0) 
-      OR (users.endtime < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY)) AND users.endtime != 0)) 
-      AND fahrrad.platz > 0 AND fahrrad.turm = %s
+    SELECT users.name, fahrrad.platz, fahrrad.id
+    FROM users
+    INNER JOIN fahrrad ON users.uid = fahrrad.uid
+    WHERE users.pid NOT IN (11, 12)
+      AND (
+            (users.ausgezogen < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY)) AND users.ausgezogen != 0)
+         OR (users.endtime < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY)) AND users.endtime != 0)
+      )
+      AND fahrrad.platz > 0
+      AND fahrrad.turm = %s
     ORDER BY fahrrad.platz
     """
     cursor.execute(sql, (turm,))
@@ -112,9 +169,17 @@ def clean_bike_storage(ends, turm):
         else:
             text += f"* Es gibt keinen Nachrücker für Stellplatz {row[1]}.\n"
         changes = True
-    
+
     # CASE 6: Subletters mit Stellplatz temporär entfernen
-    sql = "SELECT users.name, fahrrad.platz, fahrrad.id FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE users.pid = 12 AND fahrrad.platz > 0 AND fahrrad.turm = %s ORDER BY fahrrad.platz"
+    sql = """
+    SELECT users.name, fahrrad.platz, fahrrad.id
+    FROM users
+    INNER JOIN fahrrad ON users.uid = fahrrad.uid
+    WHERE users.pid = 12
+      AND fahrrad.platz > 0
+      AND fahrrad.turm = %s
+    ORDER BY fahrrad.platz
+    """
     cursor.execute(sql, (turm,))
     for row in cursor.fetchall():
         cursor.execute("UPDATE fahrrad SET platz = 0, endtime = %s, status = 5 WHERE id = %s", (zeit, row[2]))
@@ -128,42 +193,56 @@ def clean_bike_storage(ends, turm):
             text += f"* Es gibt keinen Nachrücker für Stellplatz {row[1]}.\n"
         changes = True
 
-    # CASE 7: Fahrrad-AG entfernt Stellplatz-User, Warteliste-User rückt nach
-    cursor.execute("SELECT users.name, fahrrad.id FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.status = 2 AND fahrrad.turm = %s", (turm,))
+    # CASE 7: Fahrrad-AG entfernt Stellplatz-User
+    cursor.execute("""
+        SELECT users.name, fahrrad.id
+        FROM users
+        INNER JOIN fahrrad ON users.uid = fahrrad.uid
+        WHERE fahrrad.status = 2
+          AND fahrrad.turm = %s
+    """, (turm,))
     for row in cursor.fetchall():
         cursor.execute("UPDATE fahrrad SET status = 0 WHERE id = %s", (row[1],))
         text += f"* {row[0]} wurde von einem Fahrrad-AG Mitglied von seinem Stellplatz entfernt.\n"
         changes = True
 
     # CASE 8: Nachrücken nach Entfernung
-    cursor.execute("SELECT users.name, fahrrad.id, fahrrad.platz, users.uid FROM users INNER JOIN fahrrad ON users.uid = fahrrad.uid WHERE fahrrad.status = 3 AND fahrrad.turm = %s", (turm,))
+    cursor.execute("""
+        SELECT users.name, fahrrad.id, fahrrad.platz, users.uid
+        FROM users
+        INNER JOIN fahrrad ON users.uid = fahrrad.uid
+        WHERE fahrrad.status = 3
+          AND fahrrad.turm = %s
+    """, (turm,))
     for row in cursor.fetchall():
         cursor.execute("UPDATE fahrrad SET status = 0 WHERE id = %s", (row[1],))
         nachrückmail(row[3], row[2], turm)
         text += f"* {row[0]} rückte automatisch auf Stellplatz {row[2]} nach, da ein Fahrrad-AG User den alten Stellplatz-User entfernt hat.\n"
         changes = True
-        
+
     # CASE 9: Stellplatzwechsel durch Fahrrad-AG (status = 6)
     cursor.execute("""
         SELECT users.name, fahrrad.id, fahrrad.platz, fahrrad.platztime, fahrrad.endagent
         FROM users
         INNER JOIN fahrrad ON users.uid = fahrrad.uid
-        WHERE fahrrad.status = 6 AND fahrrad.turm = %s
+        WHERE fahrrad.status = 6
+          AND fahrrad.turm = %s
         ORDER BY fahrrad.platztime, fahrrad.endagent, fahrrad.platz
     """, (turm,))
     rows = cursor.fetchall()
-    groups = {} # Gruppieren über (platztime, endagent), da der Swap in PHP in einer Transaktion mit gleichem zeit/agent erfolgt
+
+    swap_groups = {}
     for name, fid, platz, platztime, endagent in rows:
         key = (platztime, endagent)
-        groups.setdefault(key, []).append((name, fid, platz))
-    for (pt, ea), items in groups.items():
+        swap_groups.setdefault(key, []).append((name, fid, platz))
+
+    for (_pt, _ea), items in swap_groups.items():
         if len(items) == 2:
             (n1, id1, p1), (n2, id2, p2) = items
             text += f"* {n1} und {n2} haben Stellplatz {p1} und {p2} untereinander getauscht.\n"
-            cursor.execute("UPDATE fahrrad SET status = 0 WHERE id IN (%s,%s)", (id1, id2))
+            cursor.execute("UPDATE fahrrad SET status = 0 WHERE id IN (%s, %s)", (id1, id2))
             changes = True
         else:
-            # Fallback: falls irgendwas schief gruppiert (sollte praktisch nicht passieren)
             for n, fid, p in items:
                 text += f"* {n} wurde per Stellplatzwechsel auf Stellplatz {p} gesetzt.\n"
                 cursor.execute("UPDATE fahrrad SET status = 0 WHERE id = %s", (fid,))
@@ -180,7 +259,7 @@ def clean_bike_storage(ends, turm):
     elif count < stellplätze:
         cursor.execute("SELECT platz FROM fahrrad WHERE platz > 0 AND turm = %s", (turm,))
         belegte = [row[0] for row in cursor.fetchall()]
-        freie = [p for p in range(1, stellplätze+1) if p not in belegte]
+        freie = [p for p in range(1, stellplätze + 1) if p not in belegte]
         text += "\n"
         for p in freie:
             if not nachrücker:
@@ -191,13 +270,13 @@ def clean_bike_storage(ends, turm):
             text += f"* {person[0]} wurde für freien Stellplatz {p} eingeteilt und wurde per E-Mail informiert.\n"
         text += "\n"
         changes = True
-    elif count > stellplätze:
+    else:
         text += "\n!Alarmstufe Rot!\nEs sind mehr Stellplätze belegt, als existieren. Bitte Netzwerk-AG informieren!\n\n"
         changes = True
 
     random_end = random.choice(ends)
     text += random_end + "\nEuer Skript"
-    
+
     if changes:
         print("Änderungen festgestellt. Sende zusammengefassten Bericht:")
         print("-------- Start des Berichts --------")
@@ -208,23 +287,28 @@ def clean_bike_storage(ends, turm):
     if not DEBUG:
         conn.commit()
 
+    cursor.close()
+
+
 def nachrückmail(uid, stellplatz, turm):
     print(f"Starte das Versenden einer Nachrücker-Mail für UID {uid}, Stellplatz {stellplatz}...")
     cursor = conn.cursor()
-    sql = "SELECT firstname, username FROM users WHERE uid = %s"    
+
+    sql = "SELECT firstname, username FROM users WHERE uid = %s"
     cursor.execute(sql, (uid,))
-    
     result = cursor.fetchone()
+
     if result:
         name, username = result
         sendto = f"{username}@{turm}.rwth-aachen.de"
         reply_to = "sprecher@tvk.rwth-aachen.de" if turm == 'tvk' else "fahrrad@weh.rwth-aachen.de"
         subject = "Fahrradstellplatz zugewiesen"
+
         if turm == 'tvk':
             text = (
                 f"Herzlichen Glückwunsch {name}!\n\n"
                 f"Dir wurde der Fahrradstellplatz {stellplatz} zugewiesen.\n\n"
-                f"Die genause Position kannst du den Übersichtsplänen im Keller entnehmen.\n\n"
+                f"Die genaue Position kannst du den Übersichtsplänen im Keller entnehmen.\n\n"
                 f"Bitte stelle dein Fahrrad zeitnah auf deinem Stellplatz ab. Andernfalls behalten wir uns vor, "
                 f"dir den Stellplatz wieder abzuerkennen.\n"
                 f"Solltest du deinen Stellplatz nicht mehr benötigen, antworte bitte auf diese Mail und teile "
@@ -235,7 +319,7 @@ def nachrückmail(uid, stellplatz, turm):
             text = (
                 f"Herzlichen Glückwunsch {name}!\n\n"
                 f"Dir wurde der Fahrradstellplatz {stellplatz} zugewiesen.\n\n"
-                f"Die genause Position kannst du den Übersichtsplänen im Keller entnehmen.\n\n"
+                f"Die genaue Position kannst du den Übersichtsplänen im Keller entnehmen.\n\n"
                 f"Bitte stelle dein Fahrrad zeitnah auf deinem Stellplatz ab. Andernfalls behalten wir uns vor, "
                 f"dir den Stellplatz wieder abzuerkennen.\n"
                 f"Solltest du deinen Stellplatz nicht mehr benötigen, antworte bitte auf diese Mail und teile "
@@ -254,9 +338,11 @@ def nachrückmail(uid, stellplatz, turm):
             print("-------------------------\n")
         else:
             send_mail(subject, text, sendto, reply_to)
-            print(f"Nachrücker-Mail an {sendto} erfolgreich gesendet.\n\n")
+            print(f"Nachrücker-Mail an {sendto} erfolgreich gesendet.\n")
 
-        
+    cursor.close()
+
+
 # Verbindung zur Datenbank herstellen
 conn = connect_weh()
 
