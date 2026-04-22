@@ -1,3 +1,12 @@
+
+<!-- 22.04.2026 - Offline genommen, forward zu Printer2.php -->
+<?php
+header("Location: Printer2.php");
+exit;
+?>
+
+
+
 <?php
   session_start();
 ?>
