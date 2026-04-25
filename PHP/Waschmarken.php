@@ -159,22 +159,38 @@ function wm_user_email(string $username, string $turm): string {
 
 function wm_build_relief_mail_body(int $amount): string {
     return implode("\n", [
-        "Hello,",
+        "Liebe Mitbewohner,",
         "",
-        "as a token of appreciation for your valuable work, you have received " . $amount . " Waschmarken.",
+        "der WEH-Vorstand möchte sich bei Ihnen für die großartige Arbeit bedanken, die Sie im letzten Jahr geleistet haben. Wir schätzen Mitglieder sehr, die sich Zeit nehmen, um zum Leben im WEH beizutragen.",
         "",
-        "Thank you for your commitment. Our association can only thrive because members like you contribute their time, effort, and ideas.",
+        "Als kleines Zeichen unserer Dankbarkeit haben Sie " . $amount . " Waschmarken erhalten. Unser Verein kann nur dann erfolgreich sein, wenn Mitglieder wie Sie ihre Zeit, ihre Kräfte und ihre Ideen einbringen.",
         "",
-        "Best regards",
-        "Vorstand WEH e.V.",
+        "Vielen Dank für Ihr Engagement.",
+        "",
+        "Viele Grüße",
+        "Euer Haussprecher",
+        "",
+        "------------------------------",
+        "",
+        "Dear member,",
+        "",
+        "The WEH Vorstand would like to thank you for the great work you have carried out over the past year. We greatly value members who take the time to contribute to life at WEH.",
+        "",
+        "As a token of appreciation for your hard work, you have received " . $amount . " laundry tokens. Our association can only thrive because members like you contribute their time, effort, and ideas.",
+        "",
+        "Thank you for your commitment.",
+        "",
+        "Best wishes",
+        "Your housespeakers",
     ]);
 }
+
 
 function wm_send_relief_mail(array $selectedUsers, int $amount, bool $isTestRun): void {
     $from = 'vorstand@weh.rwth-aachen.de';
     $to = 'vorstand@weh.rwth-aachen.de';
 
-    $liveSubject = 'Thank you for your hard work!';
+    $liveSubject = 'Danke für Ihr Engagement / Thank you for your commitment';
     $subject = $isTestRun ? '[Test Run] ' . $liveSubject : $liveSubject;
 
     $headers = "From: " . $from . "\r\n";
