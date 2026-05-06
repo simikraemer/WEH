@@ -416,13 +416,22 @@ function load_menu() {
             echo '<button onclick="window.location.href=\'/forseti.php\';" style="white-space: nowrap;">Forseti View</button> ';
             #echo '<button onclick="window.location.href=\'/Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
             #echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
-            #echo '<button onclick="window.location.href=\'/GuesstheMess.php\';" style="white-space: nowrap;">Guess the Mess</button>';
-            #echo '<button onclick="window.location.href=\'/sekofinale/SekoFinale.php\';" style="white-space: nowrap;">Seko Finale</button>';
-            #echo '<button onclick="window.location.href=\'/sekofinale/LiveView.php\';" style="white-space: nowrap;">Seko Finale - Live View</button>';
             echo '<button onclick="window.location.href=\'/Notaus.php\';" style="white-space: nowrap;">Notaus</button>';
             echo '</div>';
             echo '</div>';
             echo '</div>';
+
+            
+            /*echo '<div class="header-menu">';
+            echo '<div class="header-menu-item">';
+            echo '<button class="center-btn">Frühstücksmeeting</button>';
+            echo '<div class="header-submenu">';
+            echo '<button onclick="window.location.href=\'/GuesstheMess.php\';" style="white-space: nowrap;">Guess the Mess</button>';
+            echo '<button onclick="window.location.href=\'/sekofinale/SekoFinale.php\';" style="white-space: nowrap;">Seko Finale</button>';
+            echo '<button onclick="window.location.href=\'/sekofinale/LiveView.php\';" style="white-space: nowrap;">Seko Finale - Live View</button>';
+            echo '</div>';
+            echo '</div>';
+            echo '</div>'; */
         }
 
         
