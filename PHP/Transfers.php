@@ -1,4 +1,3 @@
-
 <?php
   session_start();
   require('conn.php');
@@ -20,7 +19,6 @@
                   )
                   AND pid IN (11,12,13,64)";
         } else {
-            // Wenn $searchTerm keine gültige Zahl ist, keine Suche in room und oldroom durchführen
             $sql = "SELECT uid, name, username, room, oldroom, turm FROM users WHERE 
                     (name LIKE '%$searchTerm%' OR 
                      username LIKE '%$searchTerm%' OR 
@@ -40,7 +38,7 @@
         header('Content-Type: application/json');
         echo json_encode($searchedusers);
     } else {
-        echo json_encode([]); // Senden einer leeren JSON-Antwort, wenn der Suchbegriff leer ist
+        echo json_encode([]);
     }
     exit;
   }
@@ -90,7 +88,6 @@ $START_TRANSFER_ID = [
 $parseEuroInput = function ($s): float {
     $s = trim((string)$s);
     if ($s === '') return 0.0;
-    // Tausenderpunkte killen, Komma zu Punkt
     $s = str_replace([' ', "\u{00A0}"], '', $s);
     if (strpos($s, ',') !== false) {
         $s = str_replace('.', '', $s);
@@ -114,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_kontostand_corre
     $desired = $parseEuroInput($_POST['desired_balance'] ?? '');
     $desired = round($desired, 2);
 
-    // aktueller System-Stand
     $current = (float)berechneKontostand($conn, $kasse);
     $current = round($current, 2);
 
@@ -154,21 +150,17 @@ if (isset($_POST['transfer_upload_speichern'])) {
     $betrag = floatval(str_replace(',', '.', $_POST['betrag_neu']));
     $zeit = time();
 
-    // Datei hochladen
     $rechnungspfad = null;
     if (isset($_FILES['rechnung_neu']) && $_FILES['rechnung_neu']['error'] === 0) {
         $upload_dir = 'rechnungen/';
         $original_name = $_FILES['rechnung_neu']['name'];
 
-        // Endung extrahieren
         $extension = pathinfo($original_name, PATHINFO_EXTENSION);
         $basename = pathinfo($original_name, PATHINFO_FILENAME);
 
-        // Leerzeichen und Sonderzeichen bereinigen
-        $base = str_replace(' ', '_', $basename); // oder komplett: preg_replace('/[^A-Za-z0-9_\-]/', '', $basename);
+        $base = str_replace(' ', '_', $basename);
         $base = preg_replace('/[^A-Za-z0-9_\-]/', '', $base);
 
-        // Kürzen auf max 200 Zeichen
         $max_basename_len = 200;
         $base = substr($base, 0, $max_basename_len);
         $filename = $base . '.' . $extension;
@@ -176,7 +168,6 @@ if (isset($_POST['transfer_upload_speichern'])) {
 
         $counter = 1;
         while (file_exists($zielpfad)) {
-            // Reserviere Platz für z.B. "_2", "_3" ... also 2-4 zusätzliche Zeichen
             $suffix = '_' . $counter;
             $cut_base = substr($base, 0, $max_basename_len - strlen($suffix));
             $filename = $cut_base . $suffix . '.' . $extension;
@@ -184,23 +175,18 @@ if (isset($_POST['transfer_upload_speichern'])) {
             $counter++;
         }
 
-        // Datei verschieben
         if (move_uploaded_file($_FILES['rechnung_neu']['tmp_name'], $zielpfad)) {
             $rechnungspfad = $zielpfad;
         }
     }
 
-
-    // Konto & Kasse
     $konto = ($betrag >= 0) ? 4 : 8;
     $kasse = isset($_POST['kasse_id']) ? intval($_POST['kasse_id']) : 1;
     $agent = $_SESSION["uid"];
 
-    // Changelog
     $changelog = "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
     $changelog .= "Insert durch Transfers.php\n";
 
-    // Insert in Datenbank (inkl. Agent)
     $sql = "INSERT INTO transfers (uid, beschreibung, betrag, konto, kasse, tstamp, changelog, pfad, agent)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -210,14 +196,13 @@ if (isset($_POST['transfer_upload_speichern'])) {
     $stmt->execute();
 
     $stmt->close();
-    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?')); // entfernt evtl. alte Query-Strings
+    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?'));
     exit;
 }
 
 
-// CSV-Import-Handler (mit hartem Cutoff & klassischer Duplikatprüfung)
+// CSV-Import-Handler mit hartem Cutoff + Counter-basierter Duplikatprüfung
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'])) {
-    // Saubere JSON-Antwort (keine PHP-Warnings davor)
     while (ob_get_level() > 0) { ob_end_clean(); }
     ini_set('display_errors', '0');
     header('Content-Type: application/json; charset=utf-8');
@@ -236,23 +221,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         $csvText = mb_convert_encoding($csvText, 'UTF-8');
     }
 
-    // Fix: alles älter als 09.11.2025 ignorieren
-    $CUTOFF_TS = mktime(0, 0, 0, 11, 9, 2025); // 09.11.2025 00:00
+    $CUTOFF_TS = mktime(0, 0, 0, 11, 9, 2025);
 
-    // IBANs + Mapping
     $NETZ_IBAN = 'DE90390500001070334600';
     $HAUS_IBAN = 'DE37390500001070334584';
 
     $kasseMap = [
-        $NETZ_IBAN => 72, // Netzkonto
-        $HAUS_IBAN => 92, // Hauskonto
+        $NETZ_IBAN => 72,
+        $HAUS_IBAN => 92,
     ];
     $netzkontoMap = [
         $NETZ_IBAN => 1,
         $HAUS_IBAN => 0,
     ];
 
-    // Parser
     $parseAmount = function (string $s): float {
         $s = trim($s);
         $neg = false;
@@ -275,7 +257,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         return time();
     };
 
-    // CSV parsen
     $lines = preg_split('/\R/u', $csvText, -1, PREG_SPLIT_NO_EMPTY);
     if (!$lines || count($lines) < 2) {
         echo json_encode(['ok' => false, 'error' => 'no_rows']);
@@ -307,18 +288,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         }
     }
 
-    // --- PERFORMANCE: Prefetch + nur noch INSERT Statements (keine SELECTs pro Zeile) ---
-
     $moneyKey = function ($x): string {
-        // stabiler 2-decimal key (wie früher ROUND(...,2))
         $v = round((float)$x, 2);
         return number_format($v, 2, '.', '');
     };
 
-    $existingKnown   = []; // keys: iban|kasse|tstamp|betrag2
-    $existingUnknown = []; // keys: iban|tstamp|betrag2|betreff_norm
+    $existingKnown   = []; // key => Anzahl vorhandener DB-Einträge: iban|kasse|tstamp|betrag2
+    $existingUnknown = []; // key => Anzahl vorhandener DB-Einträge: iban|tstamp|betrag2|betreff_norm
 
-    // Prefetch: bekannte Transfers (konto=4, ab cutoff, nur relevante kassen)
     $prefKnown = $conn->prepare("
         SELECT iban, kasse, tstamp, betrag
         FROM transfers
@@ -331,11 +308,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
     $prefKnown->bind_result($p_iban, $p_kasse, $p_tstamp, $p_betrag);
     while ($prefKnown->fetch()) {
         $k = (string)$p_iban . '|' . (int)$p_kasse . '|' . (int)$p_tstamp . '|' . $moneyKey($p_betrag);
-        $existingKnown[$k] = true;
+        $existingKnown[$k] = ($existingKnown[$k] ?? 0) + 1;
     }
     $prefKnown->close();
 
-    // Prefetch: unknowntransfers (ab cutoff)
     $prefUnk = $conn->prepare("
         SELECT iban, tstamp, betrag, COALESCE(betreff,'') AS betreff_norm
         FROM unknowntransfers
@@ -346,11 +322,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
     $prefUnk->bind_result($u_iban, $u_tstamp, $u_betrag, $u_betreff_norm);
     while ($prefUnk->fetch()) {
         $k = (string)$u_iban . '|' . (int)$u_tstamp . '|' . $moneyKey($u_betrag) . '|' . (string)$u_betreff_norm;
-        $existingUnknown[$k] = true;
+        $existingUnknown[$k] = ($existingUnknown[$k] ?? 0) + 1;
     }
     $prefUnk->close();
 
-    // Nur noch INSERT Statements
     $insKnown = $conn->prepare(
         'INSERT INTO transfers (uid, iban, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) 
         VALUES (?, ?, ?, ?, 4, ?, ?, ?, ?)'
@@ -361,7 +336,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)'
     );
 
-    // kleine Helper-Funktion: execute oder JSON-Fehler + rollback
     $execOrFail = function (mysqli_stmt $st) use ($conn) {
         if (!$st->execute()) {
             $err = $st->error ?: 'stmt_execute_failed';
@@ -371,12 +345,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         }
     };
 
+    $seenKnown   = []; // key => Vorkommen im aktuellen CSV-Batch
+    $seenUnknown = []; // key => Vorkommen im aktuellen CSV-Batch
 
     $agent = (int)($_SESSION['uid'] ?? 0);
     $nowStr = date('d.m.Y H:i');
     $inserted = 0; $skipped = 0; $unknown = 0;
     $conn->begin_transaction();
-    // Zeilen verarbeiten
+
     for ($li = 1; $li < count($lines); $li++) {
         $row = str_getcsv($lines[$li], ';', '"');
         if (!$row || count($row) < count($header)) { continue; }
@@ -390,7 +366,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
         $iban          = trim($row[$idx['Kontonummer/IBAN']] ?? '');
         $betragStr     = trim($row[$idx['Betrag']] ?? '');
 
-        // Kassenausgleich-Überweisungen zwischen Netz- und Hauskonto (beide Richtungen) explizit ignorieren
         if (
             (
                 ($auftragskonto === $NETZ_IBAN && $iban === $HAUS_IBAN) ||
@@ -402,12 +377,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             continue;
         }
 
-        // Nur unsere beiden Konten berücksichtigen
         if (!isset($kasseMap[$auftragskonto])) { $skipped++; continue; }
 
         $betrag = $parseAmount($betragStr);
 
-        // Abmeldungen (Rücküberweisung bei Austritt) ignorieren – werden von anderem Prozess verbucht
         if (
             ($auftragskonto === $NETZ_IBAN || $auftragskonto === $HAUS_IBAN) &&
             stripos($verwendung, 'abmeldung') !== false &&
@@ -417,7 +390,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             continue;
         }
 
-        // Interne Umbuchungen zwischen NETZ_IBAN <-> HAUS_IBAN über 1000 (abs) ignorieren
         $isInterAccount =
             ($auftragskonto === $NETZ_IBAN && $iban === $HAUS_IBAN) ||
             ($auftragskonto === $HAUS_IBAN && $iban === $NETZ_IBAN);
@@ -426,64 +398,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             continue;
         }
 
-        // Flags für Sonderfälle
         $isEntgeltabschluss = (stripos($buchungstext, 'ENTGELTABSCHLUSS') !== false);
         $isPaypalTransfer   = (
             $auftragskonto === $NETZ_IBAN &&
             stripos($name, 'paypal europe') !== false
         );
 
-        // Nur positive Gutschriften importieren – außer Entgeltabschluss (Bankgebühr)
         if ($betrag <= 0.0 && !$isEntgeltabschluss) {
             $skipped++;
             continue;
         }
 
-        // Datum (Valuta bevorzugt) und harter Cutoff
         $tstamp = $parseDate($valutaStr !== '' ? $valutaStr : $buchungStr);
         if ($tstamp < $CUTOFF_TS) { $skipped++; continue; }
 
         $kasse     = $kasseMap[$auftragskonto];
         $netzkonto = $netzkontoMap[$auftragskonto];
 
-        // UID & Beschreibung bestimmen
         $uid = null;
         $beschreibung = 'Transfer';
 
-        // Entgeltabschlüsse direkt auf Dummy-UIDs
         if ($isEntgeltabschluss) {
             $beschreibung = 'Entgeltabschluss';
             if ($auftragskonto === $NETZ_IBAN) {
-                $uid = 472; // NetzAG Dummy
+                $uid = 472;
             } elseif ($auftragskonto === $HAUS_IBAN) {
-                $uid = 492; // Haussprecher Dummy
+                $uid = 492;
             }
-        }
-        // Monatlicher PayPal-Transfer direkt auf Netz-Dummy
-        elseif ($isPaypalTransfer) {
-            $uid = 472; // PayPal-Umsatz -> NetzAG Dummy
+        } elseif ($isPaypalTransfer) {
+            $uid = 472;
             $beschreibung = 'Kassenausgleich PayPal';
         }
 
-        // UID aus "W<uid>H" nur, wenn noch keine Dummy-UID gesetzt ist
         if ($uid === null && preg_match('/W\s*(\d{1,6})\s*H(?!\d)/iu', $verwendung, $m)) {
             $uid = (int)$m[1];
         }
 
         if ($uid !== null) {
-
             $betrag2 = round($betrag, 2);
             $keyKnown = $iban . '|' . $kasse . '|' . $tstamp . '|' . $moneyKey($betrag2);
 
-            // Duplikat? -> skip
-            if (isset($existingKnown[$keyKnown])) {
+            $seenKnown[$keyKnown] = ($seenKnown[$keyKnown] ?? 0) + 1;
+            $knownOccurrenceNo = $seenKnown[$keyKnown];
+
+            if (($existingKnown[$keyKnown] ?? 0) >= $knownOccurrenceNo) {
                 $skipped++;
                 continue;
             }
 
             $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV";
 
-            // 1) Normaler Eintrag (Netz/Haus)
             $insKnown->bind_param(
                 'isisidis',
                 $uid,
@@ -498,22 +462,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             $execOrFail($insKnown);
             $inserted++;
 
-            // Key merken (damit Duplikate innerhalb derselben CSV auch erkannt werden)
-            $existingKnown[$keyKnown] = true;
-
-            // 2) Zusätzliche Gegenbuchung für den monatlichen PayPal-Transfer
             if ($isPaypalTransfer) {
                 $kassePaypal  = 69;
                 $betragPaypal = round(-$betrag2, 2);
                 $keyPaypal    = $iban . '|' . $kassePaypal . '|' . $tstamp . '|' . $moneyKey($betragPaypal);
 
-                if (!isset($existingKnown[$keyPaypal])) {
+                $seenKnown[$keyPaypal] = ($seenKnown[$keyPaypal] ?? 0) + 1;
+                $paypalOccurrenceNo = $seenKnown[$keyPaypal];
+
+                if (($existingKnown[$keyPaypal] ?? 0) < $paypalOccurrenceNo) {
                     $insKnown->bind_param(
                         'isisidis',
                         $uid,
                         $iban,
                         $tstamp,
-                        $beschreibung, // "Kassenausgleich PayPal"
+                        $beschreibung,
                         $kassePaypal,
                         $betragPaypal,
                         $agent,
@@ -521,19 +484,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
                     );
                     $execOrFail($insKnown);
                     $inserted++;
-                    $existingKnown[$keyPaypal] = true;
                 } else {
                     $skipped++;
                 }
             }
 
         } else {
-
             $betrag2 = round($betrag, 2);
             $betreffNorm = $verwendung ?? '';
             $keyUnk = $iban . '|' . $tstamp . '|' . $moneyKey($betrag2) . '|' . $betreffNorm;
 
-            if (isset($existingUnknown[$keyUnk])) {
+            $seenUnknown[$keyUnk] = ($seenUnknown[$keyUnk] ?? 0) + 1;
+            $unknownOccurrenceNo = $seenUnknown[$keyUnk];
+
+            if (($existingUnknown[$keyUnk] ?? 0) >= $unknownOccurrenceNo) {
                 $skipped++;
                 continue;
             }
@@ -541,10 +505,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
             $insUnknown->bind_param('issdisi', $tstamp, $name, $verwendung, $betrag2, $netzkonto, $iban, $agent);
             $execOrFail($insUnknown);
             $unknown++;
-
-            $existingUnknown[$keyUnk] = true;
         }
-
     }
 
     $conn->commit();
@@ -572,17 +533,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
 
 
 if (isset($_POST['save_transfer_id'])) {
-    
-
-    // Alle übergebenen Werte abfangen
     $transfer_id = $_POST['transfer_id'];
-    $selected_user = $_POST['selected_user']; // Benutzer-ID
-    $konto = $_POST['konto_update']; // Konto
-    $kasse = $_POST['kasse']; // Kasse
-    $betrag = $_POST['betrag']; // Betrag (als Dezimalzahl mit Punkt)
-    $beschreibung = $_POST['beschreibung']; // Neue Beschreibung
-    $zeit = time(); // Neuer Timestamp (aktuelle Zeit)
-    $agent = $_SESSION['uid']; // Agent, der die Änderung durchführt (aus Session)
+    $selected_user = $_POST['selected_user'];
+    $konto = $_POST['konto_update'];
+    $kasse = $_POST['kasse'];
+    $betrag = $_POST['betrag'];
+    $beschreibung = $_POST['beschreibung'];
+    $zeit = time();
+    $agent = $_SESSION['uid'];
     $ausgangs_tstamp = (int)($_POST['ausgangs_tstamp'] ?? 0);
     $orig_h = (int)date('H', $ausgangs_tstamp);
     $orig_i = (int)date('i', $ausgangs_tstamp);
@@ -606,7 +564,6 @@ if (isset($_POST['save_transfer_id'])) {
         $new_tstamp = $candidate;
     }
 
-    // Alte Werte abfangen
     $ausgangs_uid = $_POST['ausgangs_uid'];
     $ausgangs_konto = $_POST['ausgangs_konto'];
     $ausgangs_kasse = $_POST['ausgangs_kasse'];
@@ -614,7 +571,7 @@ if (isset($_POST['save_transfer_id'])) {
     $ausgangs_beschreibung = $_POST['ausgangs_beschreibung'];
     $ausgangs_pfad = $_POST['ausgangs_pfad'];
 
-    $pfad = $ausgangs_pfad; // Standard: alter Pfad bleibt erhalten
+    $pfad = $ausgangs_pfad;
 
     if (isset($_FILES['rechnung_upload']) && $_FILES['rechnung_upload']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = 'rechnungen/';
@@ -630,7 +587,6 @@ if (isset($_POST['save_transfer_id'])) {
             $target_path = $upload_dir . $new_filename;
             $counter = 1;
     
-            // Bei Kollision: fortlaufend durchnummerieren
             while (file_exists($target_path)) {
                 $new_filename = $base . '_' . $counter . '.' . $extension;
                 $target_path = $upload_dir . $new_filename;
@@ -642,7 +598,7 @@ if (isset($_POST['save_transfer_id'])) {
             }
     
             if (move_uploaded_file($tmp_name, $target_path)) {
-                $pfad = $target_path; // nur jetzt wird überschrieben
+                $pfad = $target_path;
             } else {
                 echo "Fehler beim Verschieben der Datei.";
             }
@@ -652,7 +608,6 @@ if (isset($_POST['save_transfer_id'])) {
     }
 
     function formatBetrag($betrag) {
-        // Wenn Komma vorhanden, ist Punkt Tausendertrenner
         if (strpos($betrag, ',') !== false) {
             $betrag = str_replace('.', '', $betrag);
             $betrag = str_replace(',', '.', $betrag);
@@ -663,12 +618,9 @@ if (isset($_POST['save_transfer_id'])) {
     $formatierter_ausgangsbetrag = formatBetrag($ausgangs_betrag);
     $formatierter_betrag = formatBetrag($betrag);
        
-    
-    // Variable für Änderungen
     $has_changes = false;
     $changelog = "";
 
-    // Überprüfen, ob Änderungen vorgenommen wurden
     if ($selected_user != $ausgangs_uid) {
         if (!$has_changes) {
             $changelog .= "[" . date("d.m.Y H:i", $zeit) . "] Agent " . $agent . "\n";
@@ -727,10 +679,7 @@ if (isset($_POST['save_transfer_id'])) {
             $changelog .= "Rechnung: geändert von \"$ausgangs_pfad\" zu \"$pfad\"\n";
         }
     }
-        
 
-
-    // Update-Abfrage nur durchführen, wenn Änderungen vorhanden sind
     if ($has_changes) {
         $query = "UPDATE transfers 
         SET uid = ?, 
@@ -745,14 +694,8 @@ if (isset($_POST['save_transfer_id'])) {
         WHERE id = ?";
 
         $stmt = $conn->prepare($query);
-
-        // Bindet die Parameter an die Abfrage
         $stmt->bind_param("iiidsisisi", $selected_user, $konto, $kasse, $formatierter_betrag, $beschreibung, $agent, $pfad, $new_tstamp, $changelog, $transfer_id);
-
-        // Führt das Update aus
         $stmt->execute();
-
-        // Schließt das Statement
         $stmt->close();
     }
 }
@@ -765,7 +708,7 @@ if (isset($_POST['kasse_id'])) {
 }
 
 if (!isset($_SESSION['kasse_id'])) {
-    $_SESSION['kasse_id'] = 72; // Standard: Netzkonto
+    $_SESSION['kasse_id'] = 72;
 }
 
 $kid = $_SESSION['kasse_id'];
@@ -781,23 +724,17 @@ if (!isset($_SESSION['semester_start'])) {
 
 $semester_start = $_SESSION['semester_start'];
 
-// Semesterende = Start des nächsten Semesters
 $month = date('m', $semester_start);
 $year = date('Y', $semester_start);
 
 if ($month == 4) {
-    // Sommersemester → nächstes Wintersemester beginnt im Oktober
     $semester_ende = strtotime("01-10-$year");
 } else {
-    // Wintersemester → nächstes Sommersemester im April nächsten Jahres
     $semester_ende = strtotime("01-04-" . ($year + 1));
 }
 
-// aktuelle Semesterbasis berechnen
 $current_start = unixtime2startofsemester($zeit);
 
-
-// ▼ HIER war's vorher bei dir vergessen:
 $semester_options = [];
 $ts = $current_start;
 while ($ts >= strtotime('01-10-2022')) {
@@ -820,7 +757,6 @@ if ($admin) { ?>
 
 echo '<div class="kasse-semester-grid">';
 
-// Linke 4/6: Kassen-Formular
 echo '<form method="post" class="kasse-form" style="margin: 0;">';
 
 echo '<div class="kasse-row">';
@@ -892,20 +828,15 @@ foreach ($specialBtns as $btn) {
 
 echo '</div>';
 
-
 echo '</form>';
 
-// Rechte 2/6 (+ CSV bei Admin): Dropdown + Kontostand (+ CSV-Import)
-$REGULAR_KASSEN = [72, 69, 92, 1, 2, 93, 94, 95];          // online + barkassen
+$REGULAR_KASSEN = [72, 69, 92, 1, 2, 93, 94, 95];
 $showKontostand = in_array((int)$kid, $REGULAR_KASSEN, true);
-$showCsvImport  = (!empty($admin) && in_array((int)$kid, [72, 92], true)); // NUR Netzkonto + Hauskonto
+$showCsvImport  = (!empty($admin) && in_array((int)$kid, [72, 92], true));
 
 echo '<div class="transfers_x_rightbar">';
 echo '  <div class="transfers_x_rightgrid">';
 
-//
-// Slot 1: CSV (oder hidden placeholder, aber Platz bleibt)
-//
 $csvSlotClass = $showCsvImport ? '' : ' transfers_x_hidden_keep_space';
 echo '    <div class="transfers_x_slot transfers_x_slot_csv' . $csvSlotClass . '">';
 echo '      <div class="csv-import" style="display:flex; align-items:center; justify-content:flex-end; gap:10px; text-align:center;">';
@@ -918,9 +849,6 @@ echo '        <input type="file" id="sparkasse_csv" accept=".csv" style="display
 echo '      </div>';
 echo '    </div>';
 
-//
-// Slot 2: Kontostand (oder hidden placeholder, aber Platz bleibt)
-//
 $balSlotClass = $showKontostand ? '' : ' transfers_x_hidden_keep_space';
 
 $kontostand = $showKontostand ? (float)berechneKontostand($conn, (int)$kid) : 0.0;
@@ -935,9 +863,6 @@ echo '        Aktueller Kontostand:<br><strong id="transfers_x_balance_amount">'
 echo '      </div>';
 echo '    </div>';
 
-//
-// Slot 3: Dropdown (immer sichtbar, immer gleich groß)
-//
 echo '    <div class="transfers_x_slot transfers_x_slot_dropdown">';
 echo '      <form method="post" class="transfers_x_dropdown_form">';
 echo '        <select id="semester-select" name="semester_start" class="semester-dropdown transfers_x_dropdown_select" onchange="this.form.submit()">';
@@ -952,7 +877,6 @@ echo '    </div>';
 echo '  </div>';
 echo '</div>';
 
-// Modal nur wenn Kontostand grundsätzlich da ist (sonst unnötig DOM)
 if ($showKontostand) {
     $prefill = htmlspecialchars($kontostandFmt, ENT_QUOTES, 'UTF-8');
 
@@ -992,24 +916,15 @@ if ($showKontostand) {
     ';
 }
 
-
-
-
 echo '</div>';
-
-
-
-
-
 
 echo '<hr>';
 
 
 if ($admin) {    
     echo '<form id="transfer-form" method="post" enctype="multipart/form-data">';
-    echo '<div class="transfer-form-grid">'; // angenommen: 3-Spalten-Grid via CSS
+    echo '<div class="transfer-form-grid">';
 
-    // Zeile 1: Sucheingabe, Betrag, Upload
     echo '<div style="display: flex; gap: 6px; align-items: center;">';
     echo '<input type="text" name="usersuche" id="usersuche" placeholder="Nutzer suchen..." oninput="sucheUser(this.value)" style="flex:1;">';
     echo '<div style="display: flex; gap: 4px;">';
@@ -1021,16 +936,14 @@ if ($admin) {
     echo '<input type="number" name="betrag_neu" placeholder="Betrag (€)" step="0.01">';
     echo '<input type="file" name="rechnung_neu" accept=".pdf,.jpg,.jpeg,.png,.gif">';
 
-    // Zeile 2: Suchausgabe, Beschreibung, Speichern
     echo '<div id="usersuchergebnisse" style="padding: 6px; background-color: #2a2a2a; border: 1px solid #444; min-height: 75px;"></div>';
     echo '<input type="text" name="beschreibung_neu" placeholder="Beschreibung">';
     echo '<button type="submit" name="transfer_upload_speichern">Speichern</button>';
 
-    // Versteckte Felder
     echo '<input type="hidden" name="uid_neu" id="uid_neu">';
     echo '<input type="hidden" name="kasse_id" value="' . intval($kid) . '">';
 
-    echo '</div>'; // .transfer-form-grid
+    echo '</div>';
     echo '</form>';
     echo '<hr>';
 }
@@ -1042,7 +955,6 @@ $kid = (int)$kid;
 $BASE_NOT_IN = "t.kasse NOT IN (1,2,69,72,92,93,94,95)";
 
 if ($kid === -11) {
-    // 1) Druckaufträge
     $sql = "
         SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
                t.tstamp, t.beschreibung, t.betrag, t.pfad
@@ -1057,7 +969,6 @@ if ($kid === -11) {
     mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
 
 } elseif ($kid === -12) {
-    // 2) Abrechnungen
     $sql = "
         SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
                t.tstamp, t.beschreibung, t.betrag, t.pfad
@@ -1075,7 +986,6 @@ if ($kid === -11) {
     mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
 
 } elseif ($kid === -14) {
-    // 3) Waschmarken (exakt)
     $sql = "
         SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
                t.tstamp, t.beschreibung, t.betrag, t.pfad
@@ -1090,7 +1000,6 @@ if ($kid === -11) {
     mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
 
 } elseif ($kid === -13) {
-    // 4) Sonstige: alles außer Druckaufträge, Abrechnungen, Waschmarken
     $sql = "
         SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
                t.tstamp, t.beschreibung, t.betrag, t.pfad
@@ -1110,7 +1019,6 @@ if ($kid === -11) {
     mysqli_stmt_bind_param($stmt, "ii", $semester_start, $semester_ende);
 
 } else {
-    // Normal: konkrete Kasse
     $sql = "
         SELECT t.id, u.firstname, u.lastname, u.room, u.turm, u.uid,
                t.tstamp, t.beschreibung, t.betrag, t.pfad
@@ -1126,8 +1034,6 @@ if ($kid === -11) {
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
-
-// Tabelle mit sortierbaren Spalten
 echo '<table class="transfer-table" id="transfers-table">';
 echo '<thead>
 <tr>
@@ -1167,16 +1073,12 @@ while ($row = mysqli_fetch_assoc($result)) {
     echo "</tr>";
 }
 
-    
-
 echo '</tbody></table>';
 
 
 
 
 if (isset($_POST['edit_transfer'])) {
-    
-    // Abfrage für die Transfer-Informationen
     $query = "SELECT t.uid, t.konto, t.kasse, t.betrag, t.tstamp, t.beschreibung, t.changelog, t.pfad FROM transfers t WHERE id = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $_POST['transfer_id']);
@@ -1194,7 +1096,6 @@ if (isset($_POST['edit_transfer'])) {
     $stmt->fetch();
     $stmt->close();
 
-    // Arrays für Konto und Kasse
     $konto_options = [
         0 => "Kaution",
         1 => "Netzbeitrag",
@@ -1222,10 +1123,8 @@ if (isset($_POST['edit_transfer'])) {
         4 => "Netzkonto (alt)",
     ];
 
-    // Deutsche Zeitformatierung (Timestamp in Unixtime)
     $formatted_date = date("d.m.Y", (int)$selected_transfer_tstamp);
 
-    // Start des Formulars und der Overlay-Box
     echo ('<div class="overlay"></div>
     <div class="anmeldung-form-container form-container">
       <form method="post">
@@ -1233,10 +1132,8 @@ if (isset($_POST['edit_transfer'])) {
       </form>
     <br>');
 
-
     echo '<div style="text-align: center;">';
 
-    // Wenn die Felder editierbar sind, erstelle ein Formular, sonst nur Anzeige
     if ($admin) {
       echo '<form method="post" enctype="multipart/form-data">';
       echo '<input type="hidden" name="transfer_id" value="'.$_POST['transfer_id'].'">';
@@ -1257,8 +1154,6 @@ if (isset($_POST['edit_transfer'])) {
     echo '</div>';
     echo '<br><br>';
     
-
-    // Benutzerinformationen oder Auswahl anzeigen
     if (!$admin) {
         $query_user = "SELECT name, room, turm FROM users WHERE uid = ?";
         $stmt_user = $conn->prepare($query_user);
@@ -1268,21 +1163,17 @@ if (isset($_POST['edit_transfer'])) {
         $stmt_user->fetch();
         $stmt_user->close();
 
-        // Formatierung der Turm-Anzeige
         $formatted_turm = ($selected_user_turm == 'tvk') ? 'TvK' : strtoupper($selected_user_turm);
 
-        // Benutzerinformationen anzeigen
         echo '<label for="user_info" style="color:lightgrey;">Benutzerinformationen:</label><br>';
         echo '<p style="color:white !important;">' . htmlspecialchars($selected_user_name) . ' [' . $formatted_turm . ' ' . htmlspecialchars($selected_user_room) . ']</p><br>';
     } else {
-        // Wenn die Felder editierbar sind, Dropdown für Benutzer anzeigen
         echo '<label for="selected_user" style="color:lightgrey;">Benutzer auswählen:</label><br>';
         echo '<select name="selected_user" id="selected_user" style="margin-top: 10px; padding: 5px; text-align: center; text-align-last: center; display: block; margin-left: auto; margin-right: auto;">
                 <option value="" disabled selected>Wähle einen Benutzer</option>';
         echo '<option value="472" ' . (472 == $selected_transfer_uid ? 'selected' : '') . '>NetzAG-Dummy</option>';
         echo '<option value="492" ' . (492 == $selected_transfer_uid ? 'selected' : '') . '>Vorstand-Dummy</option>';
         
-        // Abfrage, um alle Benutzer zu laden
         $sql = "SELECT uid, name, room, turm 
                 FROM users 
                 ORDER BY pid, FIELD(turm, 'weh', 'tvk'), room";
@@ -1291,22 +1182,18 @@ if (isset($_POST['edit_transfer'])) {
         mysqli_stmt_execute($stmt);
         mysqli_stmt_bind_result($stmt, $uid, $name, $room, $turm);
         
-        // Benutzer in das Dropdown-Menü einfügen
         while (mysqli_stmt_fetch($stmt)) {
             $formatted_turm = ($turm == 'tvk') ? 'TvK' : strtoupper($turm);
             echo '<option value="' . $uid . '" ' . ($uid == $selected_transfer_uid ? 'selected' : '') . '>' . $name . ' [' . $formatted_turm . ' ' . $room . ']</option>';
         }
         
         echo '</select><br><br>';
-        
     }
 
     echo '<br>';
 
-    // Beschreibung (editierbar oder nicht)
     echo '<label style="color:lightgrey;">Beschreibung:</label><br>';
     if (!$admin) {
-        // Prüfen, ob die Beschreibung vorhanden ist, um die Deprecated-Fehlermeldung zu vermeiden
         echo '<p style="color:white !important;">'.(!is_null($selected_transfer_beschreibung) ? htmlspecialchars($selected_transfer_beschreibung) : '').'</p><br>';
     } else {
         echo '<input type="text" name="beschreibung" value="'.(!is_null($selected_transfer_beschreibung) ? htmlspecialchars($selected_transfer_beschreibung) : '').'" style="text-align: center; width: 80%;"><br><br>';
@@ -1314,42 +1201,38 @@ if (isset($_POST['edit_transfer'])) {
 
     echo '<br>';
 
+    echo '<div style="display: flex; gap: 20px; justify-content: space-between; align-items: flex-start;">';
 
-    echo '<div style="display: flex; gap: 20px; justify-content: space-between; align-items: flex-start;">'; // Flexbox-Container
-
-    // Konto anzeigen (Integer -> Text)
-    echo '<div style="flex: 1; max-width: 100%;">'; // Flex-Item für Konto
+    echo '<div style="flex: 1; max-width: 100%;">';
     echo '<label style="color:lightgrey;">Konto:</label><br>';
     $konto_display = isset($konto_options[$selected_transfer_konto]) ? $konto_options[$selected_transfer_konto] : "Undefiniertes Konto";
     if (!$admin) {
         echo '<p style="color:white !important;">'.$konto_display.'</p><br>';
     } else {
-        echo '<select name="konto_update" style="text-align: center; width: 100%;">'; // Volle Breite
+        echo '<select name="konto_update" style="text-align: center; width: 100%;">';
         foreach ($konto_options as $key => $value) {
             echo '<option value="'.$key.'" '.($key == $selected_transfer_konto ? 'selected' : '').'>'.$value.'</option>';
         }
         echo '</select><br><br>';
     }
-    echo '</div>'; // Ende von Konto Flex-Item
+    echo '</div>';
     
-    // Kasse anzeigen (Integer -> Text)
-    echo '<div style="flex: 1; max-width: 100%;">'; // Flex-Item für Kasse
+    echo '<div style="flex: 1; max-width: 100%;">';
     echo '<label style="color:lightgrey;">Kasse:</label><br>';
     $kasse_display = isset($kasse_options[$selected_transfer_kasse]) ? $kasse_options[$selected_transfer_kasse] : "Undefinierte Kasse";
     if (!$admin) {
         echo '<p style="color:white !important;">'.$kasse_display.'</p><br>';
     } else {
-        echo '<select name="kasse" style="text-align: center; width: 100%;">'; // Volle Breite
+        echo '<select name="kasse" style="text-align: center; width: 100%;">';
         foreach ($kasse_options as $key => $value) {
             echo '<option value="'.$key.'" '.($key == $selected_transfer_kasse ? 'selected' : '').'>'.$value.'</option>';
         }
         echo '</select><br><br>';
     }
-    echo '</div>'; // Ende von Kasse Flex-Item
+    echo '</div>';
     
-    echo '</div>'; // Ende Flexbox-Container
+    echo '</div>';
     
-
     $date_value = date('Y-m-d', (int)$selected_transfer_tstamp);
     $time_value = date('H:i:s', (int)$selected_transfer_tstamp);
 
@@ -1367,10 +1250,8 @@ if (isset($_POST['edit_transfer'])) {
         echo '</div><br><br>';
     }
     
-
     echo '<br>';
 
-    // Betrag anzeigen
     echo '<label style="color:lightgrey;">Betrag:</label><br>';
     if (!$admin) {
       echo '<p style="color:white !important;">'.number_format($selected_transfer_betrag, 2, ",", ".").' €</p><br>';
@@ -1387,46 +1268,31 @@ if (isset($_POST['edit_transfer'])) {
         echo '<label style="color:lightgrey;">Rechnung</label><br>';
     }
         
-
     if ($admin) {
-        // Upload-Feld für neue Rechnung
         echo '<input type="file" name="rechnung_upload" accept=".pdf,.jpg,.jpeg,.png,.gif" style="margin-top: 8px; color: white;"><br><br>';
     }
         
-
-
-    // Changelog anzeigen (nicht editierbar) in einem optisch ansprechenden Feld
     if ($admin) {
       echo '<br>';
       echo '<label style="color:lightgrey;">Changelog:</label><br><br>';
       
-      // Innerer Container im Konsolenstil mit monospace-Schrift
       echo '<div style="background-color: darkblue; color: white; font-family: monospace; padding: 10px; display: inline-block; text-align: center; width: calc(100% - 30px); max-height: 200px; overflow-y: auto; box-sizing: border-box;">'; 
       
-      // Changelog ohne zusätzliche Zeilenumbrüche
       echo '<p style="margin: 0; line-height: 1.4; font-size: 14px; white-space: pre-wrap;">'.(!is_null($selected_transfer_changelog) ? htmlspecialchars($selected_transfer_changelog) : 'Kein Changelog verfügbar').'</p>';
       
-      echo '</div>'; // Innerer Container Ende
+      echo '</div>';
       echo '<br>';
     }
   
-  
-  
-
-
-    // Falls editierbar, Speicher-Button anzeigen und alle Eingaben an POST übergeben
     if ($admin) {
         echo '<div style="display: flex; justify-content: center; margin-top: 20px;">';
         echo '<button type="submit" name="save_transfer_id" class="sml-center-btn" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px;">Speichern</button>';
-        echo '</form>'; // Hier endet das Hauptformular
+        echo '</form>';
         echo '</div>';
     }
 
     echo '</div>';
-
 }
-
-
 
 ?>
 <script>
@@ -1449,7 +1315,6 @@ function sortTable(colIndex, headerEl) {
 
     for (const row of rows) table.tBodies[0].appendChild(row);
 
-    // Pfeile anzeigen
     const headers = table.tHead.rows[0].cells;
     for (let i = 0; i < headers.length; i++) {
         headers[i].innerText = headers[i].innerText.replace(/[\u25B2\u25BC]/g, '');
@@ -1465,7 +1330,7 @@ function submitEditTransfer(row) {
     const editFlag = document.createElement('input');
     editFlag.type = 'hidden';
     editFlag.name = 'edit_transfer';
-    editFlag.value = '1'; // bool-like
+    editFlag.value = '1';
 
     const transferId = document.createElement('input');
     transferId.type = 'hidden';
@@ -1540,14 +1405,13 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
 
     if (!uid || !betrag) {
         alert("Bitte Nutzer auswählen und gültigen Betrag eingeben.");
-        e.preventDefault(); // Verhindert das Absenden
+        e.preventDefault();
     }
 });
 
 </script>
 
 <script>
-// CSV-Status oben im Banner anzeigen (bleibt stehen; kein Klick zum Entfernen, kein Auto-Reload)
 (() => {
   const banner = document.getElementById('csv_status_banner');
   const input  = document.getElementById('sparkasse_csv');
@@ -1590,7 +1454,6 @@ document.getElementById('transfer-form').addEventListener('submit', function(e) 
             if (el) el.textContent = `${data.balance.fmt} €`;
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        // KEIN Reload, KEIN Wegklicken – bleibt stehen bis man die Seite neu lädt
       } else {
         banner.textContent = 'Import-Fehler:\n' + (data?.error || raw.trim() || 'Unbekannter Fehler');
         window.scrollTo({ top: 0, behavior: 'smooth' });
