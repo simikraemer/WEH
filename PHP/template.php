@@ -230,7 +230,7 @@ function load_menu() {
         }
     }
     
-    $rangestring = 'Unknown [' . htmlspecialchars($userIP) . ']';
+    $rangestring = '' . htmlspecialchars($userIP) . '';
 
     // if-Baum
     if ($inEduroam) {
@@ -436,10 +436,18 @@ function load_menu() {
 
         
         $_SESSION["aktiv"] = false;
-        foreach ($ag_complete as $num => $data) {
-            $agName = $data['session'];
-            if ($_SESSION[$agName]) {
+
+        $skipAktivIds = [24, 27];
+        foreach ($ag_complete as $id => $data) {
+            if (in_array((int)$id, $skipAktivIds, true)) {
+                continue;
+            }
+
+            $agName = $data['session'] ?? '';
+
+            if ($agName !== '' && !empty($_SESSION[$agName])) {
                 $_SESSION["aktiv"] = true;
+                break;
             }
         }
 
@@ -455,12 +463,12 @@ function load_menu() {
             echo '</div>';
             echo '</div>';
         }
-        if ($_SESSION['Hausmeister']) {
-            echo '<span class="vertical-line"></span>';    
-            echo '<div class="header-menu">';
-            echo '<button class="center-btn" onclick="window.location.href=\'/Schluessel.php\';">Schlüsselverwaltung</button>'; 
-            echo '</div>';
-        }
+        #if ($_SESSION['Hausmeister']) {
+        #    echo '<span class="vertical-line"></span>';    
+        #    echo '<div class="header-menu">';
+        #    echo '<button class="center-btn" onclick="window.location.href=\'/Schluessel.php\';">Schlüsselverwaltung</button>'; 
+        #    echo '</div>';
+        #}
 
         if (!$_SESSION["aktiv"] && $_SESSION["etagensprecher"] > 0 && $_SESSION["turm"] == 'weh' ) {
             echo '<div class="header-menu">';
