@@ -6,6 +6,13 @@
   use Cron\CronExpression;
 
   $suche = FALSE;
+  $pskabgleich_autorun = false;
+  $pskabgleich_autorun_message = '';
+  $suppress_auto_reload = false;
+  $psk_confirmation_done = false;
+  $psk_mail_status_message = '';
+  $psk_mail_status_color = 'green';
+  
   
   if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['search'])) {
     $searchTerm = trim($_GET['search']);
@@ -426,19 +433,31 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         }
 
       } elseif($_POST["decision"] == "psk") {
+        $psk_confirmation_done = true;
+        $suppress_auto_reload = true;
+        $psk_id = intval($_POST["id"]);
+
         $sql = "UPDATE pskonly SET status = 1 WHERE id = ?";
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+        mysqli_stmt_bind_param($stmt, "i", $psk_id);
         mysqli_stmt_execute($stmt);
         $stmt->close(); 
         
         $sql = "SELECT users.username, users.firstname, pskonly.mac, users.subnet, pskonly.beschreibung, users.uid, users.turm FROM users JOIN pskonly ON users.uid = pskonly.uid WHERE pskonly.id = ?";
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "i", $_POST["id"]);
+        mysqli_stmt_bind_param($stmt, "i", $psk_id);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_bind_result($stmt, $username, $firstname, $mac, $subnet, $beschreibung, $uid, $pskturm);
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
+
+        if ($pskturm === "weh") {
+          $pskabgleich_autorun = true;
+          $pskabgleich_autorun_message = "PSK-Anfrage bestätigt. pskabgleich.py wird automatisch über run_script.php gestartet.";
+        } elseif ($pskturm === "tvk") {
+          $pskabgleich_autorun = false;
+          $pskabgleich_autorun_message = "PSK-Anfrage bestätigt. TvK hat aktuell kein MAC-Filtering; kein WLC-Abgleich nötig.";
+        }
 
         $sql = "SELECT mac1, mac2, mac3 FROM macauth WHERE mac1 = ? OR mac2 = ? OR mac3 = ?";
         $stmt = mysqli_prepare($conn, $sql);
@@ -506,13 +525,11 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         $headers .= "Reply-To: netag@weh.rwth-aachen.de\r\n";
         
         if (mail($to, $subject, $message, $headers)) {
-            echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
-                    <span style='color: green; font-size: 20px;'>Mail erfolgreich versendet.</span>
-                  </div>";
+            $psk_mail_status_message = "Mail erfolgreich versendet.";
+            $psk_mail_status_color = "green";
         } else {
-            echo "<div style='display: flex; justify-content: center; align-items: center; height: 100vh;'>
-                    <span style='color: red; font-size: 20px;'>Fehler beim Versenden der Mail.</span>
-                  </div>";
+            $psk_mail_status_message = "Fehler beim Versenden der Mail.";
+            $psk_mail_status_color = "red";
         }
 
       } elseif($_POST["decision"] == "pskdeclined") {
@@ -523,15 +540,33 @@ if (auth($conn) && $_SESSION["NetzAG"]) {
         $stmt->close(); 
       }
     }
-    echo '<div style="text-align: center;">
-    <span style="color: green; font-size: 20px;">Erfolgreich durchgeführt.</span><br><br>
-    </div>';
-    echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
-    echo "<script>
-      setTimeout(function() {
-        document.forms['reload'].submit();
-      }, 500);
-    </script>";
+    $action_done_message = $psk_confirmation_done ? "Wurde geaddet." : "Erfolgreich durchgeführt.";
+
+    echo '<div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+    <span style="color: green; font-size: 24px; font-weight: bold;">' . htmlspecialchars($action_done_message, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '</span>';
+
+    if ($psk_mail_status_message !== '') {
+      echo '<br><span style="color: ' . htmlspecialchars($psk_mail_status_color, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '; font-size: 18px;">' . htmlspecialchars($psk_mail_status_message, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '</span>';
+    }
+
+    if ($pskabgleich_autorun_message !== '') {
+      echo '<br><span style="color: white; font-size: 16px;">' . htmlspecialchars($pskabgleich_autorun_message, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '</span>';
+    }
+
+    echo '<br><br></div>';
+
+    if (!$suppress_auto_reload) {
+      echo "<style>html, body { height: 100%; margin: 0; padding: 0; cursor: wait; }</style>";
+      echo "<script>
+        setTimeout(function() {
+          if (document.forms['reload']) {
+            document.forms['reload'].submit();
+          }
+        }, 500);
+      </script>";
+    } else {
+      echo "<style>html, body { min-height: 100%; margin: 0; padding: 0; cursor: default; }</style>";
+    }
 
   }
 
@@ -884,10 +919,11 @@ function getSimulatedCronTimes($expression) {
 
   // Haupt-Cronjobs
   $cronjobs = [
-    'anmeldung'   => 'anmeldung.sh',
-    'entsperren'  => 'payment_entsperren.py',
-    'cleanup'     => 'user_cleanup.py',
-    'abmeldung'   => 'abmeldung.py',
+    'anmeldung'    => 'anmeldung.sh',
+    'entsperren'   => 'payment_entsperren.py',
+    'cleanup'      => 'user_cleanup.py',
+    'abmeldung'    => 'abmeldung.py',
+    'pskabgleich'  => 'pskabgleich.py',
   ];
 
   foreach ($cronjobs as $key => $script) {
@@ -903,7 +939,7 @@ function getSimulatedCronTimes($expression) {
     }
   }
 
-  // ➕ Simulierte externe Cronjobs (z. B. Remote DHCP-Skripte)
+  // ➕ Simulierte externe Cronjobs (z. B. Remote DHCP-Skripte)
   $simulatedCronjobs = [
     'wehdhcp' => [
         'label' => 'WEH DHCP',
@@ -947,7 +983,7 @@ function getSimulatedCronTimes($expression) {
 
 
 <div id="script-output"
-     style="margin: 30px auto 0 auto; background-color: black; color: white; font-family: monospace; text-align: left; overflow-y: auto; min-width: 600px; max-width: 80%;">
+     style="margin: 30px auto 0 auto; background-color: black; color: white; font-family: monospace; text-align: left; overflow-y: auto; min-width: 600px; max-width: 80%; min-height: 0px;">
   <!-- JS wird Inhalt hier einfügen -->
 </div>
 
@@ -976,10 +1012,8 @@ function formatTime(seconds) {
     return parts.join(" ");
 }
 
-
 function initializeCountdowns() {
     document.querySelectorAll('.cronjob-container').forEach(container => {
-        const now = Date.now();
         const prevRun = new Date(container.getAttribute("data-prev-run")).getTime();
         const nextRun = new Date(container.getAttribute("data-next-run")).getTime();
 
@@ -1017,7 +1051,6 @@ function updateCountdowns() {
             prevRun = prevRun + cyclesPassed * total;
             nextRun = prevRun + total;
 
-            // Update Werte inkl. totalDuration
             container._prevRun = prevRun;
             container._nextRun = nextRun;
             container._totalDuration = nextRun - prevRun;
@@ -1026,16 +1059,169 @@ function updateCountdowns() {
 
         if (total <= 0) return;
 
-        // Countdown-Anzeige
         const remaining = nextRun - now;
         let secondsLeft = Math.floor(remaining / 1000);
         if (secondsLeft < 0) secondsLeft = 0;
         countdownElem.textContent = formatTime(secondsLeft);
 
-        // ✅ Verfärbung basierend auf verbleibender Zeit
-        const factor = Math.min(1, Math.max(0, 1 - (remaining / total)));
-        //const newColor = interpolateColor("rgb(0,0,0)", "rgb(32,99,30)", factor);
-        //container.style.backgroundColor = newColor;
+        // const factor = Math.min(1, Math.max(0, 1 - (remaining / total)));
+        // const newColor = interpolateColor("rgb(0,0,0)", "rgb(32,99,30)", factor);
+        // container.style.backgroundColor = newColor;
+    });
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+}
+
+function nl2br(value) {
+    return escapeHtml(value).replace(/\n/g, "<br>");
+}
+
+function looksLikeFailureOutput(output) {
+    const text = String(output || "");
+
+    return (
+      /(^|[^a-z])(fehler|error|exception|traceback|permission denied|no such file|command not found|failed|fatal)([^a-z]|$)/i.test(text) ||
+      /exit\s*(code|status)?\s*[:=]?\s*[1-9]\d*/i.test(text) ||
+      /return\s*(code|status)?\s*[:=]?\s*[1-9]\d*/i.test(text)
+    );
+}
+
+function buildScriptDebugBlock(meta) {
+    return [
+      "Debug:",
+      "Script-Key: " + meta.key,
+      "URL: " + meta.url,
+      "Methode: POST",
+      "HTTP-Status: " + meta.status,
+      "OK: " + (meta.ok ? "true" : "false"),
+      "Dauer: " + meta.durationMs + " ms",
+      "Reload nach Erfolg: " + (meta.reloadAfterDone ? "ja" : "nein"),
+      "Response:",
+      meta.responseText || "[leer]"
+    ].join("\n");
+}
+
+function addScriptOutput(label, html, isError) {
+    const outputBox = document.querySelector("#script-output");
+    if (!outputBox) return;
+
+    const timestamp = new Date().toLocaleTimeString();
+    const borderColor = isError ? "#b00020" : "#20631e";
+    const titleColor = isError ? "#ff8080" : "#9eff9a";
+
+    const log = `
+      <div style="border-left: 5px solid ${borderColor}; padding: 8px 12px; margin-bottom: 8px; background: #111;">
+        <div>[${timestamp}] <b style="color:${titleColor};">${escapeHtml(label)}</b></div>
+        <div style="margin-top: 6px;">${html}</div>
+      </div><br>`;
+
+    outputBox.innerHTML = log + outputBox.innerHTML;
+}
+
+function runDashboardScript(key, label, countdownElem, container, reloadAfterDone) {
+    const startedAt = Date.now();
+    const scriptUrl = "run_script.php";
+    const displayLabel = label || key;
+
+    if (countdownElem) {
+      countdownElem.textContent = "Running...";
+    }
+    if (container) {
+      container._manualOverrideUntil = Infinity;
+    }
+
+    addScriptOutput(displayLabel, "gestartet...", false);
+
+    return fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "script=" + encodeURIComponent(key),
+      cache: "no-store",
+      credentials: "same-origin"
+    })
+    .then(response => {
+      return response.text().then(data => {
+        const meta = {
+          key: key,
+          url: scriptUrl,
+          status: response.status + " " + response.statusText,
+          ok: response.ok,
+          durationMs: Date.now() - startedAt,
+          reloadAfterDone: reloadAfterDone,
+          responseText: data
+        };
+
+        if (!response.ok) {
+          const err = new Error("run_script.php lieferte HTTP " + response.status + " " + response.statusText);
+          err.debugBlock = buildScriptDebugBlock(meta);
+          throw err;
+        }
+
+        if (looksLikeFailureOutput(data)) {
+          const err = new Error("run_script.php lieferte eine Fehlerausgabe, obwohl der HTTP-Status OK war.");
+          err.debugBlock = buildScriptDebugBlock(meta);
+          throw err;
+        }
+
+        return { data, meta };
+      });
+    })
+    .then(result => {
+      if (countdownElem) {
+        countdownElem.textContent = "Done";
+      }
+      if (container) {
+        container._manualOverrideUntil = Date.now() + 2000;
+
+        setTimeout(() => {
+          container._manualOverrideUntil = 0;
+        }, 2100);
+      }
+
+      const successOutput = buildScriptDebugBlock(result.meta);
+      addScriptOutput(displayLabel, nl2br(successOutput), false);
+
+      if (reloadAfterDone && document.forms['reload']) {
+        setTimeout(function() {
+          document.forms['reload'].submit();
+        }, 1500);
+      }
+
+      return result.data;
+    })
+    .catch(err => {
+      if (countdownElem) {
+        countdownElem.textContent = "Fehler";
+      }
+      if (container) {
+        container.style.backgroundColor = "rgb(100,0,0)";
+        container._manualOverrideUntil = Infinity;
+      }
+
+      const debugBlock = err.debugBlock || [
+        "Debug:",
+        "Script-Key: " + key,
+        "URL: " + scriptUrl,
+        "Methode: POST",
+        "Fehler: " + (err && err.message ? err.message : String(err)),
+        "Hinweis: Browser-Konsole und PHP-/Webserver-Logs prüfen, falls hier keine Response steht."
+      ].join("\n");
+
+      addScriptOutput(
+        displayLabel,
+        `<span style="color:#ff8080; font-weight:bold;">❌ Skript fehlgeschlagen: ${escapeHtml(err.message || err)}</span><br><br><pre style="white-space: pre-wrap; margin:0; color:#ffb3b3;">${escapeHtml(debugBlock)}</pre>`,
+        true
+      );
+
+      // Absichtlich kein Reload im Fehlerfall, damit Debug sichtbar bleibt.
+      throw err;
     });
 }
 
@@ -1043,63 +1229,55 @@ document.querySelectorAll('.cronjob-container').forEach(container => {
   container.addEventListener('click', () => {
     const key = container.id.replace("cron_", "");
     const countdownElem = container.querySelector(".countdown");
-    const outputBox = document.querySelector("#script-output");
-
-    countdownElem.textContent = "Running...";
-    //container.style.backgroundColor = "rgb(32,99,30)";
-    container._manualOverrideUntil = Infinity;
-
-    fetch("run_script.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "script=" + encodeURIComponent(key)
-    })
-    .then(response => response.text())
-    .then(data => {
-      countdownElem.textContent = "Done";
-      //container.style.backgroundColor = "rgb(32,99,30)";
-      container._manualOverrideUntil = Date.now() + 2000;
-
-      setTimeout(() => {
-        container._manualOverrideUntil = 0;
-      }, 2100);
-
-      if (outputBox) {
-        const timestamp = new Date().toLocaleTimeString();
-        const escaped = data
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\n/g, "<br>");
-        const log = `<div>[${timestamp}] <b>${key}</b>:<br>${escaped}</div><br>`;
-        outputBox.innerHTML = log + outputBox.innerHTML;
-      }
-    })
-    .catch(err => {
-      countdownElem.textContent = "Fehler";
-      container.style.backgroundColor = "rgb(100,0,0)";
-      container._manualOverrideUntil = Date.now() + 3000;
-
-      setTimeout(() => {
-        container._manualOverrideUntil = 0;
-      }, 3100);
-
-      if (outputBox) {
-        const timestamp = new Date().toLocaleTimeString();
-        const log = `<div>[${timestamp}] <b>${key}</b>:<br><span style="color:red;">❌ Fehler: ${err.message}</span></div><br>`;
-        outputBox.innerHTML = log + outputBox.innerHTML;
-      }
-    });
+    const labelElem = container.querySelector("strong");
+    const label = labelElem ? labelElem.textContent : key;
+    runDashboardScript(key, label, countdownElem, container, false)
+      .catch(function() {
+        // Fehler wurde bereits sichtbar in #script-output ausgegeben.
+      });
   });
 });
-
-
-
-
 
 initializeCountdowns();
 setInterval(updateCountdowns, 1000);
 updateCountdowns();
+
+const pskabgleichAutorun = <?php echo $pskabgleich_autorun ? 'true' : 'false'; ?>;
+const pskabgleichAutorunMessage = <?php echo json_encode($pskabgleich_autorun_message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+
+if (pskabgleichAutorun) {
+  const pskContainer = document.querySelector("#cron_pskabgleich");
+  const pskCountdownElem = pskContainer ? pskContainer.querySelector(".countdown") : null;
+
+  if (pskabgleichAutorunMessage) {
+    addScriptOutput("PSK", escapeHtml(pskabgleichAutorunMessage), false);
+  }
+
+  runDashboardScript("pskabgleich", "PSK-Abgleich WLC", pskCountdownElem, pskContainer, false)
+    .catch(function() {
+      // Fehler wurde bereits sichtbar in #script-output ausgegeben.
+    });
+}
+
+const manualPskButton = document.querySelector("#manual-pskabgleich-btn");
+if (manualPskButton) {
+  manualPskButton.addEventListener("click", function() {
+    const pskContainer = document.querySelector("#cron_pskabgleich");
+    const pskCountdownElem = pskContainer ? pskContainer.querySelector(".countdown") : null;
+
+    manualPskButton.disabled = true;
+    manualPskButton.textContent = "PSK-Abgleich läuft...";
+
+    runDashboardScript("pskabgleich", "PSK-Abgleich WLC manuell", pskCountdownElem, pskContainer, false)
+      .catch(function() {
+        // Fehler wurde bereits sichtbar in #script-output ausgegeben.
+      })
+      .finally(function() {
+        manualPskButton.disabled = false;
+        manualPskButton.textContent = "PSK-Abgleich manuell ausführen";
+      });
+  });
+}
 </script>
 
 
@@ -1452,90 +1630,100 @@ updateCountdowns();
 
       <?php
     } elseif ($wayoflife == "PSK") { # PSK
-      $id = $_POST["id"];
-      $sql = "SELECT * FROM pskonly WHERE id = ?";
+      $id = intval($_POST["id"]);
+      $sql = "SELECT pskonly.*, users.turm AS pskturm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.id = ? LIMIT 1";
       $stmt = mysqli_prepare($conn, $sql);
       mysqli_stmt_bind_param($stmt, "i", $id);
       mysqli_stmt_execute($stmt);
       $result = get_result($stmt);
       $user = array_shift($result);
       $stmt->close();
-      $pskturm = "error";
-      $interfacename = "error";
-      $sql = "SELECT turm FROM users WHERE uid = ?";
-      $stmt = mysqli_prepare($conn, $sql);
-      mysqli_stmt_bind_param($stmt, "i", $user["uid"]);
-      mysqli_stmt_execute($stmt);
-      mysqli_stmt_bind_result($stmt, $pskturm);
-      mysqli_stmt_fetch($stmt);
-      $stmt->close();
-      if ($pskturm == "weh") {
-        $interfacename = "vlan919";
-        $wlc_url = "http://wlc.wlan.weh.ac/";
-      } elseif ($pskturm == "tvk") {
-        $interfacename = "bewohnernetz";
-        $wlc_url = "http://wlc.tvk.rwth-aachen.de/";
+
+      if (!$user) {
+        echo '<div class="overlay"></div>
+        <div class="anmeldung-form-container form-container">
+            <form method="post">
+                <button type="submit" name="close" value="close" class="close-btn">X</button>
+            </form>
+            <br>
+            <span style="font-size: 22px; color: red; display: block; text-align: center;">
+                PSK-Anfrage nicht gefunden.
+            </span>
+        </div>';
+      } else {
+        $pskturm = $user["pskturm"];
+
+        if ($pskturm == "weh") {
+          $psk_info_text = 'MAC-Filter Regel wird automatisch in WLC eingetragen.';
+          $psk_info_color = '#11a50d';
+        } elseif ($pskturm == "tvk") {
+          $psk_info_text = 'tvk-pskonly hat aktuell kein MAC-filtering.';
+          $psk_info_color = '#E49B0F';
+        } else {
+          $psk_info_text = 'Unbekannter Turm. Anfrage bitte prüfen.';
+          $psk_info_color = 'red';
+        }
+
+        echo '<div class="overlay"></div>
+        <div class="anmeldung-form-container form-container">
+            <form method="post">
+                <button type="submit" name="close" value="close" class="close-btn">X</button>
+            </form>
+            <br>
+            <form method="post" name="formularpsk" id="formularpsk">
+            
+            <br><br>
+            <div style="text-align: center;">
+                <img src="'.htmlspecialchars($user["pfad"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").'" alt="Bild" style="max-width: 400px; max-height: 400px; width: auto; height: auto;">
+            </div>
+
+            <input type="hidden" name="id" value="'.htmlspecialchars($id).'">
+
+            <br><br>
+
+            <span style="font-size: 24px; text-align: center; color: white; display: block; margin: 0 auto;">
+                Anfrage für <strong>'.htmlspecialchars($pskturm, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").'-pskonly</strong>
+            </span>
+
+            <br>
+
+            <span style="font-size: 20px; text-align: center; color: '.$psk_info_color.'; display: block; margin: 0 auto; font-weight: bold;">
+                '.htmlspecialchars($psk_info_text, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8").'
+            </span>
+
+            <br>
+
+            <span style="font-size: 18px; text-align: center; color: white; display: block; margin: 0 auto;">
+                Der User erhält bei Accept automatisch eine Mail mit dem Passwort für das pskonly-Netzwerk.
+            </span>
+
+            <br><br>
+
+            <div class="form-group" style="text-align: center;">           
+                <div style="display: flex; justify-content: center; align-items: center; gap: 35px;">
+                    <label style="display: inline-flex; align-items: center; gap: 6px;">
+                        <input type="radio" name="decision" value="psk">
+                        <span style="color:green; font-weight: bold;">Accept</span>
+                    </label>            
+
+                    <label style="display: inline-flex; align-items: center; gap: 6px;">
+                        <input type="radio" name="decision" value="pskdeclined">
+                        <span style="color:red; font-weight: bold;">Abgelehnt</span>
+                    </label>
+                </div>
+                <input type="hidden" name="reload" value="1">   
+                <br><br>           
+                <span style="font-size: 15px; text-align: center; color: white; display: block; margin: 0 auto;">
+                    Bei Accept erhält der User eine automatisierte Mail mit Credentials und die MAC wird in macauth eingetragen.<br>
+                    Bei WEH wird der WLC-Abgleich automatisch über run_script.php gestartet.<br>
+                    Bei TvK wird kein WLC-Abgleich gestartet, da tvk-pskonly aktuell kein MAC-Filtering hat.<br>
+                    Bei Decline wird NUR der Status der Anfrage geändert.
+                </span><br><br>
+                <input type="submit" value="Hau raus!" class="form-submit">
+            </div>
+            </form>
+        </div>';
       }
-      $profileName = $pskturm . '-pskonly';
-      
-      echo '<div class="overlay"></div>
-      <div class="anmeldung-form-container form-container">
-          <form method="post">
-              <button type="submit" name="close" value="close" class="close-btn">X</button>
-          </form>
-          <br>
-          <form method="post" name="formularpsk" id="formularpsk">
-          
-          <br><br>
-          <div style="text-align: center;">
-              <img src="'.$user["pfad"].'" alt="Bild" style="max-width: 400px; max-height: 400px; width: auto; height: auto;">
-          </div>
-      
-          <br><a href="' . $wlc_url . '" target="_blank" class="white-text" style="font-size: 30px; text-align: center; display: block; margin: 0 auto;">Zum WLC</a>              
-          <br><br>
-          <span style="font-size: 20px; text-align: center; color: white; display: block; margin: 0 auto;">Was ihr im WLC unter Security->MAC Filtering->New eintragen müsst:</span><br>              
-          <input type="hidden" name="id" value="'.htmlspecialchars($id).'">';
-      
-          // Copy-Felder mit Labels und zentrierten Buttons
-          echo '
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px;">
-              <label class="form-label" style="color: white;">MAC Address:</label>
-              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["mac"]) . '\')">' . htmlspecialchars($user["mac"]) . '</button>
-      
-              <label class="form-label" style="color: white;">Profile Name:</label>
-              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . $profileName . '\')">' . $profileName . '</button>
-      
-              <label class="form-label" style="color: white;">Beschreibung:</label>
-              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . htmlspecialchars($user["beschreibung"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '\')">' . htmlspecialchars($user["beschreibung"], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8") . '</button>
-      
-              <label class="form-label" style="color: white;">IP Address:</label>
-              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'\')"> </button>
-      
-              <label class="form-label" style="color: white;">Interface Name:</label>
-              <button type="button" class="copy-btn" onclick="copyToClipboard(this, \'' . $interfacename . '\')">' . $interfacename . '</button>
-          </div>';
-      
-          // Restliches Formular
-          echo '<br><br>
-          <div class="form-group">           
-              <label>
-              <input type="radio" name="decision" value="psk">
-              <span style="color:green; font-weight: bold;">Daten wurden im WLC eingetragen</span>
-              </label>            
-              <label>
-              <input type="radio" name="decision" value="pskdeclined">
-              <span style="color:red; font-weight: bold;">Abgelehnt</span>
-              </label>
-              <input type="hidden" name="reload" value="1">   
-              <br><br>           
-              <span style="font-size: 15px; text-align: center; color: white; display: block; margin: 0 auto;">
-                  Bei Accept erhält der User eine automatisierte Mail mit Credentials und die MAC wird in macauth eingetragen.<br>
-                  Bei Decline wird NUR der Status der Anfrage geändert.
-              </span><br><br>
-              <input type="submit" value="Hau raus!" class="form-submit">
-          </div>
-          </form>
-      </div>';
       
     } elseif ($wayoflife == "Abmeldung") { # Abmeldung
       
