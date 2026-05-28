@@ -80,12 +80,13 @@ function d2_script_catalog(): array
             'description' => 'Entsperrt User nach Zahlungseingang, sofern die Kriterien erfüllt sind.',
             'kind' => 'system',
         ],
-        'cleanup' => [
-            'key' => 'cleanup',
-            'label' => 'User-Cleanup',
-            'needle' => 'user_cleanup.py',
-            'description' => 'Räumt abgelaufene Zustände und User-bezogene Altlasten auf.',
-            'kind' => 'system',
+        'wehdhcp' => [
+            'key' => 'wehdhcp',
+            'label' => 'WEH DHCP',
+            'needle' => 'wehdhcp',
+            'description' => 'DHCP-Abgleich für WEH. Cronzeit ist simuliert, falls der Job remote läuft.',
+            'kind' => 'simulated',
+            'expression' => '*/5 * * * *',
         ],
         'abmeldung' => [
             'key' => 'abmeldung',
@@ -102,13 +103,12 @@ function d2_script_catalog(): array
             'kind' => 'system',
             'hidden' => true,
         ],
-        'wehdhcp' => [
-            'key' => 'wehdhcp',
-            'label' => 'WEH DHCP',
-            'needle' => 'wehdhcp',
-            'description' => 'DHCP-Abgleich für WEH. Cronzeit ist simuliert, falls der Job remote läuft.',
-            'kind' => 'simulated',
-            'expression' => '*/5 * * * *',
+        'cleanup' => [
+            'key' => 'cleanup',
+            'label' => 'User-Cleanup',
+            'needle' => 'user_cleanup.py',
+            'description' => 'Räumt abgelaufene Zustände und User-bezogene Altlasten auf.',
+            'kind' => 'system',
         ],
         'tvkdhcp' => [
             'key' => 'tvkdhcp',
@@ -651,7 +651,7 @@ function d2_modal_transfer(mysqli $conn, int $id): string
 
 function d2_modal_psk(mysqli $conn, int $id): string
 {
-    $stmt = mysqli_prepare($conn, "SELECT pskonly.*, users.turm AS pskturm FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.id = ? LIMIT 1");
+    $stmt = mysqli_prepare($conn, "SELECT pskonly.*, users.turm AS pskturm, users.room, users.username, users.name FROM pskonly JOIN users ON pskonly.uid = users.uid WHERE pskonly.id = ? LIMIT 1");
     mysqli_stmt_bind_param($stmt, 'i', $id);
     mysqli_stmt_execute($stmt);
     $result = d2_stmt_rows($stmt);
@@ -673,6 +673,11 @@ function d2_modal_psk(mysqli $conn, int $id): string
         $psk_info_text = 'Unbekannter Turm. Anfrage bitte prüfen.';
         $psk_info_class = 'd2-red';
     }
+    $psk_description = trim((string)($user['beschreibung'] ?? ''));
+    $psk_mac = trim((string)($user['mac'] ?? ''));
+    $psk_room = trim((string)($user['room'] ?? ''));
+    $psk_username = trim((string)($user['username'] ?? ''));
+    $psk_name = trim((string)($user['name'] ?? ''));
 
     ob_start();
     ?>
@@ -680,8 +685,28 @@ function d2_modal_psk(mysqli $conn, int $id): string
         <input type="hidden" name="id" value="<?= d2_h($id) ?>">
         <input type="hidden" name="reload" value="1">
 
-        <div class="d2-image-preview">
-            <img src="<?= d2_h($user['pfad']) ?>" alt="PSK-Bild">
+        <div class="d2-psk-overview">
+            <div class="d2-image-preview">
+                <img src="<?= d2_h($user['pfad']) ?>" alt="PSK-Bild">
+            </div>
+            <div class="d2-info-grid">
+                <div class="d2-info-item">
+                    <span>Beschreibung</span>
+                    <strong><?= d2_h($psk_description !== '' ? $psk_description : 'Keine Beschreibung') ?></strong>
+                </div>
+                <div class="d2-info-item">
+                    <span>MAC-Adresse</span>
+                    <strong><?= d2_h($psk_mac !== '' ? $psk_mac : 'Keine MAC') ?></strong>
+                </div>
+                <div class="d2-info-item">
+                    <span>Nutzer</span>
+                    <strong><?= d2_h($psk_name !== '' ? $psk_name : ($psk_username !== '' ? $psk_username : 'Unbekannt')) ?></strong>
+                </div>
+                <div class="d2-info-item">
+                    <span>Zimmer / Netz</span>
+                    <strong><?= d2_h(($psk_room !== '' ? $psk_room . ' · ' : '') . $pskturm . '-pskonly') ?></strong>
+                </div>
+            </div>
         </div>
 
         <div class="d2-centered-text">
@@ -1286,9 +1311,6 @@ $initialData = d2_collect_dashboard_data($conn);
         }
         .d2-section {
             min-height: 0;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.055);
-            border: 1px solid rgba(255,255,255,0.12);
             padding: 12px;
             overflow: hidden;
             color: #f2fff2;
@@ -1306,9 +1328,9 @@ $initialData = d2_collect_dashboard_data($conn);
             overflow: hidden;
         }
         .d2-card {
-            border: 0;
+            border: 4px solid #11a50d;
             border-radius: 16px;
-            padding: 14px;
+            padding: 12px;
             min-height: 0;
             height: auto;
             min-height: 92px;
@@ -1317,13 +1339,14 @@ $initialData = d2_collect_dashboard_data($conn);
             flex-direction: column;
             justify-content: center;
             color: #fff;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.24), 0 10px 22px rgba(0,0,0,0.16);
+            background: rgba(255,255,255,0.075);
+            box-shadow: 0 10px 22px rgba(0,0,0,0.16);
             box-sizing: border-box;
             overflow: hidden;
         }
-        .d2-card.d2-state-good { background: #11a50d; }
-        .d2-card.d2-state-bad { background: #c01818; }
-        .d2-card.d2-state-warn { background: #c01818; color: #fff; }
+        .d2-card.d2-state-good { border-color: #11a50d; }
+        .d2-card.d2-state-bad { border-color: #c01818; }
+        .d2-card.d2-state-warn { border-color: #c01818; color: #fff; }
         .d2-card-title {
             font-size: clamp(12px, 0.9vw, 15px);
             letter-spacing: .04em;
@@ -1397,18 +1420,17 @@ $initialData = d2_collect_dashboard_data($conn);
             min-height: 92px;
             max-height: 120px;
             border-radius: 16px;
-            background: #11a50d;
-            border: 1px solid rgba(255,255,255,0.18);
-            padding: 12px;
+            background: rgba(255,255,255,0.075);
+            border: 4px solid #11a50d;
+            padding: 10px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.16);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.16);
             box-sizing: border-box;
         }
         .d2-queue-card.d2-has-items {
-            background: #c01818;
-            border-color: rgba(255,255,255,0.22);
+            border-color: #c01818;
         }
         .d2-queue-head { margin-bottom: 10px; }
         .d2-queue-title { font-weight: 950; font-size: clamp(15px, 1vw, 18px); color: #fff; }
@@ -1445,9 +1467,9 @@ $initialData = d2_collect_dashboard_data($conn);
             height: auto;
             min-height: 0;
             display: grid;
-            grid-template-columns: repeat(6, minmax(96px, 1fr));
+            grid-template-columns: repeat(3, minmax(120px, 1fr));
             grid-auto-rows: auto;
-            gap: 8px;
+            gap: 10px;
             padding-top: 2px;
             box-sizing: border-box;
             align-items: start;
@@ -1456,13 +1478,13 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-script-card {
             width: 100%;
             min-width: 0;
-            min-height: 48px;
+            min-height: 46px;
             height: auto;
-            max-height: 62px;
-            border: 1px solid rgba(255,255,255,0.20);
+            max-height: 56px;
+            border: 2px solid #11a50d;
             border-radius: 14px;
-            padding: 10px 12px;
-            background: #11a50d;
+            padding: 9px 12px;
+            background: linear-gradient(180deg, rgba(27, 38, 29, 0.96), rgba(10, 17, 11, 0.96));
             color: #fff;
             cursor: pointer;
             text-align: center;
@@ -1470,13 +1492,13 @@ $initialData = d2_collect_dashboard_data($conn);
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.24);
             box-sizing: border-box;
             transition: transform .12s ease, filter .12s ease, border-color .12s ease, box-shadow .12s ease;
         }
-        .d2-script-card:hover { border-color: rgba(255,255,255,0.36); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28), 0 10px 20px rgba(0,0,0,0.22); }
+        .d2-script-card:hover { border-color: #3bea37; box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 10px 20px rgba(0,0,0,0.28); }
         .d2-script-card:disabled { opacity: .68; cursor: wait; }
-        .d2-script-card.d2-running { border-color: rgba(255,255,255,0.42); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.28), 0 10px 20px rgba(0,0,0,0.22); }
+        .d2-script-card.d2-running { border-color: #3bea37; box-shadow: inset 0 0 0 2px rgba(17,165,13,0.42), 0 10px 20px rgba(0,0,0,0.28); }
         .d2-script-title { font-size: clamp(14px, 0.92vw, 16px); font-weight: 950; color: #fff; line-height: 1.15; }
         .d2-script-run { display: none; }
         .d2-terminal-wrap {
@@ -1565,8 +1587,14 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-button-row { display: flex; justify-content: center; gap: 12px; margin: 18px 0; }
         .d2-small-btn, .d2-copy-btn { border: 0; border-radius: 14px; padding: 10px 14px; background: rgba(255,255,255,0.92); color: #111; cursor: pointer; font-weight: 900; }
         .d2-search-results { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }
+        .d2-psk-overview { display: grid; grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.1fr); gap: 16px; align-items: stretch; margin: 10px 0 18px; }
         .d2-image-preview { display: flex; justify-content: center; margin: 10px 0 18px; }
+        .d2-psk-overview .d2-image-preview { margin: 0; align-items: center; }
         .d2-image-preview img { max-width: 420px; max-height: 420px; width: auto; height: auto; border-radius: 18px; border: 1px solid rgba(255,255,255,0.16); }
+        .d2-info-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .d2-info-item { border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; background: rgba(255,255,255,0.06); padding: 11px 12px; }
+        .d2-info-item span { display: block; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; }
+        .d2-info-item strong { display: block; color: #fff; font-size: 16px; line-height: 1.25; word-break: break-word; }
         .d2-centered-text { text-align: center; font-size: 18px; line-height: 1.45; }
         .d2-modal-heading { font-size: 28px; font-weight: 900; margin-bottom: 20px; }
         .d2-copy-btn { display: block; width: min(460px, 100%); margin: 9px auto; }
@@ -1574,7 +1602,7 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-modal-error { color: #ff8a8a; font-weight: 900; text-align: center; }
         @media (max-width: 1200px) {
             .d2-layout { grid-template-columns: minmax(650px, 1fr) minmax(410px, 0.8fr); }
-            .d2-script-grid { grid-template-columns: repeat(6, minmax(80px, 1fr)); }
+            .d2-script-grid { grid-template-columns: repeat(3, minmax(110px, 1fr)); }
         }
         @media (max-width: 900px) {
             .d2-page { height: auto; overflow: visible; }
@@ -1582,6 +1610,7 @@ $initialData = d2_collect_dashboard_data($conn);
             .d2-left-shell { height: auto; }
             .d2-terminal-wrap { height: 520px; margin-top: 14px; }
             .d2-metric-grid, .d2-queue-grid, .d2-script-grid, .d2-form-grid { grid-template-columns: 1fr; height: auto; }
+            .d2-psk-overview { grid-template-columns: 1fr; }
         }
     </style>
 </head>
