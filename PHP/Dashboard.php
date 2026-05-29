@@ -342,6 +342,19 @@ function d2_collect_dashboard_data(mysqli $conn): array
                 ];
             }, $anmeldungen),
         ],
+        'Abmeldung' => [
+            'title' => 'Abmeldungen',
+            'type' => 'Abmeldung',
+            'items' => array_map(function ($entry) {
+                $roomNum = ((int)$entry['room'] === 0 && !empty($entry['oldroom'])) ? (string)$entry['oldroom'] : (string)$entry['room'];
+                return [
+                    'id' => (int)$entry['id'],
+                    'label' => str_pad($roomNum, 4, '0', STR_PAD_LEFT),
+                    'sub' => strtolower((string)$entry['turm']) === 'tvk' ? 'TvK' : strtoupper((string)$entry['turm']),
+                    'tower' => (string)$entry['turm'],
+                ];
+            }, $abm),
+        ],
         'UnknownTransfers' => [
             'title' => 'Transfers',
             'type' => 'UnknownTransfers',
@@ -366,26 +379,13 @@ function d2_collect_dashboard_data(mysqli $conn): array
                 ];
             }, $pskonly),
         ],
-        'Abmeldung' => [
-            'title' => 'Abmeldungen',
-            'type' => 'Abmeldung',
-            'items' => array_map(function ($entry) {
-                $roomNum = ((int)$entry['room'] === 0 && !empty($entry['oldroom'])) ? (string)$entry['oldroom'] : (string)$entry['room'];
-                return [
-                    'id' => (int)$entry['id'],
-                    'label' => str_pad($roomNum, 4, '0', STR_PAD_LEFT),
-                    'sub' => strtolower((string)$entry['turm']) === 'tvk' ? 'TvK' : strtoupper((string)$entry['turm']),
-                    'tower' => (string)$entry['turm'],
-                ];
-            }, $abm),
-        ],
     ];
 
     return [
         'generatedAt' => date(DateTime::ATOM, $nowTs),
         'cards' => [
             'certs' => [
-                'title' => 'Zertifikate',
+                'title' => 'Auslaufende Zertifikate',
                 'state' => $certState,
                 'value' => $certValue,
                 'detail' => $certDetail,
@@ -463,10 +463,11 @@ function d2_search_users(mysqli $conn): void
     d2_json($searchedusers);
 }
 
-function d2_modal_shell(string $title, string $body): string
+function d2_modal_shell(string $title, string $body, string $class = ''): string
 {
+    $modalClass = trim('d2-modal ' . $class);
     return '<div class="d2-modal-backdrop" data-d2-close="1"></div>
-        <div class="d2-modal">
+        <div class="' . d2_h($modalClass) . '">
             <div class="d2-modal-head">
                 <div class="d2-modal-title">' . d2_h($title) . '</div>
                 <button type="button" class="d2-modal-close" data-d2-close="1">×</button>
@@ -525,11 +526,42 @@ function d2_modal_registration(mysqli $conn, int $id): string
         }
     }
 
+    $uploadDir = 'anmeldung/';
+    $userId = (int)$user['id'];
+    $documentLabels = [
+        'id' => 'Ausweis',
+        'mv' => 'Mietvertrag',
+        'af' => 'Anmeldung',
+    ];
+    $documents = [];
+    if (is_dir($uploadDir)) {
+        $files = array_diff(scandir($uploadDir), ['.', '..']);
+        foreach ($files as $file) {
+            if (preg_match("/^{$userId}_(id|mv|af)\.(.+)$/", $file, $matches)) {
+                $type = $matches[1];
+                $extension = strtolower($matches[2]);
+                $documents[$type] = [
+                    'label' => $documentLabels[$type],
+                    'path' => $uploadDir . $file,
+                    'extension' => $extension,
+                ];
+            }
+        }
+    }
+    $firstDocument = null;
+    foreach (array_keys($documentLabels) as $type) {
+        if (isset($documents[$type])) {
+            $firstDocument = $type;
+            break;
+        }
+    }
+
     ob_start();
     ?>
-    <form method="post" class="d2-action-form d2-form-wide">
+    <form method="post" class="d2-action-form d2-registration-form">
         <input type="hidden" name="id" value="<?= d2_h($id) ?>">
         <input type="hidden" name="reload" value="1">
+        <input type="hidden" name="username" value="<?= d2_h($user['username']) ?>">
 
         <?php if (!empty($user['sublet'])): ?>
             <div class="d2-alert d2-alert-bad">SUBLET · Ende: <?= d2_h(date('d.m.Y', (int)$user['subletterend'])) ?></div>
@@ -546,58 +578,56 @@ function d2_modal_registration(mysqli $conn, int $id): string
             </div>
         <?php endif; ?>
 
-        <div class="d2-form-grid">
-            <label>Turm<input type="text" value="<?= d2_h($user['turm']) ?>" readonly></label>
-            <label>Name<input type="text" name="firstname" value="<?= d2_h($user['firstname'] . ' ' . $user['lastname']) ?>" readonly></label>
-            <label>Registration Date<input type="text" value="<?= d2_h(date('d.m.Y', (int)$user['starttime'])) ?>" readonly class="<?= ((int)$user['starttime'] > $zeit) ? 'd2-input-bad' : '' ?>"></label>
-            <label>Geburtstag<input type="text" value="<?= d2_h(date('d.m.Y', (int)$user['geburtstag'])) ?>" readonly></label>
-            <label>Herkunftsland<input type="text" value="<?= d2_h($user['geburtsort']) ?>" readonly></label>
-            <label>Telefonnummer<input type="tel" value="<?= d2_h($user['telefon']) ?>" readonly></label>
-            <label>E-Mail<input type="email" value="<?= d2_h($user['email']) ?>" readonly></label>
-            <label>Zimmernummer<input type="text" value="<?= d2_h($user['room']) ?>" readonly></label>
-            <label>Username<input type="text" name="username" value="<?= d2_h($user['username']) ?>" readonly></label>
+        <div class="d2-registration-overview">
+            <div class="d2-registration-docs">
+                <div class="d2-document-tabs">
+                    <?php foreach ($documentLabels as $type => $label): ?>
+                        <button type="button" class="d2-doc-tab<?= $type === $firstDocument ? ' d2-active' : '' ?>" data-d2-doc-tab="<?= d2_h($type) ?>" <?= isset($documents[$type]) ? '' : 'disabled' ?>>
+                            <?= d2_h($label) ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+                <div class="d2-registration-document-stage">
+                    <?php if (!is_dir($uploadDir)): ?>
+                        <p class="d2-modal-error">Das Verzeichnis <?= d2_h($uploadDir) ?> existiert nicht.</p>
+                    <?php elseif (empty($documents)): ?>
+                        <p class="d2-muted">Keine Dateien für User-ID <?= d2_h($userId) ?> gefunden.</p>
+                    <?php else: ?>
+                        <?php foreach ($documents as $type => $document): ?>
+                            <div class="d2-document-frame d2-registration-doc<?= $type === $firstDocument ? ' d2-active' : '' ?>" data-d2-doc-panel="<?= d2_h($type) ?>">
+                                <?php if (in_array($document['extension'], ['jpg', 'jpeg', 'png', 'gif'], true)): ?>
+                                    <img src="<?= d2_h($document['path']) ?>" alt="<?= d2_h($document['label']) ?>">
+                                <?php elseif ($document['extension'] === 'pdf'): ?>
+                                    <embed src="<?= d2_h($document['path']) ?>#zoom=page-width" type="application/pdf">
+                                <?php else: ?>
+                                    <a href="<?= d2_h($document['path']) ?>" target="_blank">Datei öffnen</a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="d2-registration-data">
+                <div class="d2-document-tabs">
+                    <button type="button" class="d2-doc-tab d2-active" disabled>Daten</button>
+                </div>
+                <div class="d2-info-grid d2-registration-info">
+                <div class="d2-info-item"><span>Name</span><strong><?= d2_h($user['firstname'] . ' ' . $user['lastname']) ?></strong></div>
+                <div class="d2-info-item"><span>Einzug</span><strong class="<?= ((int)$user['starttime'] > $zeit) ? 'd2-input-bad' : '' ?>"><?= d2_h(date('d.m.Y', (int)$user['starttime'])) ?></strong></div>
+                <div class="d2-info-item"><span>Turm</span><strong><?= d2_h(formatTurm($user['turm'])) ?></strong></div>
+                <div class="d2-info-item"><span>Zimmer</span><strong><?= d2_h($user['room']) ?></strong></div>
+                <div class="d2-info-item"><span>Herkunftsland</span><strong><?= d2_h($user['geburtsort']) ?></strong></div>
+                <div class="d2-info-item"><span>Geburtstag</span><strong><?= d2_h(date('d.m.Y', (int)$user['geburtstag'])) ?></strong></div>
+                <div class="d2-info-item"><span>Username</span><strong><?= d2_h($user['username']) ?></strong></div>
+                <div class="d2-info-item"><span>E-Mail</span><strong><?= d2_h($user['email']) ?></strong></div>
+                <div class="d2-info-item"><span>Telefon</span><strong><?= d2_h($user['telefon']) ?></strong></div>
+                </div>
+            </div>
         </div>
 
         <?php if ((int)$user['starttime'] > $zeit && $raumbelegt): ?>
-            <div class="d2-alert d2-alert-bad">Einzugsdatum noch nicht erreicht.</div>
+            <div class="d2-alert d2-alert-bad d2-registration-warning">Einzugsdatum noch nicht erreicht.</div>
         <?php endif; ?>
-
-        <div class="d2-documents">
-            <?php
-            $uploadDir = 'anmeldung/';
-            $userId = (int)$user['id'];
-            $foundFiles = false;
-            if (!is_dir($uploadDir)) {
-                echo '<p class="d2-modal-error">Das Verzeichnis ' . d2_h($uploadDir) . ' existiert nicht.</p>';
-            } else {
-                $files = array_diff(scandir($uploadDir), ['.', '..']);
-                foreach ($files as $file) {
-                    if (preg_match("/^{$userId}_(id|mv|af)\.(.+)$/", $file, $matches)) {
-                        $type = $matches[1];
-                        $extension = strtolower($matches[2]);
-                        $filePath = $uploadDir . $file;
-                        echo '<div class="d2-document-frame">';
-                        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'], true)) {
-                            echo '<img src="' . d2_h($filePath) . '" alt="' . d2_h($type) . '">';
-                        } elseif ($extension === 'pdf') {
-                            echo '<embed src="' . d2_h($filePath) . '#zoom=page-width" type="application/pdf">';
-                        } else {
-                            echo '<a href="' . d2_h($filePath) . '" target="_blank">Datei öffnen</a>';
-                        }
-                        echo '</div>';
-                        $foundFiles = true;
-                    }
-                }
-            }
-            if (!$foundFiles) {
-                echo '<p class="d2-muted">Keine Dateien für User-ID ' . d2_h($userId) . ' gefunden.</p>';
-            }
-            ?>
-        </div>
-
-        <label class="d2-full-label">Grund für Ablehnung
-            <input type="text" name="kommentar" placeholder="Nur bei Decline nötig">
-        </label>
 
         <div class="d2-radio-row">
             <label><input type="radio" name="decision" value="accept"> <span class="d2-green">ACCEPT</span></label>
@@ -605,10 +635,20 @@ function d2_modal_registration(mysqli $conn, int $id): string
             <label><input type="radio" name="decision" value="remove"> <span class="d2-warn">REMOVE</span></label>
         </div>
 
-        <button type="submit" class="d2-submit">Submit</button>
+        <label class="d2-full-label d2-decline-reason">Grund für Ablehnung
+            <input type="text" name="kommentar" placeholder="Falsches Dokument / Falscher Raum ..." disabled>
+        </label>
+
+        <div class="d2-hint d2-registration-action-hint">
+            Bei Accept wird der User angelegt und per Mail mit seinen Zugangsdaten informiert.<br>
+            Bei Decline wird der User per Mail über die Ablehnung informiert.<br>
+            Remove ist für doppelte Anmeldungen und löscht die Anmeldung ohne Mail an den User.
+        </div>
+
+        <button type="submit" class="d2-submit">Hau raus!</button>
     </form>
     <?php
-    return d2_modal_shell('Anmeldung prüfen', ob_get_clean());
+    return d2_modal_shell('Anmeldung prüfen', ob_get_clean(), 'd2-registration-modal');
 }
 
 function d2_modal_transfer(mysqli $conn, int $id): string
@@ -1280,7 +1320,7 @@ $initialData = d2_collect_dashboard_data($conn);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="WEH.css" media="screen">
-    <title>Dashboard2.1</title>
+    <title>Dashboard</title>
     <style>
         .d2-page {
             width: min(1840px, 97vw);
@@ -1470,11 +1510,11 @@ $initialData = d2_collect_dashboard_data($conn);
             align-items: flex-start;
             flex-wrap: wrap;
             gap: 8px;
-            overflow: hidden;
+            overflow: visible;
             min-height: 0;
         }
         .d2-open-modal {
-            border: 0;
+            border: 1px solid rgba(0,0,0,0.95);
             border-radius: 999px;
             padding: 8px 10px;
             color: #fff;
@@ -1484,6 +1524,7 @@ $initialData = d2_collect_dashboard_data($conn);
             cursor: pointer;
             background: #11a50d;
             box-shadow: 0 5px 12px rgba(0,0,0,0.20);
+            box-sizing: border-box;
             transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
         }
         .d2-open-modal:hover, .d2-script-card:hover, .d2-terminal-send:hover, .d2-terminal-mini:hover {
@@ -1590,10 +1631,12 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-modal-root:empty { display: none; }
         .d2-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 9000; }
         .d2-modal { position: fixed; z-index: 9001; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(980px, 92vw); max-height: 90vh; overflow: auto; color: #fff; background: #171717; border: 1px solid rgba(255,255,255,0.16); border-radius: 24px; box-shadow: 0 30px 100px rgba(0,0,0,0.65); }
+        .d2-registration-modal { width: min(1220px, 94vw); max-height: 94vh; overflow: hidden; }
         .d2-modal-head { position: sticky; top: 0; z-index: 2; background: #171717; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
         .d2-modal-title { font-size: 22px; font-weight: 700; }
         .d2-modal-close { border: 0; background: #fff; color: #111; width: 34px; height: 34px; border-radius: 999px; cursor: pointer; font-weight: 700; }
         .d2-modal-body { padding: 18px; }
+        .d2-registration-modal .d2-modal-body { max-height: calc(94vh - 68px); overflow: hidden; padding: 14px 16px 16px; }
         .d2-form-wide label, .d2-full-label { color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 700; display: flex; flex-direction: column; gap: 6px; }
         .d2-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
         .d2-form-grid input, .d2-full-label input, .d2-user-search { border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.25); color: white; border-radius: 12px; padding: 10px 12px; }
@@ -1604,12 +1647,40 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-document-frame { border: 1px solid rgba(255,255,255,0.16); border-radius: 18px; overflow: hidden; background: rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; }
         .d2-document-frame img { max-width: 100%; height: auto; object-fit: contain; }
         .d2-document-frame embed { width: 100%; height: 900px; }
+        .d2-registration-form { display: flex; flex-direction: column; gap: 10px; height: calc(94vh - 98px); min-height: 0; }
+        .d2-registration-form .d2-alert { margin: 0; }
+        .d2-registration-overview { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(430px, 1.08fr) minmax(330px, 0.92fr); gap: 16px; align-items: stretch; }
+        .d2-registration-docs { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+        .d2-registration-data { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+        .d2-document-tabs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .d2-doc-tab { border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; font-weight: 600; }
+        .d2-doc-tab.d2-active { background: #11a50d; border-color: #11a50d; }
+        .d2-doc-tab.d2-active:disabled { opacity: 1; color: #fff; cursor: default; }
+        .d2-doc-tab:disabled { opacity: .35; cursor: not-allowed; }
+        .d2-registration-document-stage { min-height: 0; display: flex; }
+        .d2-registration-doc { display: none; width: 100%; height: 100%; min-height: 0; }
+        .d2-registration-doc.d2-active { display: flex; }
+        .d2-registration-doc img { width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+        .d2-registration-doc embed { width: 100%; height: 100%; min-height: 0; }
+        .d2-registration-info { min-height: 0; align-content: start; overflow: hidden; }
+        .d2-registration-info .d2-info-item { padding: 9px 10px; }
+        .d2-registration-info .d2-info-item span { font-size: 11px; margin-bottom: 3px; }
+        .d2-registration-info .d2-info-item strong { font-size: 15px; }
+        .d2-registration-warning { padding: 9px 12px; }
+        .d2-registration-form .d2-full-label { gap: 5px; }
+        .d2-registration-form .d2-full-label input { padding: 8px 10px; }
+        .d2-registration-form .d2-radio-row { margin: 2px 0 10px; }
+        .d2-decline-reason { display: none; margin-top: -4px; }
+        .d2-decline-reason.d2-visible { display: flex; }
+        .d2-registration-action-hint { margin-top: -4px; }
+        .d2-registration-form .d2-submit { margin-top: 0; padding: 10px 18px; }
         .d2-radio-row { display: flex; justify-content: center; align-items: center; gap: 34px; margin: 18px 0; flex-wrap: wrap; }
-        .d2-radio-row label { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; font-size: 16px; }
+        .d2-radio-row label { display: inline-flex; flex-direction: row; align-items: center; gap: 10px; font-size: 20px; }
+        .d2-radio-row input[type="radio"] { width: 20px; height: 20px; }
         .d2-green { color: #35d235; font-weight: 700; }
         .d2-red { color: #ff5f5f; font-weight: 700; }
         .d2-warn { color: #E49B0F; font-weight: 700; }
-        .d2-submit { display: block; margin: 18px auto 0; border: 0; border-radius: 16px; padding: 12px 20px; background: #fff; color: #111; font-weight: 600; cursor: pointer; min-width: 180px; }
+        .d2-submit { display: block; margin: 18px auto 0; border: 0; border-radius: 16px; padding: 12px 20px; background: #fff; color: #111; font-size: 18px; font-weight: 600; cursor: pointer; min-width: 180px; }
         .d2-submit:disabled { opacity: .45; cursor: not-allowed; }
         .d2-transfer-form { max-width: 620px; margin: 0 auto; text-align: center; }
         .d2-transfer-facts { display: grid; gap: 8px; font-size: 18px; margin: 8px 0 20px; }
@@ -1649,6 +1720,10 @@ $initialData = d2_collect_dashboard_data($conn);
             .d2-terminal-wrap { height: 520px; margin-top: 14px; }
             .d2-metric-grid, .d2-queue-grid, .d2-script-grid, .d2-form-grid { grid-template-columns: 1fr; height: auto; }
             .d2-psk-overview { grid-template-columns: 1fr; }
+            .d2-registration-modal { overflow: auto; }
+            .d2-registration-modal .d2-modal-body, .d2-registration-form { height: auto; max-height: none; overflow: visible; }
+            .d2-registration-overview { grid-template-columns: 1fr; }
+            .d2-registration-document-stage { min-height: 420px; }
         }
     </style>
 </head>
@@ -1957,6 +2032,18 @@ function d2SelectTransferUser(form, uid, label) {
   if (results) results.innerHTML = "";
 }
 
+function d2ToggleDeclineReason(form) {
+  const reason = form.querySelector(".d2-decline-reason");
+  if (!reason) return;
+  const input = reason.querySelector("input");
+  const show = !!form.querySelector('input[name="decision"][value="decline"]:checked');
+  reason.classList.toggle("d2-visible", show);
+  if (input) {
+    input.disabled = !show;
+    if (!show) input.value = "";
+  }
+}
+
 async function d2SearchUsers(input) {
   const query = input.value.trim();
   const form = input.closest("form");
@@ -2026,6 +2113,17 @@ function d2HandleTerminalCommand(command) {
 }
 
 document.addEventListener("click", event => {
+  const docTab = event.target.closest("[data-d2-doc-tab]");
+  if (docTab && !docTab.disabled) {
+    const modal = docTab.closest(".d2-registration-modal");
+    const key = docTab.dataset.d2DocTab;
+    if (modal && key) {
+      modal.querySelectorAll("[data-d2-doc-tab]").forEach(tab => tab.classList.toggle("d2-active", tab === docTab));
+      modal.querySelectorAll("[data-d2-doc-panel]").forEach(panel => panel.classList.toggle("d2-active", panel.dataset.d2DocPanel === key));
+    }
+    return;
+  }
+
   const modalButton = event.target.closest(".d2-open-modal");
   if (modalButton) {
     d2OpenModal(modalButton.dataset.type, modalButton.dataset.id);
@@ -2098,6 +2196,13 @@ document.addEventListener("input", event => {
   D2.searchTimer = setTimeout(() => d2SearchUsers(searchInput), 220);
 });
 
+document.addEventListener("change", event => {
+  const decision = event.target.closest('input[name="decision"]');
+  if (!decision) return;
+  const form = decision.closest("form");
+  if (form) d2ToggleDeclineReason(form);
+});
+
 function d2SetDashboardHeight() {
   const page = document.getElementById("d2Page");
   if (!page) return;
@@ -2113,7 +2218,7 @@ setInterval(d2UpdateCountdowns, 1000);
 setInterval(() => d2Refresh(true), 30000);
 d2SetDashboardHeight();
 window.addEventListener("resize", d2SetDashboardHeight);
-d2Terminal("Dashboard2 bereit.", "muted");
+d2Terminal("Netzwerk-AG Dashboard wurde geladen.", "muted");
 </script>
 <?php $conn->close(); ?>
 </html>
