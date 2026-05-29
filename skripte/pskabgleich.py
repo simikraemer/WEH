@@ -71,6 +71,14 @@ SAVE_CONFIG_AFTER_CHANGES = True
 # Zusätzlicher roher Output pro Kommando. Normalerweise reicht --terminal-debug.
 LOG_RAW_WLC_OUTPUT = False
 
+# Globale Ausgabestufe:
+# LOW: kompakte Lauf- und Ergebnisinfos, Warnungen, Fehler.
+# HIGH: zusaetzlich Setup-, Verbindungs- und Detailausgaben.
+DEBUG_LEVEL_LOW = 1
+DEBUG_LEVEL_HIGH = 2
+DEBUG_LEVEL = DEBUG_LEVEL_LOW
+_ACTIVE_DEBUG_LEVEL = DEBUG_LEVEL
+
 
 # -----------------------------------------------------------------------------
 # Datenmodelle
@@ -101,6 +109,9 @@ class RunStats:
 # -----------------------------------------------------------------------------
 
 def setup_logging(verbose: bool, terminal_debug: bool, paramiko_debug: bool) -> None:
+    global _ACTIVE_DEBUG_LEVEL
+
+    _ACTIVE_DEBUG_LEVEL = DEBUG_LEVEL_HIGH if verbose or terminal_debug else DEBUG_LEVEL
     level = logging.DEBUG if verbose or terminal_debug or paramiko_debug else logging.INFO
     logging.basicConfig(
         level=level,
@@ -112,7 +123,20 @@ def setup_logging(verbose: bool, terminal_debug: bool, paramiko_debug: bool) -> 
     logging.getLogger("paramiko").setLevel(logging.DEBUG if paramiko_debug else logging.WARNING)
 
 
+def debug_high_enabled() -> bool:
+    return _ACTIVE_DEBUG_LEVEL >= DEBUG_LEVEL_HIGH
+
+
+def log_high(message: str, *args) -> None:
+    # LOW-Ausgaben bleiben direkte logging.info/warning/error-Aufrufe.
+    # HIGH-Ausgaben laufen zentral hierdurch.
+    if debug_high_enabled():
+        logging.info(message, *args)
+
+
 def log_section(title: str) -> None:
+    if not debug_high_enabled():
+        return
     logging.info("=" * 80)
     logging.info(title)
     logging.info("=" * 80)
@@ -289,7 +313,7 @@ def mark_entry_as_wlc_inserted(entry: PskOnlyEntry) -> bool:
         db.commit()
 
         if cursor.rowcount == 1:
-            logging.info("DB: id=%s uid=%s mac=%s -> wlceingetragen=1 gesetzt.", entry.id, entry.uid, entry.mac_wlc)
+            log_high("DB: id=%s uid=%s mac=%s -> wlceingetragen=1 gesetzt.", entry.id, entry.uid, entry.mac_wlc)
             return True
 
         logging.warning(
@@ -345,6 +369,7 @@ class WlcClient:
 
     def connect(self) -> None:
         log_section(f"WLC: Verbinde per SSH mit {self.host}:{self.port}")
+        logging.info("SSH-Verbindung mit WLC wird hergestellt...")
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -360,7 +385,7 @@ class WlcClient:
             allow_agent=False,
         )
 
-        logging.info("WLC: SSH-Transport authentifiziert. Öffne interaktive Shell.")
+        log_high("WLC: SSH-Transport authentifiziert. Öffne interaktive Shell.")
         channel = client.invoke_shell(term="vt100", width=200, height=2000)
         channel.settimeout(0.0)
 
@@ -370,7 +395,7 @@ class WlcClient:
         self._complete_aireos_login(timeout=WLC_LOGIN_TIMEOUT_SECONDS)
 
         self.send_command("config paging disable", timeout=30)
-        logging.info("WLC: Paging deaktiviert.")
+        log_high("WLC: Paging deaktiviert.")
 
     def close(self) -> None:
         if self.channel is not None:
@@ -384,7 +409,7 @@ class WlcClient:
                 pass
         if self.client is not None:
             self.client.close()
-        logging.info("WLC: SSH-Verbindung geschlossen.")
+        log_high("WLC: SSH-Verbindung geschlossen.")
 
     def _complete_aireos_login(self, timeout: int) -> None:
         """
@@ -396,31 +421,31 @@ class WlcClient:
             Password:
             (Cisco Controller) >
         """
-        logging.info("WLC: Warte auf AireOS-Prompt oder interaktive User/Password-Abfrage.")
+        log_high("WLC: Warte auf AireOS-Prompt oder interaktive User/Password-Abfrage.")
 
         event, output = self._read_until_event(timeout=timeout, context="initialer AireOS-Login")
 
         if event == "prompt":
-            logging.info("WLC: Prompt direkt erkannt, kein zweiter Login nötig.")
+            log_high("WLC: Prompt direkt erkannt, kein zweiter Login nötig.")
             return
 
         if event == "password":
             # Selten, aber möglich, wenn der Controller aus irgendeinem Grund direkt Passwort will.
-            logging.info("WLC: Interaktive Password-Abfrage ohne User-Prompt erkannt, sende Passwort.")
+            log_high("WLC: Interaktive Password-Abfrage ohne User-Prompt erkannt, sende Passwort.")
             self._send_raw(self.cli_password + chr(10), sensitive=True)
             event, output = self._read_until_event(timeout=timeout, context="AireOS Prompt nach Password")
         elif event == "user":
-            logging.info("WLC: Interaktive User-Abfrage erkannt, sende Username.")
+            log_high("WLC: Interaktive User-Abfrage erkannt, sende Username.")
             self._send_raw(self.cli_username + chr(10))
             event, output = self._read_until_event(timeout=timeout, context="AireOS Password-Prompt nach User")
 
             if event == "password":
-                logging.info("WLC: Interaktive Password-Abfrage erkannt, sende Passwort.")
+                log_high("WLC: Interaktive Password-Abfrage erkannt, sende Passwort.")
                 self._send_raw(self.cli_password + chr(10), sensitive=True)
                 event, output = self._read_until_event(timeout=timeout, context="AireOS Prompt nach Password")
 
         if event == "prompt":
-            logging.info("WLC: AireOS-Login abgeschlossen, Prompt erkannt.")
+            log_high("WLC: AireOS-Login abgeschlossen, Prompt erkannt.")
             return
 
         if event in {"user", "password"}:
@@ -538,7 +563,7 @@ class WlcClient:
         if self.channel is None:
             raise RuntimeError("WLC channel not connected")
 
-        logging.info("WLC: Speichere Konfiguration mit 'save config'. Timeout=%ss", WLC_SAVE_TIMEOUT_SECONDS)
+        logging.info("WLC: Speichere Konfiguration mit 'save config'.")
         self._send_raw("save config" + chr(10))
 
         end_time = time.time() + WLC_SAVE_TIMEOUT_SECONDS
@@ -581,7 +606,7 @@ class WlcClient:
 
                 event = self._detect_event(output)
                 if event == "prompt":
-                    logging.info("WLC: save config abgeschlossen, Prompt erkannt.")
+                    log_high("WLC: save config abgeschlossen, Prompt erkannt.")
                     if LOG_RAW_WLC_OUTPUT:
                         logging.debug("WLC OUT for save config:%s%s", chr(10), output)
                     return output
@@ -589,12 +614,12 @@ class WlcClient:
                 now = time.time()
 
                 if success_seen and now - last_data_time >= 3:
-                    logging.info("WLC: save config meldete Erfolg; kein weiterer Output seit 3s. Fahre fort.")
+                    log_high("WLC: save config meldete Erfolg; kein weiterer Output seit 3s. Fahre fort.")
                     return output
 
                 if now - last_wait_log >= 15:
                     remaining = int(max(0, end_time - now))
-                    logging.info("WLC: Warte noch auf Abschluss von save config. Resttimeout ca. %ss", remaining)
+                    log_high("WLC: Warte noch auf Abschluss von save config. Resttimeout ca. %ss", remaining)
                     last_wait_log = now
 
                 time.sleep(0.2)
@@ -633,10 +658,10 @@ def parse_macfilter_summary(output: str) -> Dict[str, Set[str]]:
 
 
 def get_wlc_macfilters(wlc: WlcClient) -> Dict[str, Set[str]]:
-    logging.info("WLC: Lese vorhandene MAC-Filter per 'show macfilter summary'.")
+    log_high("WLC: Lese vorhandene MAC-Filter per 'show macfilter summary'.")
     output = wlc.send_command("show macfilter summary", timeout=WLC_COMMAND_TIMEOUT_SECONDS)
     macfilters = parse_macfilter_summary(output)
-    logging.info("WLC: %s MAC-Filter-Einträge aus Summary geparst.", len(macfilters))
+    log_high("WLC: %s MAC-Filter-Einträge aus Summary geparst.", len(macfilters))
     return macfilters
 
 
@@ -679,7 +704,7 @@ def output_looks_like_error(output: str) -> bool:
 
 
 def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
-    logging.info(
+    log_high(
         "WLC: id=%s uid=%s mac=%s wird hinzugefügt: WLAN_ID=%s Profile=%s Interface=%s Description=%r",
         entry.id,
         entry.uid,
@@ -695,7 +720,7 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
     uid_description_command = build_add_command_uid_description(entry)
 
     if dry_run:
-        logging.info("DRY-RUN: Würde ausführen: %s", primary_command)
+        log_high("DRY-RUN: Würde ausführen: %s", primary_command)
         if fallback_command != primary_command:
             logging.debug("DRY-RUN: Fallback bei Quote-Problemen wäre: %s", fallback_command)
         return False
@@ -708,7 +733,7 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
     # Direkt danach Summary prüfen. Wenn erfolgreich, ist die MAC dort vorhanden.
     macfilters = get_wlc_macfilters(wlc)
     if is_registered_for_target_wlan(entry.mac_wlc, macfilters):
-        logging.info("WLC: Add bestätigt für id=%s mac=%s.", entry.id, entry.mac_wlc)
+        log_high("WLC: Add bestätigt für id=%s mac=%s.", entry.id, entry.mac_wlc)
         return True
 
     # Fallback für AireOS-Versionen, die Quotes bei Description nicht mögen.
@@ -718,7 +743,7 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
             entry.id,
             entry.mac_wlc,
         )
-        logging.info("WLC: Fallback-Befehl: %s", fallback_command)
+        log_high("WLC: Fallback-Befehl: %s", fallback_command)
         fallback_output = wlc.send_command(fallback_command, timeout=WLC_COMMAND_TIMEOUT_SECONDS)
         if output_looks_like_error(fallback_output):
             logging.warning("WLC: Fallback-Add-Befehl meldet evtl. Fehler für id=%s mac=%s.", entry.id, entry.mac_wlc)
@@ -726,7 +751,7 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
 
         macfilters = get_wlc_macfilters(wlc)
         if is_registered_for_target_wlan(entry.mac_wlc, macfilters):
-            logging.info("WLC: Fallback-Add bestätigt für id=%s mac=%s.", entry.id, entry.mac_wlc)
+            log_high("WLC: Fallback-Add bestätigt für id=%s mac=%s.", entry.id, entry.mac_wlc)
             return True
 
     logging.warning(
@@ -734,7 +759,7 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
         entry.id,
         entry.mac_wlc,
     )
-    logging.info("WLC: UID-Description-Befehl: %s", uid_description_command)
+    log_high("WLC: UID-Description-Befehl: %s", uid_description_command)
     uid_description_output = wlc.send_command(uid_description_command, timeout=WLC_COMMAND_TIMEOUT_SECONDS)
     if output_looks_like_error(uid_description_output):
         logging.warning("WLC: Add mit UID-Description meldet evtl. Fehler für id=%s mac=%s.", entry.id, entry.mac_wlc)
@@ -742,7 +767,7 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
 
     macfilters = get_wlc_macfilters(wlc)
     if is_registered_for_target_wlan(entry.mac_wlc, macfilters):
-        logging.info("WLC: Add mit UID-Description bestätigt für id=%s mac=%s.", entry.id, entry.mac_wlc)
+        log_high("WLC: Add mit UID-Description bestätigt für id=%s mac=%s.", entry.id, entry.mac_wlc)
         return True
 
     logging.error("WLC: Add konnte nicht bestätigt werden für id=%s uid=%s mac=%s.", entry.id, entry.uid, entry.mac_wlc)
@@ -758,6 +783,47 @@ def add_macfilter(wlc: WlcClient, entry: PskOnlyEntry, dry_run: bool) -> bool:
     return False
 
 
+def log_run_summary(stats: RunStats, dry_run: bool) -> None:
+    log_section("Fertig pskabgleich.py")
+
+    if stats.failed:
+        logging.error(
+            "PSK-Abgleich fertig: %s Fehler bei %s offenen validen Einträgen.",
+            stats.failed,
+            stats.db_pending,
+        )
+    elif dry_run:
+        logging.info(
+            "PSK-Abgleich fertig: Dry-run, %s offene valide Einträge geprüft, keine Änderungen geschrieben.",
+            stats.db_pending,
+        )
+    elif stats.added > 0:
+        logging.info(
+            "PSK-Abgleich fertig: %s MAC(s) neu auf dem WLC eingetragen, %s DB-Update(s) gesetzt.",
+            stats.added,
+            stats.db_updated,
+        )
+    elif stats.already_on_wlc > 0:
+        logging.info(
+            "PSK-Abgleich fertig: %s MAC(s) waren bereits auf dem WLC vorhanden, %s DB-Update(s) gesetzt.",
+            stats.already_on_wlc,
+            stats.db_updated,
+        )
+    else:
+        logging.info("PSK-Abgleich fertig: Keine Änderungen nötig.")
+
+    if stats.invalid_mac > 0:
+        logging.warning("Ungültige MACs übersprungen: %s", stats.invalid_mac)
+
+    log_high("DB offene valide Einträge: %s", stats.db_pending)
+    log_high("Ungültige MACs: %s", stats.invalid_mac)
+    log_high("Bereits auf WLC vorhanden: %s", stats.already_on_wlc)
+    log_high("Neu auf WLC hinzugefügt: %s", stats.added)
+    log_high("DB Updates wlceingetragen=1: %s", stats.db_updated)
+    log_high("Dry-run übersprungen: %s", stats.dry_run_skipped)
+    log_high("Fehler: %s", stats.failed)
+
+
 # -----------------------------------------------------------------------------
 # Hauptlogik
 # -----------------------------------------------------------------------------
@@ -766,19 +832,19 @@ def run(dry_run: bool, verbose: bool, terminal_debug: bool, no_save: bool) -> in
     stats = RunStats()
 
     log_section("Start pskabgleich.py")
-    logging.info("Ziel: Profile=%s WLAN_ID=%s Interface=%s", PROFILE_NAME, WLAN_ID, INTERFACE_NAME)
+    """ logging.info("Ziel: Profile=%s WLAN_ID=%s Interface=%s", PROFILE_NAME, WLAN_ID, INTERFACE_NAME)
     logging.info(
         "Modus: dry_run=%s verbose=%s terminal_debug=%s save_config=%s",
         dry_run,
         verbose,
         terminal_debug,
         not no_save and SAVE_CONFIG_AFTER_CHANGES,
-    )
+    ) """
 
     if dry_run:
-        logging.warning("DRY-RUN ist aktiv: Es werden keine WLC-Änderungen und keine DB-Updates geschrieben.")
+        logging.info("DRY-RUN ist aktiv: Es werden keine WLC-Änderungen und keine DB-Updates geschrieben.")
     else:
-        logging.warning("LIVE-MODUS ist aktiv: WLC-Änderungen und DB-Updates werden geschrieben.")
+        logging.info("LIVE-MODUS ist aktiv: WLC-Änderungen und DB-Updates werden geschrieben.")
 
     lock_handle = acquire_lock(LOCK_FILE)
     try:
@@ -808,7 +874,7 @@ def run(dry_run: bool, verbose: bool, terminal_debug: bool, no_save: bool) -> in
         port = int(wlc_config.get("port", 22))
 
         if cli_username != username:
-            logging.info("WLC: SSH-Username und AireOS-CLI-Username unterscheiden sich. CLI-Username=%s", cli_username)
+            log_high("WLC: SSH-Username und AireOS-CLI-Username unterscheiden sich. CLI-Username=%s", cli_username)
 
         wlc = WlcClient(
             host=host,
@@ -826,8 +892,8 @@ def run(dry_run: bool, verbose: bool, terminal_debug: bool, no_save: bool) -> in
             macfilters = get_wlc_macfilters(wlc)
 
             for entry in entries:
-                logging.info("-" * 80)
-                logging.info(
+                log_high("-" * 80)
+                log_high(
                     "Prüfe DB id=%s uid=%s mac_db=%r mac_wlc=%s desc=%r",
                     entry.id,
                     entry.uid,
@@ -841,7 +907,7 @@ def run(dry_run: bool, verbose: bool, terminal_debug: bool, no_save: bool) -> in
 
                 if is_registered_for_target_wlan(entry.mac_wlc, macfilters):
                     stats.already_on_wlc += 1
-                    logging.info(
+                    log_high(
                         "WLC: MAC %s ist bereits für WLAN_ID=%s vorhanden. Gefundene WLAN-IDs: %s",
                         entry.mac_wlc,
                         WLAN_ID,
@@ -850,7 +916,7 @@ def run(dry_run: bool, verbose: bool, terminal_debug: bool, no_save: bool) -> in
                     if not dry_run and mark_entry_as_wlc_inserted(entry):
                         stats.db_updated += 1
                     elif dry_run:
-                        logging.info("DRY-RUN: Würde DB id=%s auf wlceingetragen=1 setzen.", entry.id)
+                        log_high("DRY-RUN: Würde DB id=%s auf wlceingetragen=1 setzen.", entry.id)
                         stats.dry_run_skipped += 1
                     continue
 
@@ -893,14 +959,7 @@ def run(dry_run: bool, verbose: bool, terminal_debug: bool, no_save: bool) -> in
         except Exception:
             pass
 
-    log_section("Fertig pskabgleich.py")
-    logging.info("DB offene valide Einträge: %s", stats.db_pending)
-    logging.info("Ungültige MACs: %s", stats.invalid_mac)
-    logging.info("Bereits auf WLC vorhanden: %s", stats.already_on_wlc)
-    logging.info("Neu auf WLC hinzugefügt: %s", stats.added)
-    logging.info("DB Updates wlceingetragen=1: %s", stats.db_updated)
-    logging.info("Dry-run übersprungen: %s", stats.dry_run_skipped)
-    logging.info("Fehler: %s", stats.failed)
+    log_run_summary(stats, dry_run=dry_run)
 
     return 1 if stats.failed else 0
 

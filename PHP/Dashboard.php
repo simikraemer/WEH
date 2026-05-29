@@ -1331,6 +1331,11 @@ $initialData = d2_collect_dashboard_data($conn);
             box-sizing: border-box;
             overflow: visible;
         }
+        body.d2-script-running,
+        body.d2-script-running .d2-page,
+        body.d2-script-running .d2-page * {
+            cursor: wait !important;
+        }
         .d2-layout {
             height: 100%;
             display: grid;
@@ -1725,6 +1730,46 @@ $initialData = d2_collect_dashboard_data($conn);
             .d2-registration-overview { grid-template-columns: 1fr; }
             .d2-registration-document-stage { min-height: 420px; }
         }
+        @media (max-width: 700px) {
+            .d2-page {
+                width: calc(100vw - 16px);
+                height: auto;
+                margin-top: 8px;
+                overflow: visible;
+            }
+            .d2-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+                height: auto;
+                min-height: 0;
+                overflow: visible;
+            }
+            .d2-left,
+            .d2-left-shell {
+                width: 100%;
+                height: auto;
+                min-height: 0;
+                overflow: visible;
+            }
+            .d2-left-shell {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 8px 0;
+            }
+            .d2-section {
+                min-height: auto;
+                overflow: visible;
+            }
+            .d2-terminal-wrap {
+                width: 100%;
+                flex: 0 0 auto;
+                height: min(520px, 72vh);
+                min-height: 360px;
+                margin-top: 0;
+            }
+        }
     </style>
 </head>
 <?php
@@ -1830,6 +1875,40 @@ function d2TerminalBlock(text, type = "normal") {
   String(text || "").split(/\r?\n/).forEach(line => d2Terminal(line, type));
 }
 
+async function d2ReadScriptResponse(res, type = "normal") {
+  if (!res.body || !window.TextDecoder) {
+    const fallbackText = await res.text();
+    if (fallbackText.trim() !== "") {
+      d2TerminalBlock(fallbackText, type);
+    }
+    return fallbackText;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let output = "";
+  let pending = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    const chunk = done ? decoder.decode() : decoder.decode(value, { stream: true });
+    if (chunk) {
+      output += chunk;
+      pending += chunk;
+      const lines = pending.split(/\r?\n/);
+      pending = lines.pop() || "";
+      lines.forEach(line => d2Terminal(line, type));
+    }
+    if (done) break;
+  }
+
+  if (pending !== "") {
+    d2Terminal(pending, type);
+  }
+
+  return output;
+}
+
 function d2RenderCards() {
   const grid = document.getElementById("d2MetricGrid");
   const cards = D2.data.cards || {};
@@ -1928,9 +2007,36 @@ async function d2Refresh(silent = false) {
   }
 }
 
+function d2ScriptOutputLooksFailed(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  return lines.some(rawLine => {
+    const line = rawLine.trim();
+    const summaryLine = line
+      .replace(/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\[[^\]]+\]\s*/, "")
+      .replace(/^\[[^\]]+\]\s*/, "");
+    if (line === "" || /^Fehler:\s*0\s*$/i.test(summaryLine)) {
+      return false;
+    }
+    return /(^|[^a-z])(error|exception|traceback|permission denied|no such file|command not found|failed|fatal)([^a-z]|$)/i.test(line)
+      || /^Fehler:\s*[1-9]\d*\s*$/i.test(summaryLine)
+      || /^Fehler:\s*(?!0\s*$).+/i.test(summaryLine)
+      || /\bfehlgeschlagen\b/i.test(line);
+  });
+}
+
+function d2UpdateScriptRunningCursor() {
+  const isRunning = D2.running.size > 0;
+  document.body.classList.toggle("d2-script-running", isRunning);
+  const page = document.getElementById("d2Page");
+  if (page) {
+    page.classList.toggle("d2-script-running", isRunning);
+  }
+}
+
 async function d2RunScript(key, label = null) {
   if (!key || D2.running.has(key)) return;
   D2.running.add(key);
+  d2UpdateScriptRunningCursor();
   const runButton = document.querySelector(`[data-run-script="${CSS.escape(key)}"]`);
   if (runButton) {
     runButton.disabled = true;
@@ -1951,15 +2057,13 @@ async function d2RunScript(key, label = null) {
       cache: "no-store"
     });
 
-    const text = await res.text();
+    const text = await d2ReadScriptResponse(res, res.ok ? "normal" : "error");
     const duration = Math.round(performance.now() - started);
     d2Terminal(`[${display}] HTTP ${res.status} ${res.statusText} · ${duration} ms`, res.ok ? "muted" : "error");
-    if (text.trim() !== "") {
-      d2TerminalBlock(text, res.ok ? "normal" : "error");
-    } else {
+    if (text.trim() === "") {
       d2Terminal("[leere Ausgabe]", "muted");
     }
-    if (!res.ok || /(^|[^a-z])(fehler|error|exception|traceback|permission denied|no such file|command not found|failed|fatal)([^a-z]|$)/i.test(text)) {
+    if (!res.ok || d2ScriptOutputLooksFailed(text)) {
       throw new Error(`Skript ${key} lieferte Fehlerausgabe.`);
     }
     await d2Refresh(true);
@@ -1967,6 +2071,7 @@ async function d2RunScript(key, label = null) {
     d2Terminal(`[${display}] fehlgeschlagen: ${err.message || err}`, "error");
   } finally {
     D2.running.delete(key);
+    d2UpdateScriptRunningCursor();
     if (runButton) {
       runButton.disabled = false;
       runButton.classList.remove("d2-running");
