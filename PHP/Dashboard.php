@@ -400,9 +400,9 @@ function d2_collect_dashboard_data(mysqli $conn): array
                 'meta' => '',
             ],
             'nagios' => [
-                'title' => 'Hosts',
+                'title' => 'Host-Ausfälle',
                 'state' => ($nagiosError !== '' || count($downhosts_list) > 0) ? 'bad' : 'good',
-                'value' => $nagiosError !== '' ? 'Fehler' : (count($downhosts_list) > 0 ? count($downhosts_list) . ' offline' : 'Alle online'),
+                'value' => $nagiosError !== '' ? 'Fehler' : (count($downhosts_list) > 0 ? count($downhosts_list) . ' offline' : '-'),
                 'detail' => $nagiosError !== '' ? $nagiosError : (count($downhosts_list) > 0 ? implode(', ', $downhosts_list) : ''),
                 'meta' => '',
                 'hosts' => $downhosts_list,
