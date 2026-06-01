@@ -361,8 +361,8 @@ function d2_collect_dashboard_data(mysqli $conn): array
             'items' => array_map(function ($entry) {
                 return [
                     'id' => (int)$entry['id'],
-                    'label' => (string)$entry['name'],
-                    'sub' => number_format((float)$entry['betrag'], 2, ',', '.') . ' €',
+                    'label' => number_format((float)$entry['betrag'], 2, ',', '.') . ' €',
+                    'sub' => (string)$entry['name'],
                     'tower' => 'weh',
                 ];
             }, $kontowecker),
@@ -667,15 +667,16 @@ function d2_modal_transfer(mysqli $conn, int $id): string
     ob_start();
     ?>
     <form method="post" class="d2-action-form d2-transfer-form">
+        <input type="hidden" name="transfer_zuweisen_check" value="user">
         <input type="hidden" name="transfer_id" value="<?= d2_h($id) ?>">
         <input type="hidden" name="selected_uid" class="d2-selected-uid">
         <input type="hidden" name="reload" value="1">
 
-        <div class="d2-transfer-facts">
-            <div>Name <strong><?= d2_h($transfer['name']) ?></strong></div>
-            <div>Betreff <strong><?= d2_h($transfer['betreff']) ?></strong></div>
-            <div><strong><?= !empty($transfer['netzkonto']) ? 'Netzkonto' : 'Hauskonto' ?></strong></div>
-            <div>Betrag <strong><?= d2_h($transfer['betrag']) ?> €</strong></div>
+        <div class="d2-info-grid d2-transfer-info">
+            <div class="d2-info-item"><span>Name</span><strong><?= d2_h($transfer['name']) ?></strong></div>
+            <div class="d2-info-item"><span>Betreff</span><strong><?= d2_h($transfer['betreff']) ?></strong></div>
+            <div class="d2-info-item"><span>Konto</span><strong><?= !empty($transfer['netzkonto']) ? 'Netzkonto' : 'Hauskonto' ?></strong></div>
+            <div class="d2-info-item"><span>Betrag</span><strong><?= d2_h($transfer['betrag']) ?> €</strong></div>
         </div>
 
         <div class="d2-button-row">
@@ -688,7 +689,7 @@ function d2_modal_transfer(mysqli $conn, int $id): string
         </label>
         <div class="d2-search-results"></div>
 
-        <button type="submit" name="transfer_zuweisen_check" value="user" class="d2-submit d2-assign-button" disabled>Zuweisen</button>
+        <button type="submit" class="d2-submit d2-assign-button" disabled>Zuweisen</button>
     </form>
     <?php
     return d2_modal_shell('Unklare Zahlung', ob_get_clean());
@@ -795,6 +796,7 @@ function d2_modal_abmeldung(mysqli $conn, int $id): string
     ob_start();
     ?>
     <form method="post" class="d2-action-form d2-transfer-form">
+        <input type="hidden" name="abmeldung_finish" value="1">
         <input type="hidden" name="abmeldung_id" value="<?= d2_h($id) ?>">
         <input type="hidden" name="reload" value="1">
 
@@ -804,7 +806,7 @@ function d2_modal_abmeldung(mysqli $conn, int $id): string
         <button type="button" class="d2-copy-btn" data-copy="<?= d2_h($betrag_formatiert) ?>"><?= d2_h($betrag_formatiert) ?> €</button>
         <button type="button" class="d2-copy-btn" data-copy="Abmeldung WEH e.V.">Abmeldung WEH e.V.</button>
 
-        <button type="submit" name="abmeldung_finish" value="1" class="d2-submit">Überwiesen</button>
+        <button type="submit" class="d2-submit">Überwiesen</button>
     </form>
     <?php
     return d2_modal_shell('Abmeldung auszahlen', ob_get_clean());
@@ -848,6 +850,10 @@ function d2_handle_action(mysqli $conn): void
     if (isset($_POST['transfer_zuweisen_check'])) {
         $uid = intval($_POST['selected_uid'] ?? 0);
         $transfer_id = intval($_POST['transfer_id'] ?? 0);
+
+        if ($uid <= 0 || $transfer_id <= 0) {
+            d2_json(['ok' => false, 'error' => 'Transfer oder Nutzer fehlt.'], 400);
+        }
 
         $stmt = mysqli_prepare($conn, "SELECT betrag, netzkonto, betreff FROM unknowntransfers WHERE id = ?");
         mysqli_stmt_bind_param($stmt, 'i', $transfer_id);
@@ -1689,6 +1695,7 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-submit:disabled { opacity: .45; cursor: not-allowed; }
         .d2-transfer-form { max-width: 620px; margin: 0 auto; text-align: center; }
         .d2-transfer-facts { display: grid; gap: 8px; font-size: 18px; margin: 8px 0 20px; }
+        .d2-transfer-info { margin: 8px 0 20px; text-align: left; }
         .d2-button-row { display: flex; justify-content: center; gap: 12px; margin: 18px 0; }
         .d2-small-btn, .d2-copy-btn { border: 0; border-radius: 14px; padding: 10px 14px; background: rgba(255,255,255,0.92); color: #111; cursor: pointer; font-weight: 600; }
         .d2-search-results { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }
