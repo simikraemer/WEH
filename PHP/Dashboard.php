@@ -1641,13 +1641,13 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-terminal-send { border: 0; border-radius: 12px; padding: 9px 12px; background: #11a50d; color: #fff; font-weight: 600; cursor: pointer; }
         .d2-modal-root:empty { display: none; }
         .d2-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 9000; }
-        .d2-modal { position: fixed; z-index: 9001; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(980px, 92vw); max-height: 90vh; overflow: auto; color: #fff; background: #171717; border: 1px solid rgba(255,255,255,0.16); border-radius: 24px; box-shadow: 0 30px 100px rgba(0,0,0,0.65); }
+        .d2-modal { position: fixed; z-index: 9001; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(980px, 92vw); max-height: 90vh; overflow: hidden; color: #fff; background: #171717; border: 1px solid rgba(255,255,255,0.16); border-radius: 24px; box-shadow: 0 30px 100px rgba(0,0,0,0.65); display: flex; flex-direction: column; }
         .d2-registration-modal { width: min(1220px, 94vw); max-height: 94vh; overflow: hidden; }
-        .d2-modal-head { position: sticky; top: 0; z-index: 2; background: #171717; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
+        .d2-modal-head { flex: 0 0 auto; position: sticky; top: 0; z-index: 2; background: #171717; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
         .d2-modal-title { font-size: 22px; font-weight: 700; }
         .d2-modal-close { border: 0; background: #fff; color: #111; width: 34px; height: 34px; border-radius: 999px; cursor: pointer; font-weight: 700; }
-        .d2-modal-body { padding: 18px; }
-        .d2-registration-modal .d2-modal-body { max-height: calc(94vh - 68px); overflow: hidden; padding: 14px 16px 16px; }
+        .d2-modal-body { flex: 1 1 auto; min-height: 0; max-height: calc(90vh - 68px); overflow: auto; padding: 18px; }
+        .d2-registration-modal .d2-modal-body { max-height: calc(94vh - 68px); overflow: auto; padding: 14px 16px 16px; }
         .d2-form-wide label, .d2-full-label { color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 700; display: flex; flex-direction: column; gap: 6px; }
         .d2-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
         .d2-form-grid input, .d2-full-label input, .d2-user-search { border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.25); color: white; border-radius: 12px; padding: 10px 12px; }
@@ -1673,7 +1673,7 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-registration-doc.d2-active { display: flex; }
         .d2-registration-doc img { width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
         .d2-registration-doc embed { width: 100%; height: 100%; min-height: 0; }
-        .d2-registration-info { min-height: 0; align-content: start; overflow: hidden; }
+        .d2-registration-info { min-height: 0; align-content: start; overflow: auto; padding-right: 4px; }
         .d2-registration-info .d2-info-item { padding: 9px 10px; }
         .d2-registration-info .d2-info-item span { font-size: 11px; margin-bottom: 3px; }
         .d2-registration-info .d2-info-item strong { font-size: 15px; }
@@ -1732,8 +1732,9 @@ $initialData = d2_collect_dashboard_data($conn);
             .d2-terminal-wrap { height: 520px; margin-top: 14px; }
             .d2-metric-grid, .d2-queue-grid, .d2-script-grid, .d2-form-grid { grid-template-columns: 1fr; height: auto; }
             .d2-psk-overview { grid-template-columns: 1fr; }
-            .d2-registration-modal { overflow: auto; }
-            .d2-registration-modal .d2-modal-body, .d2-registration-form { height: auto; max-height: none; overflow: visible; }
+            .d2-registration-modal { max-height: 94vh; overflow: hidden; }
+            .d2-registration-modal .d2-modal-body { max-height: calc(94vh - 68px); overflow: auto; }
+            .d2-registration-form { height: auto; max-height: none; overflow: visible; }
             .d2-registration-overview { grid-template-columns: 1fr; }
             .d2-registration-document-stage { min-height: 420px; }
         }
