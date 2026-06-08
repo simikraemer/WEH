@@ -615,7 +615,21 @@ function d2_modal_registration(mysqli $conn, int $id): string
                 <div class="d2-info-item"><span>Name</span><strong><?= d2_h($user['firstname'] . ' ' . $user['lastname']) ?></strong></div>
                 <div class="d2-info-item"><span>Einzug</span><strong class="<?= ((int)$user['starttime'] > $zeit) ? 'd2-input-bad' : '' ?>"><?= d2_h(date('d.m.Y', (int)$user['starttime'])) ?></strong></div>
                 <div class="d2-info-item"><span>Turm</span><strong><?= d2_h(formatTurm($user['turm'])) ?></strong></div>
-                <div class="d2-info-item"><span>Zimmer</span><strong><?= d2_h($user['room']) ?></strong></div>
+                <div class="d2-info-item d2-editable-info-item">
+                    <span>Zimmer für Accept</span>
+                    <input
+                        type="text"
+                        name="room_override"
+                        class="d2-room-override"
+                        value="<?= d2_h($user['room']) ?>"
+                        inputmode="numeric"
+                        pattern="[0-9]{1,4}"
+                        maxlength="4"
+                        autocomplete="off"
+                        title="Dieser Raum wird bei Accept für Subnetz, roomcheck und users.room verwendet."
+                    >
+                    <small class="d2-room-override-note">Falls User hier Fehler macht, können wir das vor der Anmeldung noch korrigieren.</small>
+                </div>
                 <div class="d2-info-item"><span>Herkunftsland</span><strong><?= d2_h($user['geburtsort']) ?></strong></div>
                 <div class="d2-info-item"><span>Geburtstag</span><strong><?= d2_h(date('d.m.Y', (int)$user['geburtstag'])) ?></strong></div>
                 <div class="d2-info-item"><span>Username</span><strong><?= d2_h($user['username']) ?></strong></div>
@@ -973,6 +987,31 @@ function d2_handle_action(mysqli $conn): void
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
 
+        $registrationRoom = (string)$room;
+        $roomOverride = trim((string)($_POST['room_override'] ?? ''));
+
+        if ($roomOverride !== '') {
+            $roomOverride = preg_replace('/\s+/', '', $roomOverride);
+            if (!ctype_digit($roomOverride) || strlen($roomOverride) > 4) {
+                d2_json([
+                    'ok' => false,
+                    'error' => 'Ungültiger Raum. Erlaubt sind 1 bis 4 Ziffern.',
+                    'terminal' => 'Ungültiger Raum für Anmeldung #' . $id . ': ' . $roomOverride,
+                ], 400);
+            }
+            $room = (int)$roomOverride;
+        } else {
+            $room = (int)$room;
+        }
+
+        if ($room <= 0 || $room > 9999) {
+            d2_json([
+                'ok' => false,
+                'error' => 'Ungültiger Raum. Der Raum muss zwischen 1 und 9999 liegen.',
+                'terminal' => 'Ungültiger Raum für Anmeldung #' . $id . ': ' . $room,
+            ], 400);
+        }
+
         $name = $firstname . ' ' . $lastname;
         $groups = 1;
         $subtenanttill = ($subletterend === null) ? 0 : $subletterend;
@@ -982,7 +1021,11 @@ function d2_handle_action(mysqli $conn): void
         $subnet = getRoomSubnet($conn, $room, $turm);
 
         if ($subnet === false) {
-            d2_json(['ok' => false, 'error' => 'Kein Subnetz gefunden!', 'terminal' => 'Kein Subnetz gefunden.'], 500);
+            d2_json([
+                'ok' => false,
+                'error' => 'Kein Subnetz für Raum ' . $room . ' (' . formatTurm($turm) . ') gefunden!',
+                'terminal' => 'Kein Subnetz gefunden für Turm ' . $turm . ', Raum ' . $room . '.',
+            ], 500);
         }
 
         $pwwifi = pwgen();
@@ -1102,6 +1145,9 @@ function d2_handle_action(mysqli $conn): void
         $mailOk = mail($to, $subject, $message, $headers);
 
         $terminal[] = "Anmeldung #{$id} akzeptiert.";
+        if ((int)$registrationRoom !== (int)$room) {
+            $terminal[] = "Raumkorrektur: registration.room {$registrationRoom} -> users.room {$room}.";
+        }
         $terminal[] = "Neuer User: {$username}, UID {$uid}, Turm {$turm}, Raum {$room}.";
         $terminal[] = $mailOk ? 'Mail erfolgreich versendet.' : 'Fehler beim Versenden der Mail.';
 
@@ -1677,6 +1723,33 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-registration-info .d2-info-item { padding: 9px 10px; }
         .d2-registration-info .d2-info-item span { font-size: 11px; margin-bottom: 3px; }
         .d2-registration-info .d2-info-item strong { font-size: 15px; }
+        .d2-registration-info .d2-editable-info-item {
+            border-color: rgba(53,210,53,0.34);
+            background: rgba(17,165,13,0.10);
+        }
+        .d2-room-override {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.22);
+            background: rgba(0,0,0,0.30);
+            color: #fff;
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 17px;
+            font-weight: 700;
+        }
+        .d2-room-override:focus {
+            outline: none;
+            border-color: #35d235;
+            box-shadow: 0 0 0 2px rgba(53,210,53,0.18);
+        }
+        .d2-room-override-note {
+            display: block;
+            margin-top: 5px;
+            color: rgba(255,255,255,0.62);
+            font-size: 11px;
+            line-height: 1.3;
+        }
         .d2-registration-warning { padding: 9px 12px; }
         .d2-registration-form .d2-full-label { gap: 5px; }
         .d2-registration-form .d2-full-label input { padding: 8px 10px; }
