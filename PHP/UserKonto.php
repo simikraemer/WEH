@@ -304,7 +304,7 @@ if (auth($conn) && $_SESSION['valid']) {
         $_SESSION["AdminPanelToggleState"] = $_SESSION["AdminPanelToggleState"] === "none" ? "block" : "none";
     }
 
-    echo '<div style="margin: 0 auto; text-align: center;">';
+    echo '<div style="margin-bottom: 20px; text-align: center;">';
     echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent;">';
     echo '<span class="white-text" style="font-size: 35px; cursor: pointer; display: inline-block;" onclick="toggleAdminPanel()">Admin Panel</span>';
     echo '<div id="adminPanel" style="display: ' . $_SESSION["AdminPanelToggleState"] . ';">';
@@ -558,61 +558,386 @@ if (auth($conn) && $_SESSION['valid']) {
     </script>';
   }
   
-  echo '<div style="display: flex; flex-direction: row; align-items: flex-start; justify-content: center; font-size: 25px; color: white;">';
-  echo '<div style="flex: 1; text-align: center;">';
-  echo '<h1>Bank</h1>';    
-  echo '<span style="color: red; font-size:20px;">It takes a few days for bank transfers to appear in your WEH account!</span>';  
-  echo '<span style="color: red; font-size:18px;"><br>For faster processing, consider using the PayPal option.</span><br><br>';  
-  echo '<span style="color: white;">Name: </span><span class="white-text">WEH E.V. AACHEN</span><br>';
-  echo '<span style="color: white;">IBAN: </span><span class="white-text">DE90 3905 0000 1070 3346 00</span><br>';
-  echo '<span style="color: white;">Verwendungszweck: </span><span class="white-text">W' . htmlspecialchars((string)$_SESSION["user"]) . 'H</span><br><br>';
-  echo '<span style="color: #708090; font-size:18px;">If you do not set this exact Transfer Reference,<br>we will not be able to assign your payment to your account!</span><br>';
-  echo '</div>';
+  echo '<style>
+.payment-method-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: 28px;
+    width: min(1500px, 96%);
+    margin: 0 auto;
+    color: white;
+    --pay-primary: #11a50d;
+    --pay-primary-soft: rgba(17, 165, 13, 0.16);
+    --pay-primary-border: rgba(17, 165, 13, 0.75);
+    --pay-card-bg: rgba(255, 255, 255, 0.05);
+    --pay-inner-bg: rgba(255, 255, 255, 0.07);
+    --pay-border: rgba(255, 255, 255, 0.18);
+    --pay-muted: rgba(255, 255, 255, 0.64);
+    --pay-text-soft: rgba(255, 255, 255, 0.86);
+}
 
-  echo '<div style="flex: 1; text-align: center;">';
-  echo '<h1>PayPal</h1>';
+.payment-method-column {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+    box-sizing: border-box;
+}
 
-  if ($paypalAllowed) {
-      $www2HealthUrl = 'https://www2.weh.rwth-aachen.de/paypal_healthcheck.php?sandbox=' . ($DEBUG_PAYPAL ? '1' : '0');
+.payment-card {
+    height: 100%;
+    max-width: 860px;
+    margin: 0 auto;
+    border: 2px solid var(--pay-primary-border);
+    border-radius: 16px;
+    background: var(--pay-card-bg);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+}
 
-      echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form">';
-      echo '<label for="paypal-amount" style="color: white; font-size: 25px;">Amount: </label>';
-      echo '<select id="paypal-amount" name="paypal-amount" style="margin-top: 20px; font-size: 20px;">';
-      echo '<option value="5">5 € (0.35 € fee)</option>';
-      echo '<option value="10">10 € (0.35 € fee)</option>';
-      echo '<option value="20" selected>20 € </option>';
-      echo '<option value="30">30 € </option>';
-      echo '<option value="40">40 € </option>';
-      echo '<option value="50">50 € </option>';
-      echo '<option value="75">75 € </option>';
-      echo '<option value="100">100 € </option>';
-      echo '</select>&nbsp&nbsp';
+.payment-card-header {
+    padding: 16px 20px;
+    background: rgba(17, 165, 13, 0.22);
+    border-bottom: 2px solid var(--pay-primary-border);
+}
 
-      echo '<button type="submit" id="paypal_transfer_btn" class="center-btn" style="margin: 0 auto; display: none; font-size: 20px;" disabled>TRANSFER</button>';
-      echo '</form>';
+.payment-card-title {
+    margin: 0;
+    font-size: 36px;
+    line-height: 1.15;
+    color: white;
+}
 
-      echo '<div id="paypal_health_status" style="margin-top:10px; font-weight:900; font-size:16px; color:#ffd27d;">
-              PayPal-Verbindung wird geprüft…
-          </div>';
+.payment-card-body {
+    padding: 20px;
+    box-sizing: border-box;
+}
 
-      echo '<script>
-      (function(){
+.payment-card-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.payment-section {
+    text-align: left;
+}
+
+.payment-section-title {
+    margin-bottom: 12px;
+    color: var(--pay-primary);
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.payment-item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-item {
+    padding: 12px 14px;
+    border: 1px solid var(--pay-border);
+    border-radius: 10px;
+    background: var(--pay-inner-bg);
+}
+
+.payment-note {
+    border-color: var(--pay-primary-border);
+    border-left: 7px solid var(--pay-primary);
+    background: var(--pay-primary-soft);
+}
+
+.payment-label {
+    margin-bottom: 4px;
+    color: var(--pay-muted);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.payment-value {
+    color: white;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.payment-note-title {
+    margin-bottom: 4px;
+    color: white;
+    font-size: 17px;
+    font-weight: 900;
+}
+
+.payment-note-text {
+    color: var(--pay-text-soft);
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.4;
+}
+
+.paypal-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    margin: 0;
+}
+
+.paypal-form-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.paypal-label {
+    color: var(--pay-muted);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+}
+
+.paypal-select {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--pay-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #111;
+    font-size: 20px;
+    font-weight: 800;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.paypal-button {
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+    font-size: 20px;
+}
+
+.paypal-button.is-visible {
+    display: inline-flex !important;
+}
+
+.paypal-status {
+    min-height: 22px;
+    margin-top: 4px;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.35;
+    color: #ffd27d;
+}
+
+.paypal-status.is-ok {
+    color: var(--pay-primary);
+}
+
+.paypal-status.is-fail {
+    color: #ff3b3b;
+}
+
+.paypal-debug-note {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 210, 125, 0.65);
+    border-left: 7px solid #ffd27d;
+    border-radius: 10px;
+    background: rgba(255, 210, 125, 0.08);
+    color: #ffd27d;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.4;
+    text-align: left;
+}
+
+.payment-unavailable {
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 59, 59, 0.75);
+    border-left: 7px solid #ff3b3b;
+    border-radius: 10px;
+    background: rgba(255, 59, 59, 0.10);
+    color: #ffb0b0;
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1.4;
+    text-align: left;
+}
+
+@media (max-width: 1150px) {
+    .payment-method-layout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .payment-card {
+        max-width: 900px;
+    }
+}
+
+@media (max-width: 760px) {
+    .payment-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-card-title {
+        font-size: 30px;
+    }
+
+    .payment-card-body {
+        padding: 16px;
+    }
+}
+</style>';
+
+echo '<div class="payment-method-layout">';
+
+/* BANK */
+echo '<div class="payment-method-column">';
+echo '<div class="payment-card">';
+
+echo '<div class="payment-card-header">';
+echo '<h1 class="payment-card-title">Bank Transfer</h1>';
+echo '</div>';
+
+echo '<div class="payment-card-body">';
+echo '<div class="payment-card-grid">';
+
+echo '<div class="payment-section">';
+echo '<div class="payment-section-title">Transfer details</div>';
+echo '<div class="payment-item-list">';
+
+echo '<div class="payment-item">';
+echo '<div class="payment-label">Recipient name</div>';
+echo '<div class="payment-value">WEH E.V. AACHEN</div>';
+echo '</div>';
+
+echo '<div class="payment-item">';
+echo '<div class="payment-label">IBAN</div>';
+echo '<div class="payment-value">DE90 3905 0000 1070 3346 00</div>';
+echo '</div>';
+
+echo '<div class="payment-item">';
+echo '<div class="payment-label">Transfer reference</div>';
+echo '<div class="payment-value">W' . htmlspecialchars((string)$_SESSION["user"], ENT_QUOTES) . 'H</div>';
+echo '</div>';
+
+echo '</div>';
+echo '</div>';
+
+echo '<div class="payment-section">';
+echo '<div class="payment-section-title">Important notes</div>';
+echo '<div class="payment-item-list">';
+
+echo '<div class="payment-item payment-note">';
+echo '<div class="payment-note-title">Recipient warning</div>';
+echo '<div class="payment-note-text">Some banking apps may show a warning that the recipient name does not match. You can ignore this warning if the IBAN is correct.</div>';
+echo '</div>';
+
+echo '<div class="payment-item payment-note">';
+echo '<div class="payment-note-title">Transfer reference required</div>';
+echo '<div class="payment-note-text">Use the exact transfer reference shown on the left. Otherwise, we cannot assign your payment to your account.</div>';
+echo '</div>';
+
+echo '<div class="payment-item payment-note">';
+echo '<div class="payment-note-title">Processing time</div>';
+echo '<div class="payment-note-text">Bank transfers can take a few days to appear in your WEH account.</div>';
+echo '</div>';
+
+echo '</div>';
+echo '</div>';
+
+echo '</div>';
+echo '</div>';
+
+echo '</div>';
+echo '</div>';
+
+/* PAYPAL */
+echo '<div class="payment-method-column">';
+echo '<div class="payment-card">';
+
+echo '<div class="payment-card-header">';
+echo '<h1 class="payment-card-title">PayPal</h1>';
+echo '</div>';
+
+echo '<div class="payment-card-body">';
+echo '<div class="payment-section">';
+echo '<div class="payment-section-title">Fast payment</div>';
+echo '<div class="payment-item-list">';
+
+if ($paypalAllowed) {
+    $www2HealthUrl = 'https://www2.weh.rwth-aachen.de/paypal_healthcheck.php?sandbox=' . ($DEBUG_PAYPAL ? '1' : '0');
+
+    echo '<div class="payment-item">';
+    echo '<form method="post" action="paypal.php" id="paypal_form" name="paypal-form" class="paypal-form">';
+
+    echo '<div class="paypal-form-row">';
+    echo '<label for="paypal-amount" class="paypal-label">Amount</label>';
+    echo '<select id="paypal-amount" name="paypal-amount" class="paypal-select">';
+    echo '<option value="5">5 € (0.35 € fee)</option>';
+    echo '<option value="10">10 € (0.35 € fee)</option>';
+    echo '<option value="20" selected>20 €</option>';
+    echo '<option value="30">30 €</option>';
+    echo '<option value="40">40 €</option>';
+    echo '<option value="50">50 €</option>';
+    echo '<option value="75">75 €</option>';
+    echo '<option value="100">100 €</option>';
+    echo '</select>';
+    echo '</div>';
+
+    echo '<button type="submit" id="paypal_transfer_btn" class="center-btn paypal-button" disabled>TRANSFER</button>';
+    echo '<div id="paypal_health_status" class="paypal-status">PayPal-Verbindung wird geprüft…</div>';
+
+    echo '</form>';
+    echo '</div>';
+
+    echo '<div class="payment-item payment-note">';
+    echo '<div class="payment-note-title">Processing time</div>';
+    echo '<div class="payment-note-text">PayPal payments usually appear in your WEH account within 1-2 minutes.</div>';
+    echo '</div>';
+
+    if ($DEBUG_PAYPAL && $isWebmaster) {
+        echo '<div class="paypal-debug-note">';
+        echo 'PayPal wurde mittelfristig deaktiviert. Hintergrund sind Accountprobleme, die durch die Kassenwarte behoben werden müssen. Diese Meldung ist nur für Webmaster sichtbar.';
+        echo '</div>';
+    }
+
+    echo '<script>
+    (function(){
         const healthUrl = ' . json_encode($www2HealthUrl) . ';
         const btn = document.getElementById("paypal_transfer_btn");
         const status = document.getElementById("paypal_health_status");
         const form = document.getElementById("paypal_form");
 
         function setFail(msg){
-            btn.style.display = "none";
+            btn.classList.remove("is-visible");
             btn.disabled = true;
-            status.style.color = "#ff3b3b";
+            status.classList.remove("is-ok");
+            status.classList.add("is-fail");
             status.textContent = msg;
         }
 
         function setOk(){
-            btn.style.display = "inline-block";
+            btn.classList.add("is-visible");
             btn.disabled = false;
-            status.style.color = "#18ec13";
+            status.classList.remove("is-fail");
+            status.classList.add("is-ok");
             status.textContent = "";
         }
 
@@ -656,30 +981,23 @@ if (auth($conn) && $_SESSION['valid']) {
                     setFail("PayPal aktuell nicht verfügbar (www2 nicht erreichbar / TLS-Fehler). Bitte später erneut versuchen.");
                 }
             });
-      })();
-      </script>';
+    })();
+    </script>';
 
-      echo '<br>';
+} else {
+    echo '<div class="payment-unavailable">';
+    echo 'PayPal transfers are unavailable until further notice.';
+    echo '</div>';
+}
 
-      if ($DEBUG_PAYPAL && $isWebmaster) {
-          echo '<div style="margin-top:6px; color:#ffd27d; font-weight:900; font-size:16px;">
-                  PayPal wurde mittelfristig deaktiviert. Hintergrund sind Accountprobleme, die durch die Kassenwarte behoben werden müssen. Diese Meldung ist nur für Webmaster sichtbar.
-              </div>';
-      }
+echo '</div>';
+echo '</div>';
+echo '</div>';
 
-      echo '<span style="color: #708090; font-size:18px;">It can take up to 1-2 minutes to process your payment!</span><br>';
+echo '</div>';
+echo '</div>';
 
-  } else {
-      /* echo '<div style="margin-top:10px; color:#ff3b3b; font-weight:900; font-size:18px;">
-              PayPal-Transfer aufgrund von Arbeiten durch die Netzwerk-AG aktuell nicht verfügbar.
-          </div>'; */
-      echo '<div style="margin-top:10px; color:#ff3b3b; font-weight:900; font-size:18px;">
-          PayPal transfers are unavailable until further notice.
-      </div>';
-  }
-
-  echo '</div>';
-  echo '</div>';
+echo '</div>';
 
   if ($DEBUG_PAYPAL && $isWebmaster) {
     echo '<div style="margin: 20px auto 0 auto; text-align: center;">';
