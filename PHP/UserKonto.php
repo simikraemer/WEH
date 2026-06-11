@@ -12,7 +12,12 @@
       $st->close();
   }
 
-  $DEBUG_PAYPAL = ($paypalactive !== 1);
+  $DEBUG_PAYPAL = ($paypalactive !== 1);  
+
+  // 2026 - PayPal mittelfristig deaktiviert.
+  // Auf false setzen, wenn die Kassenwarte das PayPal-Konto wiederhergestellt haben und die Kassenprüfung durch ist!
+  $PAYPAL_TEMPORARILY_DISABLED = true;
+
   $suche = FALSE;
   
   if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['search'])) {
@@ -79,7 +84,9 @@ if (auth($conn) && $_SESSION['valid']) {
 
   $editable = (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true) || (isset($_SESSION["Vorstand"]) && $_SESSION["Vorstand"] === true);
   $isWebmaster   = !empty($_SESSION['Webmaster']);
-  $paypalAllowed = (!$DEBUG_PAYPAL) || $isWebmaster;
+  // PayPal nur erlauben, wenn es nicht temporär deaktiviert ist.
+  // Falls es nicht temporär deaktiviert ist, dürfen Webmaster im Debug-Modus weiterhin testen.
+  $paypalAllowed = !$PAYPAL_TEMPORARILY_DISABLED && ((!$DEBUG_PAYPAL) || $isWebmaster);
 
   function tail_bytes(string $path, int $maxBytes = 200000): string {
       if (!is_file($path) || !is_readable($path)) return '';
@@ -999,7 +1006,7 @@ echo '</div>';
 
 echo '</div>';
 
-  if ($DEBUG_PAYPAL && $isWebmaster) {
+  if ($DEBUG_PAYPAL && $isWebmaster && !$PAYPAL_TEMPORARILY_DISABLED) {
     echo '<div style="margin: 20px auto 0 auto; text-align: center;">';
     echo '<div style="border: 2px solid white; border-radius: 10px; display: inline-block; padding: 20px; text-align: center; background-color: transparent; max-width: 95%;">';
     echo '<span class="white-text" style="font-size: 35px; cursor: pointer; display: inline-block;" onclick="togglePayPalDebugPanel()">PayPal Debug</span>';
