@@ -145,6 +145,19 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
     overflow-y: auto;
   }
 
+  .transfer-edit-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width: min(700px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+
+    z-index: 9999;
+  }
+
   .lightbox {
     background-color: #242323;
     /*padding: 20px;

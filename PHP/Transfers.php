@@ -49,13 +49,406 @@
         <link rel="stylesheet" href="WEH.css" media="screen">
         <link rel="stylesheet" href="TRANSFERS.css" media="screen">
         <style>
+            :root {
+                --transfer-edit-primary: #11a50d;
+                --transfer-edit-bg: #181717;
+                --transfer-edit-panel: #202020;
+                --transfer-edit-panel-2: #252525;
+                --transfer-edit-field: #2b2b2b;
+                --transfer-edit-border: #444;
+                --transfer-edit-border-strong: rgba(17, 165, 13, 0.55);
+                --transfer-edit-text: #f2f2f2;
+                --transfer-edit-muted: #aaa;
+                --transfer-edit-danger: #ff5252;
+                --transfer-edit-radius: 14px;
+            }
+
             .transfer-table th {
                 cursor: pointer;
                 user-select: none;
             }
+
             .transfer-table tbody tr.transfer-row-restored {
-                outline: 2px solid #11a50d;
+                outline: 2px solid var(--transfer-edit-primary);
                 outline-offset: -2px;
+            }
+
+            .transfer-edit-overlay {
+                z-index: 9998;
+                backdrop-filter: blur(2px);
+            }
+
+            .transfer-edit-modal {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 9999;
+                width: min(1280px, calc(100vw - 36px));
+                max-height: calc(100vh - 36px);
+                overflow: hidden;
+                box-sizing: border-box;
+                background: linear-gradient(180deg, #222 0%, var(--transfer-edit-bg) 100%);
+                border: 1px solid var(--transfer-edit-border-strong);
+                border-radius: var(--transfer-edit-radius);
+                box-shadow: 0 24px 90px rgba(0, 0, 0, 0.75);
+                color: var(--transfer-edit-text);
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            }
+
+            .transfer-edit-modal--no-receipt {
+                width: min(760px, calc(100vw - 36px));
+            }
+
+            .transfer-edit-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+                padding: 18px 22px;
+                border-bottom: 1px solid var(--transfer-edit-border);
+                background: rgba(17, 165, 13, 0.08);
+            }
+
+            .transfer-edit-title-block {
+                min-width: 0;
+            }
+
+            .transfer-edit-kicker {
+                color: var(--transfer-edit-primary);
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }
+
+            .transfer-edit-title {
+                margin: 0;
+                color: #fff;
+                font-size: 23px;
+                line-height: 1.15;
+            }
+
+            .transfer-edit-subtitle {
+                margin-top: 5px;
+                color: var(--transfer-edit-muted);
+                font-size: 13px;
+            }
+
+            .transfer-edit-close-form {
+                margin: 0;
+                flex: 0 0 auto;
+            }
+
+            .transfer-edit-close {
+                width: 38px;
+                height: 38px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: #2b2b2b;
+                color: #fff;
+                border: 1px solid var(--transfer-edit-border);
+                border-radius: 999px;
+                font-size: 24px;
+                line-height: 1;
+                cursor: pointer;
+                transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+            }
+
+            .transfer-edit-close:hover {
+                background: rgba(255, 82, 82, 0.12);
+                color: var(--transfer-edit-danger);
+                border-color: rgba(255, 82, 82, 0.6);
+            }
+
+            .transfer-edit-form {
+                margin: 0;
+            }
+
+            .transfer-edit-body {
+                max-height: calc(100vh - 112px);
+                overflow-y: auto;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+
+            .transfer-edit-layout {
+                display: grid;
+                gap: 18px;
+                align-items: start;
+            }
+
+            .transfer-edit-layout--with-receipt {
+                grid-template-columns: minmax(420px, 1.35fr) minmax(360px, 0.95fr);
+            }
+
+            .transfer-edit-layout--no-receipt {
+                grid-template-columns: 1fr;
+            }
+
+            .transfer-edit-card {
+                background: rgba(32, 32, 32, 0.96);
+                border: 1px solid var(--transfer-edit-border);
+                border-radius: 12px;
+                box-sizing: border-box;
+            }
+
+            .transfer-edit-receipt-card {
+                overflow: hidden;
+            }
+
+            .transfer-edit-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 13px 15px;
+                border-bottom: 1px solid var(--transfer-edit-border);
+                background: rgba(255, 255, 255, 0.025);
+            }
+
+            .transfer-edit-card-title {
+                margin: 0;
+                color: #fff;
+                font-size: 15px;
+                font-weight: 800;
+            }
+
+            .transfer-edit-card-note {
+                color: var(--transfer-edit-muted);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+
+            .transfer-edit-receipt-preview {
+                height: min(72vh, 760px);
+                min-height: 520px;
+                background: #111;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            .transfer-edit-receipt-img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                display: block;
+                background: #111;
+            }
+
+            .transfer-edit-receipt-frame {
+                width: 100%;
+                height: 100%;
+                border: 0;
+                display: block;
+                background: #111;
+            }
+
+            .transfer-edit-receipt-fallback {
+                padding: 24px;
+                text-align: center;
+                color: var(--transfer-edit-muted);
+                line-height: 1.5;
+            }
+
+            .transfer-edit-receipt-actions {
+                display: flex;
+                justify-content: center;
+                padding: 12px 14px;
+                border-top: 1px solid var(--transfer-edit-border);
+                background: #1c1c1c;
+            }
+
+            .transfer-edit-link-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 8px 13px;
+                border: 1px solid var(--transfer-edit-border-strong);
+                border-radius: 8px;
+                background: rgba(17, 165, 13, 0.12);
+                color: #fff;
+                font-size: 13px;
+                font-weight: 800;
+                text-decoration: none;
+            }
+
+            .transfer-edit-link-button:hover {
+                background: var(--transfer-edit-primary);
+                color: #000;
+            }
+
+            .transfer-edit-data-card {
+                padding: 16px;
+            }
+
+            .transfer-edit-fields {
+                display: flex;
+                flex-direction: column;
+                gap: 13px;
+            }
+
+            .transfer-edit-field {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .transfer-edit-label {
+                color: var(--transfer-edit-muted);
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+            }
+
+            .transfer-edit-input,
+            .transfer-edit-select {
+                width: 100%;
+                box-sizing: border-box;
+                background: var(--transfer-edit-field);
+                color: #fff;
+                border: 1px solid var(--transfer-edit-border);
+                border-radius: 8px;
+                padding: 10px 11px;
+                font: inherit;
+                font-size: 14px;
+                outline: none;
+            }
+
+            .transfer-edit-input:focus,
+            .transfer-edit-select:focus {
+                border-color: var(--transfer-edit-primary);
+                box-shadow: 0 0 0 3px rgba(17, 165, 13, 0.16);
+            }
+
+            .transfer-edit-readonly {
+                min-height: 20px;
+                background: var(--transfer-edit-field);
+                color: #fff;
+                border: 1px solid var(--transfer-edit-border);
+                border-radius: 8px;
+                padding: 10px 11px;
+                font-size: 14px;
+                line-height: 1.35;
+                word-break: break-word;
+            }
+
+            .transfer-edit-readonly--muted {
+                color: var(--transfer-edit-muted);
+            }
+
+            .transfer-edit-duo {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .transfer-edit-file-input {
+                padding: 9px;
+                cursor: pointer;
+            }
+
+            .transfer-edit-file-current {
+                color: var(--transfer-edit-muted);
+                font-size: 12px;
+                line-height: 1.35;
+            }
+
+            .transfer-edit-divider {
+                height: 1px;
+                background: var(--transfer-edit-border);
+                margin: 4px 0;
+            }
+
+            .transfer-edit-changelog {
+                background: #101b10;
+                border: 1px solid rgba(17, 165, 13, 0.35);
+                color: #e8ffe7;
+                border-radius: 10px;
+                padding: 11px;
+                max-height: 210px;
+                overflow-y: auto;
+                box-sizing: border-box;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                font-size: 12px;
+                line-height: 1.45;
+                white-space: pre-wrap;
+                text-align: left;
+            }
+
+            .transfer-edit-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid var(--transfer-edit-border);
+            }
+
+            .transfer-edit-save {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 150px;
+                border: 1px solid var(--transfer-edit-primary);
+                border-radius: 9px;
+                background: var(--transfer-edit-primary);
+                color: #000;
+                padding: 10px 16px;
+                font-size: 15px;
+                font-weight: 900;
+                cursor: pointer;
+                transition: filter 0.18s ease, transform 0.08s ease;
+            }
+
+            .transfer-edit-save:hover {
+                filter: brightness(1.12);
+            }
+
+            .transfer-edit-save:active {
+                transform: translateY(1px);
+            }
+
+            @media (max-width: 980px) {
+                .transfer-edit-layout--with-receipt {
+                    grid-template-columns: 1fr;
+                }
+
+                .transfer-edit-receipt-preview {
+                    height: 56vh;
+                    min-height: 360px;
+                }
+            }
+
+            @media (max-width: 620px) {
+                .transfer-edit-modal,
+                .transfer-edit-modal--no-receipt {
+                    width: calc(100vw - 18px);
+                    max-height: calc(100vh - 18px);
+                }
+
+                .transfer-edit-header {
+                    padding: 14px 15px;
+                }
+
+                .transfer-edit-body {
+                    padding: 12px;
+                    max-height: calc(100vh - 92px);
+                }
+
+                .transfer-edit-duo {
+                    grid-template-columns: 1fr;
+                }
+
+                .transfer-edit-receipt-preview {
+                    height: 48vh;
+                    min-height: 280px;
+                }
             }
         </style>
     </head>
@@ -543,6 +936,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_sparkasse_csv'
 
 
 if (isset($_POST['save_transfer_id'])) {
+    if (empty($admin)) {
+        header("Location: denied.php");
+        exit;
+    }
+
     $transfer_id = $_POST['transfer_id'];
     $selected_user = $_POST['selected_user'];
     $konto = $_POST['konto_update'];
@@ -1089,15 +1487,17 @@ echo '</tbody></table>';
 
 
 if (isset($_POST['edit_transfer'])) {
+    $transfer_id_for_modal = (int)($_POST['transfer_id'] ?? 0);
+
     $query = "SELECT t.uid, t.konto, t.kasse, t.betrag, t.tstamp, t.beschreibung, t.changelog, t.pfad FROM transfers t WHERE id = ?";
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $_POST['transfer_id']);
+    $stmt->bind_param("i", $transfer_id_for_modal);
     $stmt->execute();
     $stmt->bind_result(
-        $selected_transfer_uid, 
-        $selected_transfer_konto, 
-        $selected_transfer_kasse, 
-        $selected_transfer_betrag, 
+        $selected_transfer_uid,
+        $selected_transfer_konto,
+        $selected_transfer_kasse,
+        $selected_transfer_betrag,
         $selected_transfer_tstamp,
         $selected_transfer_beschreibung,
         $selected_transfer_changelog,
@@ -1117,7 +1517,7 @@ if (isset($_POST['edit_transfer'])) {
         7 => "Spülmaschine",
         8 => "Undefiniert"
     ];
-    
+
     $kasse_options = [
         72 => "Netzkonto",
         92 => "Hauskonto",
@@ -1133,171 +1533,235 @@ if (isset($_POST['edit_transfer'])) {
         4 => "Netzkonto (alt)",
     ];
 
-    $formatted_date = date("d.m.Y", (int)$selected_transfer_tstamp);
+    $h = function ($value): string {
+        return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+    };
 
-    echo ('<div class="overlay"></div>
-    <div class="anmeldung-form-container form-container">
-      <form method="post">
-          <button type="submit" name="close" value="close" class="close-btn">X</button>
-      </form>
-    <br>');
+    $konto_display = $konto_options[(int)$selected_transfer_konto] ?? "Undefiniertes Konto";
+    $kasse_display = $kasse_options[(int)$selected_transfer_kasse] ?? "Undefinierte Kasse";
+    $beschreibung_value = !is_null($selected_transfer_beschreibung) ? (string)$selected_transfer_beschreibung : '';
+    $changelog_value = !is_null($selected_transfer_changelog) ? (string)$selected_transfer_changelog : 'Kein Changelog verfügbar';
+    $date_value = date('Y-m-d', (int)$selected_transfer_tstamp);
+    $time_value = date('H:i:s', (int)$selected_transfer_tstamp);
+    $date_display = date("d.m.Y H:i", (int)$selected_transfer_tstamp) . ' (' . (int)$selected_transfer_tstamp . ')';
+    $betrag_display = number_format((float)$selected_transfer_betrag, 2, ",", ".") . ' €';
+    $betrag_input = number_format((float)$selected_transfer_betrag, 2, ",", ".");
+    $has_receipt = trim((string)$selected_transfer_pfad) !== '';
+    $receipt_path = (string)$selected_transfer_pfad;
+    $receipt_url_path = parse_url($receipt_path, PHP_URL_PATH);
+    $receipt_ext = strtolower(pathinfo($receipt_url_path ?: $receipt_path, PATHINFO_EXTENSION));
+    $receipt_is_pdf = ($receipt_ext === 'pdf');
+    $receipt_is_image = in_array($receipt_ext, ['jpg', 'jpeg', 'png', 'gif'], true);
+    $modal_class = $has_receipt ? 'transfer-edit-modal' : 'transfer-edit-modal transfer-edit-modal--no-receipt';
+    $layout_class = $has_receipt ? 'transfer-edit-layout transfer-edit-layout--with-receipt' : 'transfer-edit-layout transfer-edit-layout--no-receipt';
 
-    echo '<div style="text-align: center;">';
+    $selected_user_name = '';
+    $selected_user_room = '';
+    $selected_user_turm = '';
+    $query_user = "SELECT name, room, turm FROM users WHERE uid = ?";
+    $stmt_user = $conn->prepare($query_user);
+    $stmt_user->bind_param("i", $selected_transfer_uid);
+    $stmt_user->execute();
+    $stmt_user->bind_result($selected_user_name, $selected_user_room, $selected_user_turm);
+    $stmt_user->fetch();
+    $stmt_user->close();
+    $selected_user_turm_display = ($selected_user_turm === 'tvk') ? 'TvK' : strtoupper((string)$selected_user_turm);
+    $selected_user_display = trim((string)$selected_user_name) !== ''
+        ? $selected_user_name . ' [' . $selected_user_turm_display . ' ' . $selected_user_room . ']'
+        : 'UID ' . (int)$selected_transfer_uid;
+
+    echo '<div class="overlay transfer-edit-overlay"></div>';
+    echo '<div class="' . $modal_class . '" role="dialog" aria-modal="true" aria-labelledby="transfer-edit-title">';
+
+    echo '  <div class="transfer-edit-header">';
+    echo '    <div class="transfer-edit-title-block">';
+    echo '      <div class="transfer-edit-kicker">Transfer bearbeiten</div>';
+    echo '      <h2 id="transfer-edit-title" class="transfer-edit-title">Transfer #' . (int)$transfer_id_for_modal . '</h2>';
+    echo '      <div class="transfer-edit-subtitle">' . $h($selected_user_display) . ' · ' . $h($betrag_display) . '</div>';
+    echo '    </div>';
+    echo '    <form method="post" class="transfer-edit-close-form">';
+    echo '      <button type="submit" name="close" value="close" class="transfer-edit-close" aria-label="Modal schließen">&times;</button>';
+    echo '    </form>';
+    echo '  </div>';
 
     if ($admin) {
-      echo '<form method="post" enctype="multipart/form-data">';
-      echo '<input type="hidden" name="transfer_id" value="'.$_POST['transfer_id'].'">';
-      echo '<input type="hidden" name="ausgangs_betrag" value="'.number_format($selected_transfer_betrag, 2, ".", "").'">';
-      echo '<input type="hidden" name="ausgangs_uid" value="'.$selected_transfer_uid.'">';
-      echo '<input type="hidden" name="ausgangs_konto" value="'.$selected_transfer_konto.'">';
-      echo '<input type="hidden" name="ausgangs_kasse" value="'.$selected_transfer_kasse.'">';
-      echo '<input type="hidden" name="ausgangs_beschreibung" value="'.htmlspecialchars($selected_transfer_beschreibung).'">';
-      echo '<input type="hidden" name="ausgangs_pfad" value="'.htmlspecialchars($selected_transfer_pfad).'">';
-      echo '<input type="hidden" name="ausgangs_tstamp" value="'.(int)$selected_transfer_tstamp.'">';
-      echo '<input type="hidden" name="ausgangs_hour" value="'.(int)date('H', (int)$selected_transfer_tstamp).'">';
-      echo '<input type="hidden" name="ausgangs_min"  value="'.(int)date('i', (int)$selected_transfer_tstamp).'">';
-      echo '<input type="hidden" name="ausgangs_sec"  value="'.(int)date('s', (int)$selected_transfer_tstamp).'">';
-    }
-    
-    echo '<div style="text-align: center; color: lightgrey;">';
-    echo 'Transfer ID: <span style="color:white;">'.$_POST['transfer_id'].'</span>';
-    echo '</div>';
-    echo '<br><br>';
-    
-    if (!$admin) {
-        $query_user = "SELECT name, room, turm FROM users WHERE uid = ?";
-        $stmt_user = $conn->prepare($query_user);
-        $stmt_user->bind_param("i", $selected_transfer_uid);
-        $stmt_user->execute();
-        $stmt_user->bind_result($selected_user_name, $selected_user_room, $selected_user_turm);
-        $stmt_user->fetch();
-        $stmt_user->close();
-
-        $formatted_turm = ($selected_user_turm == 'tvk') ? 'TvK' : strtoupper($selected_user_turm);
-
-        echo '<label for="user_info" style="color:lightgrey;">Benutzerinformationen:</label><br>';
-        echo '<p style="color:white !important;">' . htmlspecialchars($selected_user_name) . ' [' . $formatted_turm . ' ' . htmlspecialchars($selected_user_room) . ']</p><br>';
+        echo '<form method="post" enctype="multipart/form-data" class="transfer-edit-form">';
+        echo '<input type="hidden" name="transfer_id" value="' . (int)$transfer_id_for_modal . '">';
+        echo '<input type="hidden" name="ausgangs_betrag" value="' . $h(number_format((float)$selected_transfer_betrag, 2, ".", "")) . '">';
+        echo '<input type="hidden" name="ausgangs_uid" value="' . (int)$selected_transfer_uid . '">';
+        echo '<input type="hidden" name="ausgangs_konto" value="' . (int)$selected_transfer_konto . '">';
+        echo '<input type="hidden" name="ausgangs_kasse" value="' . (int)$selected_transfer_kasse . '">';
+        echo '<input type="hidden" name="ausgangs_beschreibung" value="' . $h($beschreibung_value) . '">';
+        echo '<input type="hidden" name="ausgangs_pfad" value="' . $h($receipt_path) . '">';
+        echo '<input type="hidden" name="ausgangs_tstamp" value="' . (int)$selected_transfer_tstamp . '">';
+        echo '<input type="hidden" name="ausgangs_hour" value="' . (int)date('H', (int)$selected_transfer_tstamp) . '">';
+        echo '<input type="hidden" name="ausgangs_min" value="' . (int)date('i', (int)$selected_transfer_tstamp) . '">';
+        echo '<input type="hidden" name="ausgangs_sec" value="' . (int)date('s', (int)$selected_transfer_tstamp) . '">';
     } else {
-        echo '<label for="selected_user" style="color:lightgrey;">Benutzer auswählen:</label><br>';
-        echo '<select name="selected_user" id="selected_user" style="margin-top: 10px; padding: 5px; text-align: center; text-align-last: center; display: block; margin-left: auto; margin-right: auto;">
-                <option value="" disabled selected>Wähle einen Benutzer</option>';
-        echo '<option value="472" ' . (472 == $selected_transfer_uid ? 'selected' : '') . '>NetzAG-Dummy</option>';
-        echo '<option value="492" ' . (492 == $selected_transfer_uid ? 'selected' : '') . '>Vorstand-Dummy</option>';
-        
-        $sql = "SELECT uid, name, room, turm 
-                FROM users 
+        echo '<div class="transfer-edit-form transfer-edit-form--readonly">';
+    }
+
+    echo '  <div class="transfer-edit-body">';
+    echo '    <div class="' . $layout_class . '">';
+
+    if ($has_receipt) {
+        $safe_path = $h($receipt_path);
+        echo '      <section class="transfer-edit-card transfer-edit-receipt-card">';
+        echo '        <div class="transfer-edit-card-header">';
+        echo '          <h3 class="transfer-edit-card-title">Rechnung</h3>';
+        echo '          <span class="transfer-edit-card-note">' . $h(strtoupper($receipt_ext ?: 'Datei')) . '</span>';
+        echo '        </div>';
+        echo '        <div class="transfer-edit-receipt-preview">';
+
+        if ($receipt_is_image) {
+            echo '          <img src="' . $safe_path . '" alt="Rechnung zu Transfer #' . (int)$transfer_id_for_modal . '" class="transfer-edit-receipt-img">';
+        } elseif ($receipt_is_pdf) {
+            echo '          <object data="' . $safe_path . '#toolbar=1&navpanes=0" type="application/pdf" class="transfer-edit-receipt-frame">';
+            echo '            <div class="transfer-edit-receipt-fallback">PDF-Vorschau konnte nicht geladen werden.<br><a href="' . $safe_path . '" target="_blank" rel="noopener">Rechnung in neuem Tab öffnen</a></div>';
+            echo '          </object>';
+        } else {
+            echo '          <div class="transfer-edit-receipt-fallback">Für diesen Dateityp ist keine eingebettete Vorschau verfügbar.</div>';
+        }
+
+        echo '        </div>';
+        echo '        <div class="transfer-edit-receipt-actions">';
+        echo '          <a href="' . $safe_path . '" target="_blank" rel="noopener" class="transfer-edit-link-button">Rechnung separat öffnen</a>';
+        echo '        </div>';
+        echo '      </section>';
+    }
+
+    echo '      <section class="transfer-edit-card transfer-edit-data-card">';
+    echo '        <div class="transfer-edit-fields">';
+
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Benutzer</label>';
+    if ($admin) {
+        echo '            <select name="selected_user" id="selected_user" class="transfer-edit-select">';
+        echo '              <option value="" disabled>Wähle einen Benutzer</option>';
+        echo '              <option value="472" ' . (472 == (int)$selected_transfer_uid ? 'selected' : '') . '>NetzAG-Dummy</option>';
+        echo '              <option value="492" ' . (492 == (int)$selected_transfer_uid ? 'selected' : '') . '>Vorstand-Dummy</option>';
+
+        $sql = "SELECT uid, name, room, turm
+                FROM users
                 ORDER BY pid, FIELD(turm, 'weh', 'tvk'), room";
-        
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_bind_result($stmt, $uid, $name, $room, $turm);
-        
+
         while (mysqli_stmt_fetch($stmt)) {
-            $formatted_turm = ($turm == 'tvk') ? 'TvK' : strtoupper($turm);
-            echo '<option value="' . $uid . '" ' . ($uid == $selected_transfer_uid ? 'selected' : '') . '>' . $name . ' [' . $formatted_turm . ' ' . $room . ']</option>';
+            $formatted_turm = ($turm === 'tvk') ? 'TvK' : strtoupper((string)$turm);
+            $option_text = $name . ' [' . $formatted_turm . ' ' . $room . ']';
+            echo '              <option value="' . (int)$uid . '" ' . ((int)$uid == (int)$selected_transfer_uid ? 'selected' : '') . '>' . $h($option_text) . '</option>';
         }
-        
-        echo '</select><br><br>';
-    }
+        mysqli_stmt_close($stmt);
 
-    echo '<br>';
-
-    echo '<label style="color:lightgrey;">Beschreibung:</label><br>';
-    if (!$admin) {
-        echo '<p style="color:white !important;">'.(!is_null($selected_transfer_beschreibung) ? htmlspecialchars($selected_transfer_beschreibung) : '').'</p><br>';
+        echo '            </select>';
     } else {
-        echo '<input type="text" name="beschreibung" value="'.(!is_null($selected_transfer_beschreibung) ? htmlspecialchars($selected_transfer_beschreibung) : '').'" style="text-align: center; width: 80%;"><br><br>';
+        echo '            <div class="transfer-edit-readonly">' . $h($selected_user_display) . '</div>';
     }
+    echo '          </div>';
 
-    echo '<br>';
-
-    echo '<div style="display: flex; gap: 20px; justify-content: space-between; align-items: flex-start;">';
-
-    echo '<div style="flex: 1; max-width: 100%;">';
-    echo '<label style="color:lightgrey;">Konto:</label><br>';
-    $konto_display = isset($konto_options[$selected_transfer_konto]) ? $konto_options[$selected_transfer_konto] : "Undefiniertes Konto";
-    if (!$admin) {
-        echo '<p style="color:white !important;">'.$konto_display.'</p><br>';
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Beschreibung</label>';
+    if ($admin) {
+        echo '            <input type="text" name="beschreibung" value="' . $h($beschreibung_value) . '" class="transfer-edit-input">';
     } else {
-        echo '<select name="konto_update" style="text-align: center; width: 100%;">';
+        echo '            <div class="transfer-edit-readonly">' . ($beschreibung_value !== '' ? $h($beschreibung_value) : '<span class="transfer-edit-readonly--muted">Keine Beschreibung</span>') . '</div>';
+    }
+    echo '          </div>';
+
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Konto</label>';
+    if ($admin) {
+        echo '              <select name="konto_update" class="transfer-edit-select">';
         foreach ($konto_options as $key => $value) {
-            echo '<option value="'.$key.'" '.($key == $selected_transfer_konto ? 'selected' : '').'>'.$value.'</option>';
+            echo '                <option value="' . (int)$key . '" ' . ((int)$key == (int)$selected_transfer_konto ? 'selected' : '') . '>' . $h($value) . '</option>';
         }
-        echo '</select><br><br>';
-    }
-    echo '</div>';
-    
-    echo '<div style="flex: 1; max-width: 100%;">';
-    echo '<label style="color:lightgrey;">Kasse:</label><br>';
-    $kasse_display = isset($kasse_options[$selected_transfer_kasse]) ? $kasse_options[$selected_transfer_kasse] : "Undefinierte Kasse";
-    if (!$admin) {
-        echo '<p style="color:white !important;">'.$kasse_display.'</p><br>';
+        echo '              </select>';
     } else {
-        echo '<select name="kasse" style="text-align: center; width: 100%;">';
+        echo '              <div class="transfer-edit-readonly">' . $h($konto_display) . '</div>';
+    }
+    echo '          </div>';
+
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Kasse</label>';
+    if ($admin) {
+        echo '              <select name="kasse" class="transfer-edit-select">';
         foreach ($kasse_options as $key => $value) {
-            echo '<option value="'.$key.'" '.($key == $selected_transfer_kasse ? 'selected' : '').'>'.$value.'</option>';
+            echo '                <option value="' . (int)$key . '" ' . ((int)$key == (int)$selected_transfer_kasse ? 'selected' : '') . '>' . $h($value) . '</option>';
         }
-        echo '</select><br><br>';
-    }
-    echo '</div>';
-    
-    echo '</div>';
-    
-    $date_value = date('Y-m-d', (int)$selected_transfer_tstamp);
-    $time_value = date('H:i:s', (int)$selected_transfer_tstamp);
-
-    echo '<label style="color:lightgrey;">Datum & Uhrzeit:</label><br>';
-
-    if (!$admin) {
-        echo '<p style="color:white !important;">'
-        . date("d.m.Y H:i", (int)$selected_transfer_tstamp)
-        . ' <span style="color:#aaa;">(' . (int)$selected_transfer_tstamp . ')</span>'
-        . '</p><br>';
+        echo '              </select>';
     } else {
-        echo '<div style="display:flex; gap:10px; justify-content:center; align-items:center;">';
-        echo '  <input type="date" name="tstamp_date" value="'.htmlspecialchars($date_value, ENT_QUOTES, "UTF-8").'" style="text-align:center;">';
-        echo '  <input type="time" name="tstamp_time" value="'.htmlspecialchars($time_value, ENT_QUOTES, "UTF-8").'" step="1" style="text-align:center; width:150px;">';
-        echo '</div><br><br>';
+        echo '              <div class="transfer-edit-readonly">' . $h($kasse_display) . '</div>';
     }
-    
-    echo '<br>';
+    echo '          </div>';
 
-    echo '<label style="color:lightgrey;">Betrag:</label><br>';
-    if (!$admin) {
-      echo '<p style="color:white !important;">'.number_format($selected_transfer_betrag, 2, ",", ".").' €</p><br>';
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Datum</label>';
+    if ($admin) {
+        echo '              <input type="date" name="tstamp_date" value="' . $h($date_value) . '" class="transfer-edit-input">';
     } else {
-        echo '<input type="text" name="betrag" value="'.number_format($selected_transfer_betrag, 2, ",", ".").'" style="text-align: center;"><br><br>';
+        echo '              <div class="transfer-edit-readonly">' . $h(date("d.m.Y", (int)$selected_transfer_tstamp)) . '</div>';
     }
+    echo '          </div>';
 
-    echo '<br>';
-
-    if (!empty($selected_transfer_pfad)) {
-        $safe_path = htmlspecialchars($selected_transfer_pfad, ENT_QUOTES, 'UTF-8');
-        echo '<label style="color:lightgrey;"><a href="' . $safe_path . '" target="_blank" style="color: lightgrey;">Rechnung: ➡️</a></label><br>';
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Uhrzeit</label>';
+    if ($admin) {
+        echo '              <input type="time" name="tstamp_time" value="' . $h($time_value) . '" step="1" class="transfer-edit-input">';
     } else {
-        echo '<label style="color:lightgrey;">Rechnung</label><br>';
+        echo '              <div class="transfer-edit-readonly">' . $h(date("H:i:s", (int)$selected_transfer_tstamp)) . '</div>';
     }
-        
+    echo '          </div>';
+
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Unix-Zeitstempel</label>';
+    echo '            <div class="transfer-edit-readonly transfer-edit-readonly--muted">' . (int)$selected_transfer_tstamp . '</div>';
+    echo '          </div>';
+
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Betrag</label>';
     if ($admin) {
-        echo '<input type="file" name="rechnung_upload" accept=".pdf,.jpg,.jpeg,.png,.gif" style="margin-top: 8px; color: white;"><br><br>';
+        echo '            <input type="text" name="betrag" value="' . $h($betrag_input) . '" class="transfer-edit-input">';
+    } else {
+        echo '            <div class="transfer-edit-readonly">' . $h($betrag_display) . '</div>';
     }
-        
+    echo '          </div>';
+
+    echo '          <div class="transfer-edit-field">';
+    echo '            <label class="transfer-edit-label">Rechnung</label>';
     if ($admin) {
-      echo '<br>';
-      echo '<label style="color:lightgrey;">Changelog:</label><br><br>';
-      
-      echo '<div style="background-color: darkblue; color: white; font-family: monospace; padding: 10px; display: inline-block; text-align: center; width: calc(100% - 30px); max-height: 200px; overflow-y: auto; box-sizing: border-box;">'; 
-      
-      echo '<p style="margin: 0; line-height: 1.4; font-size: 14px; white-space: pre-wrap;">'.(!is_null($selected_transfer_changelog) ? htmlspecialchars($selected_transfer_changelog) : 'Kein Changelog verfügbar').'</p>';
-      
-      echo '</div>';
-      echo '<br>';
+        echo '            <input type="file" name="rechnung_upload" accept=".pdf,.jpg,.jpeg,.png,.gif" class="transfer-edit-input transfer-edit-file-input">';
+        echo '            <div class="transfer-edit-file-current">' . ($has_receipt ? 'Aktuell: ' . $h($receipt_path) : 'Aktuell ist keine Rechnung hinterlegt.') . '</div>';
+    } else {
+        if ($has_receipt) {
+            echo '            <div class="transfer-edit-readonly"><a href="' . $h($receipt_path) . '" target="_blank" rel="noopener">Rechnung öffnen</a></div>';
+        } else {
+            echo '            <div class="transfer-edit-readonly transfer-edit-readonly--muted">Keine Rechnung hinterlegt</div>';
+        }
     }
-  
+    echo '          </div>';
+
     if ($admin) {
-        echo '<div style="display: flex; justify-content: center; margin-top: 20px;">';
-        echo '<button type="submit" name="save_transfer_id" class="sml-center-btn" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px;">Speichern</button>';
+        echo '          <div class="transfer-edit-divider"></div>';
+        echo '          <div class="transfer-edit-field">';
+        echo '            <label class="transfer-edit-label">Changelog</label>';
+        echo '            <div class="transfer-edit-changelog">' . $h($changelog_value) . '</div>';
+        echo '          </div>';
+
+        echo '          <div class="transfer-edit-actions">';
+        echo '            <button type="submit" name="save_transfer_id" class="transfer-edit-save">Speichern</button>';
+        echo '          </div>';
+    }
+
+    echo '        </div>';
+    echo '      </section>';
+    echo '    </div>';
+    echo '  </div>';
+
+    if ($admin) {
         echo '</form>';
+    } else {
         echo '</div>';
     }
 
