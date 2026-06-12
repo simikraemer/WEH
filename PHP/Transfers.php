@@ -48,6 +48,16 @@
     <head>
         <link rel="stylesheet" href="WEH.css" media="screen">
         <link rel="stylesheet" href="TRANSFERS.css" media="screen">
+        <style>
+            .transfer-table th {
+                cursor: pointer;
+                user-select: none;
+            }
+            .transfer-table tbody tr.transfer-row-restored {
+                outline: 2px solid #11a50d;
+                outline-offset: -2px;
+            }
+        </style>
     </head>
 <body>
 <?php
@@ -1296,34 +1306,158 @@ if (isset($_POST['edit_transfer'])) {
 
 ?>
 <script>
-let sortDirections = {};
-let lastSortedColumn = null;
+const TRANSFERS_UI_STORAGE_KEY = <?= json_encode('transfers_ui_' . (int)$kid . '_' . (int)$semester_start, JSON_UNESCAPED_SLASHES) ?>;
+let transferSortState = { col: null, asc: true };
 
-function sortTable(colIndex, headerEl) {
-    const table = document.getElementById("transfers-table");
-    const rows = Array.from(table.tBodies[0].rows);
-    const dir = sortDirections[colIndex] = !sortDirections[colIndex];
+function readTransfersUiState() {
+    try {
+        return JSON.parse(sessionStorage.getItem(TRANSFERS_UI_STORAGE_KEY) || '{}');
+    } catch (e) {
+        return {};
+    }
+}
 
-    rows.sort((a, b) => {
-        const aVal = a.cells[colIndex].dataset.sort || a.cells[colIndex].innerText;
-        const bVal = b.cells[colIndex].dataset.sort || b.cells[colIndex].innerText;
-        const aNum = parseFloat(aVal.replace(',', '.'));
-        const bNum = parseFloat(bVal.replace(',', '.'));
-        const cmp = (!isNaN(aNum) && !isNaN(bNum)) ? (aNum - bNum) : aVal.localeCompare(bVal);
-        return dir ? cmp : -cmp;
-    });
+function writeTransfersUiState(state) {
+    try {
+        sessionStorage.setItem(TRANSFERS_UI_STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+        // sessionStorage kann z.B. bei sehr restriktiven Browser-Einstellungen blockiert sein.
+    }
+}
 
-    for (const row of rows) table.tBodies[0].appendChild(row);
+function storeTransfersUiState(options = {}) {
+    const previous = readTransfersUiState();
+    const keepScroll = !!options.keepScroll;
+    const selectedId = Object.prototype.hasOwnProperty.call(options, 'selectedId')
+        ? options.selectedId
+        : (previous.selectedId || null);
+
+    const state = {
+        sort: {
+            col: transferSortState.col,
+            asc: transferSortState.asc
+        },
+        scrollY: keepScroll && Number.isFinite(previous.scrollY) ? previous.scrollY : window.scrollY,
+        selectedId: selectedId,
+        updatedAt: Date.now()
+    };
+
+    writeTransfersUiState(state);
+}
+
+function initTransferHeaders() {
+    const table = document.getElementById('transfers-table');
+    if (!table || !table.tHead || !table.tHead.rows.length) return;
 
     const headers = table.tHead.rows[0].cells;
     for (let i = 0; i < headers.length; i++) {
-        headers[i].innerText = headers[i].innerText.replace(/[\u25B2\u25BC]/g, '');
+        if (!headers[i].dataset.baseLabel) {
+            headers[i].dataset.baseLabel = headers[i].innerText.replace(/[\u25B2\u25BC]/g, '').trim();
+        }
     }
-    headerEl.innerText += dir ? ' ▲' : ' ▼';
+}
+
+function getCellSortValue(row, colIndex) {
+    const cell = row.cells[colIndex];
+    if (!cell) return '';
+    return (cell.dataset.sort ?? cell.innerText ?? '').toString().trim();
+}
+
+function parseSortNumber(value) {
+    let normalized = String(value)
+        .replace(/€/g, '')
+        .replace(/\s/g, '')
+        .trim();
+
+    if (/^-?\d+(\.\d+)?$/.test(normalized)) {
+        return Number(normalized);
+    }
+
+    if (/^-?[\d.]+,\d+$/.test(normalized)) {
+        normalized = normalized.replace(/\./g, '').replace(',', '.');
+        return Number(normalized);
+    }
+
+    return NaN;
+}
+
+function applyTransferSort(colIndex, ascending, headerEl = null, persist = true) {
+    const table = document.getElementById('transfers-table');
+    if (!table || !table.tBodies.length) return;
+
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.rows);
+
+    rows.sort((a, b) => {
+        const aVal = getCellSortValue(a, colIndex);
+        const bVal = getCellSortValue(b, colIndex);
+        const aNum = parseSortNumber(aVal);
+        const bNum = parseSortNumber(bVal);
+
+        let cmp;
+        if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+            cmp = aNum - bNum;
+        } else {
+            cmp = aVal.localeCompare(bVal, 'de', { numeric: true, sensitivity: 'base' });
+        }
+
+        return ascending ? cmp : -cmp;
+    });
+
+    for (const row of rows) {
+        tbody.appendChild(row);
+    }
+
+    initTransferHeaders();
+    const headers = table.tHead?.rows?.[0]?.cells || [];
+    for (let i = 0; i < headers.length; i++) {
+        headers[i].innerText = headers[i].dataset.baseLabel || headers[i].innerText.replace(/[\u25B2\u25BC]/g, '').trim();
+    }
+
+    const activeHeader = headerEl || headers[colIndex];
+    if (activeHeader) {
+        activeHeader.innerText = (activeHeader.dataset.baseLabel || activeHeader.innerText.replace(/[\u25B2\u25BC]/g, '').trim()) + (ascending ? ' ▲' : ' ▼');
+    }
+
+    transferSortState = { col: colIndex, asc: !!ascending };
+
+    if (persist) {
+        storeTransfersUiState();
+    }
+}
+
+function sortTable(colIndex, headerEl) {
+    const ascending = transferSortState.col === colIndex ? !transferSortState.asc : true;
+    applyTransferSort(colIndex, ascending, headerEl, true);
+}
+
+function restoreTransfersUiState() {
+    initTransferHeaders();
+
+    const state = readTransfersUiState();
+    if (state.sort && Number.isInteger(state.sort.col)) {
+        applyTransferSort(state.sort.col, state.sort.asc !== false, null, false);
+    }
+
+    if (state.selectedId) {
+        const selectedRow = Array.from(document.querySelectorAll('#transfers-table tbody tr'))
+            .find(row => row.dataset.id === String(state.selectedId));
+        if (selectedRow) {
+            selectedRow.classList.add('transfer-row-restored');
+        }
+    }
+
+    if (Number.isFinite(state.scrollY)) {
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: state.scrollY, left: 0, behavior: 'auto' });
+        });
+    }
 }
 
 function submitEditTransfer(row) {
     const id = row.dataset.id;
+    storeTransfersUiState({ selectedId: id });
+
     const form = document.createElement('form');
     form.method = 'POST';
 
@@ -1346,6 +1480,8 @@ function submitEditTransfer(row) {
 function sucheUser(term) {
     const ergebnisContainer = document.getElementById('usersuchergebnisse');
     const hiddenUidField = document.getElementById('uid_neu');
+
+    if (!ergebnisContainer || !hiddenUidField) return;
 
     if (term.trim() === '') {
         ergebnisContainer.innerHTML = '';
@@ -1394,18 +1530,37 @@ function sucheUser(term) {
 }
 
 function setDummyUser(uid, name) {
-    document.getElementById('uid_neu').value = uid;
-    document.getElementById('usersuche').value = name;
-    document.getElementById('usersuchergebnisse').innerHTML = '';
+    const hiddenUidField = document.getElementById('uid_neu');
+    const searchField = document.getElementById('usersuche');
+    const results = document.getElementById('usersuchergebnisse');
+
+    if (hiddenUidField) hiddenUidField.value = uid;
+    if (searchField) searchField.value = name;
+    if (results) results.innerHTML = '';
 }
 
-document.getElementById('transfer-form').addEventListener('submit', function(e) {
-    const uid = document.getElementById('uid_neu').value.trim();
-    const betrag = document.querySelector('input[name="betrag_neu"]').value.trim();
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement)) return;
 
-    if (!uid || !betrag) {
-        alert("Bitte Nutzer auswählen und gültigen Betrag eingeben.");
-        e.preventDefault();
+    const isEditSaveOrClose = !!form.querySelector('[name="save_transfer_id"], [name="close"]');
+    storeTransfersUiState({ keepScroll: isEditSaveOrClose });
+}, true);
+
+document.addEventListener('DOMContentLoaded', function() {
+    restoreTransfersUiState();
+
+    const transferForm = document.getElementById('transfer-form');
+    if (transferForm) {
+        transferForm.addEventListener('submit', function(e) {
+            const uid = document.getElementById('uid_neu')?.value.trim() || '';
+            const betrag = document.querySelector('input[name="betrag_neu"]')?.value.trim() || '';
+
+            if (!uid || !betrag) {
+                alert("Bitte Nutzer auswählen und gültigen Betrag eingeben.");
+                e.preventDefault();
+            }
+        });
     }
 });
 
