@@ -1,4 +1,5 @@
 <?php
+  ob_start();
   session_start();
   require('conn.php');
 
@@ -35,9 +36,12 @@
             $searchedusers[$uid][] = array("uid" => $uid, "name" => $name, "username" => $username, "room" => $room, "oldroom" => $oldroom, "turm" => $turm);
         }
 
-        header('Content-Type: application/json');
+        while (ob_get_level() > 0) { ob_end_clean(); }
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($searchedusers);
     } else {
+        while (ob_get_level() > 0) { ob_end_clean(); }
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode([]);
     }
     exit;
