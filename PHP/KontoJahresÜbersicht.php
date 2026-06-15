@@ -35,8 +35,22 @@
         $barkassen = [
             ['id' => 1, 'label' => 'Netzbarkasse I'],
             ['id' => 2, 'label' => 'Netzbarkasse II'],
-            ['id' => 93, 'label' => 'Kassenwart I'],
-            ['id' => 94, 'label' => 'Kassenwart II'],
+            ['id' => 93, 'label' => 'Kassenwartkasse I'],
+            ['id' => 94, 'label' => 'Kassenwartkasse II'],
+            ['id' => 95, 'label' => 'Tresor']
+        ];
+
+        $netzagKassen = [
+            ['id' => 1,  'label' => 'Netzbarkasse I'],
+            ['id' => 2,  'label' => 'Netzbarkasse II'],
+            ['id' => 72, 'label' => 'Netzkonto'],
+            ['id' => 69, 'label' => 'PayPal']
+        ];
+
+        $hausKassen = [
+            ['id' => 93, 'label' => 'Kassenwartkasse I'],
+            ['id' => 94, 'label' => 'Kassenwartkasse II'],
+            ['id' => 92, 'label' => 'Hauskonto'],
             ['id' => 95, 'label' => 'Tresor']
         ];
 
@@ -47,18 +61,28 @@
         $groupHaus   = [92, 93, 94, 95];
 
         // ------------------- Input -------------------
-        $year = isset($_GET['year']) ? intval($_GET['year']) : intval(date('Y'));
+        // year:
+        // "all" => Mehrjahresansicht über alle Jahre mit Daten
+        // YYYY  => Einzeljahr
+        $yearParam = isset($_GET['year']) ? trim((string)$_GET['year']) : (string)intval(date('Y'));
+        $isMultiYear = ($yearParam === 'all');
+        $year = $isMultiYear ? intval(date('Y')) : intval($yearParam);
+
         // view:
-        // "online" => nur Online-Konten (Einzelkassen)
-        // "cash"   => nur Barkassen (Einzelkassen)
-        // "all"    => alle Kassen (Einzelkassen)
-        // "group"  => Netz/Vorstand (Gruppenansicht)
+        // "online"       => nur Online-Konten (Einzelkassen)
+        // "cash"         => nur Barkassen (Einzelkassen)
+        // "all"          => alle Kassen (Einzelkassen)
+        // "netzag"       => Netzwerk-AG-Kassen als Einzelverläufe
+        // "haus"         => Haus-Kassen als Einzelverläufe
+        // "group"        => Netzwerk-AG/Haus als Gruppenansicht
+        // "wehtvk"       => WEH/TvK Einnahmen nach Typ
+        // "ein_ausgaben" => Ein-/Ausgaben nach Kategorie
         $view = isset($_GET['view']) ? (string)$_GET['view'] : 'online';
-        if (!in_array($view, ['online', 'cash', 'all', 'group', 'wehtvk'], true)) {
+        if (!in_array($view, ['online', 'cash', 'all', 'netzag', 'haus', 'group', 'wehtvk', 'ein_ausgaben'], true)) {
             $view = 'online';
         }
 
-        // ------------------- min/max year aus DB (min. 2023) -------------------
+        // ------------------- min/max year aus DB (min. 2024) -------------------
         $minYear = 2024;
         $maxYear = intval(date('Y'));
 
@@ -69,94 +93,123 @@
             if ($stmt->fetch() && $min_ts !== null && $max_ts !== null) {
                 $dbMinYear = intval(date('Y', intval($min_ts)));
                 $dbMaxYear = intval(date('Y', intval($max_ts)));
-                $minYear = max(2023, $dbMinYear);
+                $minYear = max(2024, $dbMinYear);
                 $maxYear = max($minYear, $dbMaxYear);
             }
             $stmt->close();
         }
 
-        if ($year < $minYear) {
-            $year = $minYear;
-        }
-        if ($year > $maxYear) {
-            $year = $maxYear;
+        if (!$isMultiYear) {
+            if ($year < $minYear) {
+                $year = $minYear;
+            }
+            if ($year > $maxYear) {
+                $year = $maxYear;
+            }
         }
 
         // ------------------- Zeitraum -------------------
-        $startTs = strtotime($year . "-01-01 00:00:00");
-        $nextYearStartTs = strtotime(($year + 1) . "-01-01 00:00:00");
-
         $currentYear = intval(date('Y'));
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
         $tomorrowStart = $todayStart + 86400;
 
-        // X-Achse: IMMER ganzes Jahr (damit alle Monate da sind)
-        $axisEndTsExcl = $nextYearStartTs;
+        $startYear = $isMultiYear ? $minYear : $year;
+        $endYear   = $isMultiYear ? $maxYear : $year;
 
-        // Daten: bei aktuellem Jahr nur bis morgen (damit Graph "abbricht")
-        $dataEndTsExcl = $nextYearStartTs;
-        if ($year === $currentYear) {
-            $dataEndTsExcl = min($nextYearStartTs, $tomorrowStart);
+        $startTs = strtotime($startYear . "-01-01 00:00:00");
+        $axisEndTsExcl = strtotime(($endYear + 1) . "-01-01 00:00:00");
+
+        // Daten: sobald der ausgewählte Zeitraum das aktuelle Jahr enthält, nur bis morgen laden,
+        // damit der Graph ab heute abbricht und nicht künstlich durch das Restjahr läuft.
+        $rangeContainsCurrentYear = ($startYear <= $currentYear && $endYear >= $currentYear);
+        $dataEndTsExcl = $axisEndTsExcl;
+        if ($rangeContainsCurrentYear) {
+            $dataEndTsExcl = min($axisEndTsExcl, $tomorrowStart);
         }
 
-        // ------------------- Keys/Labels fürs GANZE Jahr (Achse/Monate) -------------------
+        $validUntilIso = $rangeContainsCurrentYear ? date('Y-m-d') : '9999-12-31';
+
+        // In der Mehrjahresansicht der Balkendiagramme wird direkt pro Jahr aggregiert.
+        // Alle Linienansichten behalten Tagesauflösung; nur die Trenner/Beschriftungen wechseln.
+        $isPeriodBarView = in_array($view, ['wehtvk', 'ein_ausgaben'], true);
+        $axisGranularity = ($isMultiYear && $isPeriodBarView) ? 'year' : 'day';
+        $periodMode = $isMultiYear ? 'year' : 'month';
+
+        // ------------------- Keys/Labels + Periodenmarkierungen -------------------
         $keys = [];
         $labels = [];
         $tsList = [];
-        for ($ts = $startTs; $ts < $axisEndTsExcl; $ts += 86400) {
-            $keys[] = date('Y-m-d', $ts);
-            $labels[] = date('d.m.', $ts);
-            $tsList[] = $ts;
-        }
+        $periodLines = [];
+        $periodLabels = [];
 
-        // ------------------- Monatstrennlinien + Monatslabel-Positionen -------------------
         $monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
-        $monthLines = [];   // Indexe, an denen eine vertikale Linie (Monatswechsel) gezeichnet wird (zwischen Tagen)
-        $monthLabels = [];  // ['index' => midIndex, 'label' => 'Januar', 'year' => 2024]
+        if ($axisGranularity === 'year') {
+            $idx = 0;
+            for ($y = $startYear; $y <= $endYear; $y++, $idx++) {
+                $keys[] = (string)$y;
+                $labels[] = (string)$y;
 
-        if (count($tsList) > 0) {
-            $firstMonth = intval(date('n', $tsList[0])); // 1..12
-            $firstYear = intval(date('Y', $tsList[0]));
-
-            $curMonth = intval(date('n', $tsList[0]));
-            $curYearM = intval(date('Y', $tsList[0]));
-            $monthStartIdx = 0;
-
-            for ($i = 1; $i < count($tsList); $i++) {
-                $m = intval(date('n', $tsList[$i]));
-                $y = intval(date('Y', $tsList[$i]));
-
-                if ($m !== $curMonth || $y !== $curYearM) {
-                    // Monatswechsel zwischen i-1 und i -> Linie bei i
-                    $monthLines[] = $i;
-
-                    // Label in der Mitte des Monats (Start..i-1)
-                    $monthEndIdx = $i - 1;
-                    $mid = intval(floor(($monthStartIdx + $monthEndIdx) / 2));
-                    $monthLabels[] = [
-                        'index' => $mid,
-                        'label' => $monthNames[$curMonth - 1],
-                        'year'  => $curYearM,
-                        'month' => $curMonth
-                    ];
-
-                    // neuer Monat
-                    $curMonth = $m;
-                    $curYearM = $y;
-                    $monthStartIdx = $i;
+                if ($idx > 0) {
+                    $periodLines[] = $idx;
                 }
+
+                $periodLabels[] = [
+                    'index' => $idx,
+                    'label' => (string)$y,
+                    'year'  => $y,
+                    'month' => null
+                ];
+            }
+        } else {
+            for ($ts = $startTs; $ts < $axisEndTsExcl; $ts += 86400) {
+                $keys[] = date('Y-m-d', $ts);
+                $labels[] = date('d.m.', $ts);
+                $tsList[] = $ts;
             }
 
-            // letztes (aktuelles) Monatstück
-            $monthEndIdx = count($tsList) - 1;
-            $mid = intval(floor(($monthStartIdx + $monthEndIdx) / 2));
-            $monthLabels[] = [
-                'index' => $mid,
-                'label' => $monthNames[$curMonth - 1],
-                'year'  => $curYearM,
-                'month' => $curMonth
-            ];
+            if (count($tsList) > 0) {
+                $curMonth = intval(date('n', $tsList[0]));
+                $curYearP = intval(date('Y', $tsList[0]));
+                $periodStartIdx = 0;
+
+                for ($i = 1; $i < count($tsList); $i++) {
+                    $m = intval(date('n', $tsList[$i]));
+                    $y = intval(date('Y', $tsList[$i]));
+
+                    $changed = ($periodMode === 'year')
+                        ? ($y !== $curYearP)
+                        : ($m !== $curMonth || $y !== $curYearP);
+
+                    if ($changed) {
+                        $periodLines[] = $i;
+
+                        $periodEndIdx = $i - 1;
+                        $mid = intval(floor(($periodStartIdx + $periodEndIdx) / 2));
+
+                        $periodLabels[] = [
+                            'index' => $mid,
+                            'label' => ($periodMode === 'year') ? (string)$curYearP : $monthNames[$curMonth - 1],
+                            'year'  => $curYearP,
+                            'month' => ($periodMode === 'year') ? null : $curMonth
+                        ];
+
+                        $curMonth = $m;
+                        $curYearP = $y;
+                        $periodStartIdx = $i;
+                    }
+                }
+
+                $periodEndIdx = count($tsList) - 1;
+                $mid = intval(floor(($periodStartIdx + $periodEndIdx) / 2));
+
+                $periodLabels[] = [
+                    'index' => $mid,
+                    'label' => ($periodMode === 'year') ? (string)$curYearP : $monthNames[$curMonth - 1],
+                    'year'  => $curYearP,
+                    'month' => ($periodMode === 'year') ? null : $curMonth
+                ];
+            }
         }
 
         // ------------------- Daten holen (ohne get_result, MySQL 5.5 kompatibel) -------------------
@@ -169,7 +222,6 @@
 
             $ph = implode(',', array_fill(0, count($kasseIds), '?'));
 
-            // Startsaldo: alles vor Jahresanfang
             $sqlStart = "SELECT COALESCE(SUM(betrag),0)
                          FROM transfers
                          WHERE kasse IN ($ph) AND tstamp IS NOT NULL AND tstamp < ?";
@@ -193,7 +245,6 @@
             }
             $stmt->close();
 
-            // Tagessummen: nur im Zeitraum (bis endTsExcl)
             $sqlDaily = "SELECT DATE(FROM_UNIXTIME(tstamp)) AS d, COALESCE(SUM(betrag),0) AS s
                          FROM transfers
                          WHERE kasse IN ($ph) AND tstamp IS NOT NULL AND tstamp >= ? AND tstamp < ?
@@ -226,7 +277,6 @@
 
         function fetch_weh_tvk_monthly_user_transfer_stacks($conn, $startTs, $endTsExcl)
         {
-            // Rückgabe: [1..12][turm]['netz'|'haus'|'wasch'|'druck'] = float
             $out = [];
             for ($m = 1; $m <= 12; $m++) {
                 $out[$m] = [
@@ -278,20 +328,329 @@
             return $out;
         }
 
-        function build_cumulative_series($keys, $startBalance, $dailySumsByDate)
+        function fetch_weh_tvk_yearly_user_transfer_stacks($conn, $startYear, $endYear, $startTs, $endTsExcl)
         {
-            $series = [];
-            $running = $startBalance;
-            foreach ($keys as $d) {
-                if (isset($dailySumsByDate[$d])) {
-                    $running += $dailySumsByDate[$d];
-                }
-                $series[] = round($running, 2);
+            $out = [];
+            for ($y = $startYear; $y <= $endYear; $y++) {
+                $out[$y] = [
+                    'weh' => ['netz' => 0.0, 'haus' => 0.0, 'wasch' => 0.0, 'druck' => 0.0],
+                    'tvk' => ['netz' => 0.0, 'haus' => 0.0, 'wasch' => 0.0, 'druck' => 0.0],
+                ];
             }
-            return $series;
+
+            $sql = "
+                SELECT
+                    YEAR(FROM_UNIXTIME(t.tstamp)) AS y,
+                    u.turm AS turm,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Netzbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS netz,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Hausbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS haus,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung = 'Waschmarken generiert' THEN ABS(t.betrag) ELSE 0 END) AS wasch,
+                    SUM(CASE WHEN t.print_id IS NOT NULL THEN ABS(t.betrag) ELSE 0 END) AS druck
+                FROM transfers t
+                JOIN users u ON u.uid = t.uid
+                WHERE
+                    t.tstamp IS NOT NULL
+                    AND t.tstamp >= ?
+                    AND t.tstamp < ?
+                    AND u.pid IN (11,12,13,14)
+                    AND u.turm IN ('weh','tvk')
+                GROUP BY y, turm
+                ORDER BY y ASC
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if (!$stmt) return $out;
+
+            $stmt->bind_param('ii', $startTs, $endTsExcl);
+            $stmt->execute();
+            $stmt->bind_result($y, $turm, $netz, $haus, $wasch, $druck);
+
+            while ($stmt->fetch()) {
+                $yy = (int)$y;
+                $tt = ($turm === 'tvk') ? 'tvk' : 'weh';
+                if ($yy >= $startYear && $yy <= $endYear) {
+                    $out[$yy][$tt]['netz']  = (float)$netz;
+                    $out[$yy][$tt]['haus']  = (float)$haus;
+                    $out[$yy][$tt]['wasch'] = (float)$wasch;
+                    $out[$yy][$tt]['druck'] = (float)$druck;
+                }
+            }
+            $stmt->close();
+
+            return $out;
         }
-        
-        // ------------------- Series bauen: ab "heute" -> null (damit Linie abbricht) -------------------
+
+        function fetch_transfer_period_sums($conn, $periodMode, $startTs, $endTsExcl, $whereSql, $whereTypes = '', $whereParams = [], $direction = 'negative_to_positive')
+        {
+            $out = [];
+
+            $periodExpr = ($periodMode === 'year')
+                ? "YEAR(FROM_UNIXTIME(t.tstamp))"
+                : "MONTH(FROM_UNIXTIME(t.tstamp))";
+
+            if ($direction === 'positive_only') {
+                $betragCondition = "t.betrag > 0";
+                $sumExpr = "t.betrag";
+            } else {
+                $betragCondition = "t.betrag < 0";
+                $sumExpr = "-t.betrag";
+            }
+
+            $sql = "
+                SELECT
+                    $periodExpr AS p,
+                    COALESCE(SUM($sumExpr), 0) AS s
+                FROM transfers t
+                WHERE
+                    t.tstamp IS NOT NULL
+                    AND t.tstamp >= ?
+                    AND t.tstamp < ?
+                    AND $betragCondition
+                    AND ($whereSql)
+                GROUP BY p
+                ORDER BY p ASC
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if (!$stmt) return $out;
+
+            $types = 'ii' . $whereTypes;
+            $params = array_merge([$startTs, $endTsExcl], $whereParams);
+
+            $bind = [$types];
+            foreach ($params as $k => $v) {
+                $bind[] = &$params[$k];
+            }
+            call_user_func_array([$stmt, 'bind_param'], $bind);
+
+            $stmt->execute();
+            $stmt->bind_result($p, $s);
+
+            while ($stmt->fetch()) {
+                $out[(int)$p] = (float)$s;
+            }
+
+            $stmt->close();
+            return $out;
+        }
+
+        function add_period_sums_to_bucket(&$out, $rows, $stackKey, $categoryKey)
+        {
+            foreach ($rows as $p => $sum) {
+                if (!isset($out[$p])) continue;
+                $out[$p][$stackKey][$categoryKey] = round(max(0, (float)$sum), 2);
+            }
+        }
+
+        function fetch_ein_ausgaben_period_stacks($conn, $periodMode, $startYear, $endYear, $startTs, $endTsExcl, $groupNetzAG, $groupHaus)
+        {
+            $out = [];
+
+            if ($periodMode === 'year') {
+                for ($y = $startYear; $y <= $endYear; $y++) {
+                    $out[$y] = [
+                        'income' => [
+                            'wasch' => 0.0,
+                            'netzbeitrag' => 0.0,
+                            'hausbeitrag' => 0.0,
+                            'druck' => 0.0
+                        ],
+                        'expense' => [
+                            'ausgaben_netzag' => 0.0,
+                            'ausgaben_haus' => 0.0,
+                            'agessen' => 0.0
+                        ]
+                    ];
+                }
+            } else {
+                for ($m = 1; $m <= 12; $m++) {
+                    $out[$m] = [
+                        'income' => [
+                            'wasch' => 0.0,
+                            'netzbeitrag' => 0.0,
+                            'hausbeitrag' => 0.0,
+                            'druck' => 0.0
+                        ],
+                        'expense' => [
+                            'ausgaben_netzag' => 0.0,
+                            'ausgaben_haus' => 0.0,
+                            'agessen' => 0.0
+                        ]
+                    ];
+                }
+            }
+
+            // Interne Ausgleichspaare einmalig vorab ermitteln.
+            // Erkannt werden:
+            // 1) PayPal negativ -> Netzkonto positiv, gleicher Betrag, max. 3 Tage Abstand
+            // 2) Netzkonto negativ -> Hauskonto positiv, gleicher Betrag, max. 3 Tage Abstand
+            //
+            // Beide IDs werden gesammelt und später per t.id NOT IN (...) ausgeschlossen.
+            $internalIds = [];
+
+            $pairStartTs = $startTs - 259200;
+            $pairEndTsExcl = $endTsExcl + 259200;
+
+            $sqlPairs = "
+                SELECT DISTINCT
+                    a.id AS neg_id,
+                    b.id AS pos_id
+                FROM transfers a
+                JOIN transfers b
+                    ON b.id <> a.id
+                    AND b.tstamp IS NOT NULL
+                    AND b.tstamp BETWEEN (a.tstamp - 259200) AND (a.tstamp + 259200)
+                    AND b.betrag > 0
+                    AND b.betrag BETWEEN (ABS(a.betrag) - 0.005) AND (ABS(a.betrag) + 0.005)
+                    AND (
+                        (a.kasse = 69 AND b.kasse = 72)
+                        OR
+                        (a.kasse = 72 AND b.kasse = 92)
+                    )
+                WHERE
+                    a.tstamp IS NOT NULL
+                    AND a.tstamp >= ?
+                    AND a.tstamp < ?
+                    AND a.betrag < 0
+                    AND a.kasse IN (69, 72)
+            ";
+
+            $stmtPairs = $conn->prepare($sqlPairs);
+            if ($stmtPairs) {
+                $stmtPairs->bind_param('ii', $pairStartTs, $pairEndTsExcl);
+                $stmtPairs->execute();
+                $stmtPairs->bind_result($negId, $posId);
+
+                while ($stmtPairs->fetch()) {
+                    $internalIds[(int)$negId] = true;
+                    $internalIds[(int)$posId] = true;
+                }
+
+                $stmtPairs->close();
+            }
+
+            if (count($internalIds) > 0) {
+                $internalIdList = implode(',', array_map('intval', array_keys($internalIds)));
+                $internalPairFilter = "t.id NOT IN ($internalIdList)";
+            } else {
+                $internalPairFilter = "1=1";
+            }
+
+            // Bereits explizit kategorisierte Buchungen.
+            $knownCategoryFilter = "
+                NOT (
+                    t.beschreibung LIKE '%AG-Essen%'
+                    OR t.beschreibung LIKE '%Abmeldung%'
+                    OR (t.print_id IS NOT NULL AND t.print_id <> 0)
+                    OR t.beschreibung LIKE 'Abrechnung Hausbeitrag%'
+                    OR t.beschreibung LIKE 'Abrechnung Netzbeitrag%'
+                    OR t.beschreibung = 'Waschmarken generiert'
+                )
+            ";
+
+            // Einnahmen aus Vereinsperspektive:
+            // Diese Kategorien sind in transfers aus Userperspektive negativ, daher SUM(-betrag).
+            $wasch = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.beschreibung = 'Waschmarken generiert'
+                "
+            );
+            add_period_sums_to_bucket($out, $wasch, 'income', 'wasch');
+
+            $netzbeitrag = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.beschreibung LIKE 'Abrechnung Netzbeitrag%'
+                "
+            );
+            add_period_sums_to_bucket($out, $netzbeitrag, 'income', 'netzbeitrag');
+
+            $hausbeitrag = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.beschreibung LIKE 'Abrechnung Hausbeitrag%'
+                "
+            );
+            add_period_sums_to_bucket($out, $hausbeitrag, 'income', 'hausbeitrag');
+
+            $druck = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.print_id IS NOT NULL
+                    AND t.print_id <> 0
+                "
+            );
+            add_period_sums_to_bucket($out, $druck, 'income', 'druck');
+
+            // Andere Ausgaben:
+            // Alle negativen Transfers VON den jeweiligen Kassen,
+            // aber ohne explizite Kategorien und ohne interne Ausgleichspaare.
+            $phNetz = implode(',', array_fill(0, count($groupNetzAG), '?'));
+            $netzAndere = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.kasse IN ($phNetz)
+                    AND $knownCategoryFilter
+                ",
+                str_repeat('i', count($groupNetzAG)),
+                $groupNetzAG
+            );
+            add_period_sums_to_bucket($out, $netzAndere, 'expense', 'ausgaben_netzag');
+
+            $phHaus = implode(',', array_fill(0, count($groupHaus), '?'));
+            $hausAndere = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.kasse IN ($phHaus)
+                    AND $knownCategoryFilter
+                ",
+                str_repeat('i', count($groupHaus)),
+                $groupHaus
+            );
+            add_period_sums_to_bucket($out, $hausAndere, 'expense', 'ausgaben_haus');
+
+            // AG-Essen:
+            // Kommt aus transfers. Betrag ist dort negativ, daher SUM(-betrag).
+            $agessen = fetch_transfer_period_sums(
+                $conn,
+                $periodMode,
+                $startTs,
+                $endTsExcl,
+                "
+                    $internalPairFilter
+                    AND t.beschreibung LIKE '%AG-Essen%'
+                "
+            );
+            add_period_sums_to_bucket($out, $agessen, 'expense', 'agessen');
+
+            return $out;
+        }
+
         function build_cumulative_series_until($keys, $startBalance, $dailySumsByDate, $validUntilIso)
         {
             $series = [];
@@ -299,7 +658,7 @@
 
             foreach ($keys as $d) {
                 if ($d > $validUntilIso) {
-                    $series[] = null; // Chart.js bricht Linie ab
+                    $series[] = null;
                     continue;
                 }
 
@@ -312,25 +671,12 @@
             return $series;
         }
 
-        $validUntilIso = ($year === $currentYear) ? date('Y-m-d') : '9999-12-31';
-
-
-        // ------------------- Datasets (immer 1 Chart) -------------------
+        // ------------------- Datasets -------------------
         $datasets = [];
         $chartType = 'line';
 
         if ($view === 'wehtvk') {
             $chartType = 'bar';
-
-            // Mid-Index pro Monat (aus monthLabels)
-            $monthMidByMonth = [];
-            foreach ($monthLabels as $ml) {
-                if (isset($ml['month'], $ml['index'])) {
-                    $monthMidByMonth[(int)$ml['month']] = (int)$ml['index'];
-                }
-            }
-
-            $mStacks = fetch_weh_tvk_monthly_user_transfer_stacks($conn, $startTs, $dataEndTsExcl);
 
             $catDefs = [
                 ['key' => 'wasch', 'label' => 'Waschmarken'],
@@ -339,33 +685,160 @@
                 ['key' => 'druck', 'label' => 'Drucker'],
             ];
 
-            // Reihenfolge: erst WEH (links), dann TvK (rechts)
             $towerDefs = [
                 ['key' => 'weh', 'label' => 'WEH'],
-                ['key' => 'tvk', 'label' => 'TvK'], // kleines v
+                ['key' => 'tvk', 'label' => 'TvK'],
             ];
 
-            foreach ($towerDefs as $t) {
-                foreach ($catDefs as $ci => $c) {
-                    $data = array_fill(0, count($keys), null);
-
-                    for ($m = 1; $m <= 12; $m++) {
-                        if (!isset($monthMidByMonth[$m])) continue;
-                        $idx = $monthMidByMonth[$m];
-
-                        $val = $mStacks[$m][$t['key']][$c['key']] ?? 0.0;
-                        if (abs((float)$val) < 0.00001) continue; // 0 -> kein Segment zeichnen
-
-                        $data[$idx] = round((float)$val, 2);
+            if ($isMultiYear) {
+                $yearIndexByYear = [];
+                foreach ($periodLabels as $pl) {
+                    if (isset($pl['year'], $pl['index'])) {
+                        $yearIndexByYear[(int)$pl['year']] = (int)$pl['index'];
                     }
-
-                    $datasets[] = [
-                        'label' => $t['label'] . ' ' . $c['label'],
-                        'data'  => $data,
-                        'stack' => $t['key'],  // 'weh' oder 'tvk' (für nebeneinander)
-                        'shade' => $ci          // 0..3 (für Farb-Gradient)
-                    ];
                 }
+
+                $yStacks = fetch_weh_tvk_yearly_user_transfer_stacks($conn, $startYear, $endYear, $startTs, $dataEndTsExcl);
+
+                foreach ($towerDefs as $t) {
+                    foreach ($catDefs as $ci => $c) {
+                        $data = array_fill(0, count($keys), null);
+
+                        for ($y = $startYear; $y <= $endYear; $y++) {
+                            if (!isset($yearIndexByYear[$y])) continue;
+                            $idx = $yearIndexByYear[$y];
+
+                            $val = $yStacks[$y][$t['key']][$c['key']] ?? 0.0;
+                            if (abs((float)$val) < 0.00001) continue;
+
+                            $data[$idx] = round((float)$val, 2);
+                        }
+
+                        $datasets[] = [
+                            'label' => $t['label'] . ' ' . $c['label'],
+                            'data'  => $data,
+                            'stack' => $t['key'],
+                            'shade' => $ci,
+                            'barGroup' => 'wehtvk'
+                        ];
+                    }
+                }
+            } else {
+                $monthMidByMonth = [];
+                foreach ($periodLabels as $pl) {
+                    if (isset($pl['month'], $pl['index']) && $pl['month'] !== null) {
+                        $monthMidByMonth[(int)$pl['month']] = (int)$pl['index'];
+                    }
+                }
+
+                $mStacks = fetch_weh_tvk_monthly_user_transfer_stacks($conn, $startTs, $dataEndTsExcl);
+
+                foreach ($towerDefs as $t) {
+                    foreach ($catDefs as $ci => $c) {
+                        $data = array_fill(0, count($keys), null);
+
+                        for ($m = 1; $m <= 12; $m++) {
+                            if (!isset($monthMidByMonth[$m])) continue;
+                            $idx = $monthMidByMonth[$m];
+
+                            $val = $mStacks[$m][$t['key']][$c['key']] ?? 0.0;
+                            if (abs((float)$val) < 0.00001) continue;
+
+                            $data[$idx] = round((float)$val, 2);
+                        }
+
+                        $datasets[] = [
+                            'label' => $t['label'] . ' ' . $c['label'],
+                            'data'  => $data,
+                            'stack' => $t['key'],
+                            'shade' => $ci,
+                            'barGroup' => 'wehtvk'
+                        ];
+                    }
+                }
+            }
+        } elseif ($view === 'ein_ausgaben') {
+            $chartType = 'bar';
+
+            // Reihenfolge im Stack von unten nach oben:
+            // Einnahmen: Waschmarken, Netzbeitrag, Hausbeitrag, Druckaufträge
+            $incomeDefs = [
+                ['key' => 'wasch',       'label' => 'Waschmarken'],
+                ['key' => 'netzbeitrag', 'label' => 'Netzbeitrag'],
+                ['key' => 'hausbeitrag', 'label' => 'Hausbeitrag'],
+                ['key' => 'druck',       'label' => 'Druckaufträge'],
+            ];
+
+            // Reihenfolge im Stack von unten nach oben:
+            // Ausgaben: Netzwerk-AG, Haus, AG-Essen
+            $expenseDefs = [
+                ['key' => 'ausgaben_netzag', 'label' => 'Ausgaben Netzwerk-AG'],
+                ['key' => 'ausgaben_haus',   'label' => 'Ausgaben Haus'],
+                ['key' => 'agessen',          'label' => 'AG-Essen'],
+            ];
+
+            $periodStacks = fetch_ein_ausgaben_period_stacks(
+                $conn,
+                $periodMode,
+                $startYear,
+                $endYear,
+                $startTs,
+                $dataEndTsExcl,
+                $groupNetzAG,
+                $groupHaus
+            );
+
+            $periodIndexByPeriod = [];
+            foreach ($periodLabels as $pl) {
+                if ($periodMode === 'year' && isset($pl['year'], $pl['index'])) {
+                    $periodIndexByPeriod[(int)$pl['year']] = (int)$pl['index'];
+                } elseif ($periodMode === 'month' && isset($pl['month'], $pl['index']) && $pl['month'] !== null) {
+                    $periodIndexByPeriod[(int)$pl['month']] = (int)$pl['index'];
+                }
+            }
+
+            foreach ($incomeDefs as $ci => $c) {
+                $data = array_fill(0, count($keys), null);
+
+                foreach ($periodStacks as $period => $stacks) {
+                    if (!isset($periodIndexByPeriod[(int)$period])) continue;
+                    $idx = $periodIndexByPeriod[(int)$period];
+
+                    $val = $stacks['income'][$c['key']] ?? 0.0;
+                    if (abs((float)$val) < 0.00001) continue;
+
+                    $data[$idx] = round((float)$val, 2);
+                }
+
+                $datasets[] = [
+                    'label' => 'Einnahmen ' . $c['label'],
+                    'data' => $data,
+                    'stack' => 'income',
+                    'shade' => $ci,
+                    'barGroup' => 'ein_ausgaben'
+                ];
+            }
+
+            foreach ($expenseDefs as $ci => $c) {
+                $data = array_fill(0, count($keys), null);
+
+                foreach ($periodStacks as $period => $stacks) {
+                    if (!isset($periodIndexByPeriod[(int)$period])) continue;
+                    $idx = $periodIndexByPeriod[(int)$period];
+
+                    $val = $stacks['expense'][$c['key']] ?? 0.0;
+                    if (abs((float)$val) < 0.00001) continue;
+
+                    $data[$idx] = round((float)$val, 2);
+                }
+
+                $datasets[] = [
+                    'label' => $c['label'],
+                    'data' => $data,
+                    'stack' => 'expense',
+                    'shade' => $ci,
+                    'barGroup' => 'ein_ausgaben'
+                ];
             }
         } elseif ($view === 'group') {
             $netz = fetch_start_balance_and_daily_sums($conn, $groupNetzAG, $startTs, $dataEndTsExcl);
@@ -376,7 +849,7 @@
                 'data' => build_cumulative_series_until($keys, $netz['start'], $netz['daily'], $validUntilIso)
             ];
             $datasets[] = [
-                'label' => 'Haussprecher',
+                'label' => 'Haus',
                 'data' => build_cumulative_series_until($keys, $haus['start'], $haus['daily'], $validUntilIso)
             ];
         } else {
@@ -384,6 +857,10 @@
                 $selected = $onlinekassen;
             } elseif ($view === 'cash') {
                 $selected = $barkassen;
+            } elseif ($view === 'netzag') {
+                $selected = $netzagKassen;
+            } elseif ($view === 'haus') {
+                $selected = $hausKassen;
             } else {
                 $selected = $allKassen;
             }
@@ -398,13 +875,16 @@
         }
 
         $payload = [
-            'year' => $year,
+            'year' => $isMultiYear ? 'all' : $year,
+            'isMultiYear' => $isMultiYear,
             'view' => $view,
             'chartType' => $chartType,
+            'axisGranularity' => $axisGranularity,
+            'periodMode' => $periodMode,
             'keys' => $keys,
             'labels' => $labels,
-            'monthLines' => $monthLines,
-            'monthLabels' => $monthLabels,
+            'periodLines' => $periodLines,
+            'periodLabels' => $periodLabels,
             'datasets' => $datasets
         ];
 ?>
@@ -424,7 +904,6 @@
         overflow: hidden;
     }
 
-    /* Topbar schicker */
     .wehKassenTopBar{
         display: flex;
         align-items: center;
@@ -449,7 +928,6 @@
         flex-wrap:wrap;
     }
 
-    /* Dropdowns: dunkler Hintergrund, weiße Schrift, gut lesbar */
     .wehKassenSelect{
         padding: 10px 12px;
         border-radius: 12px;
@@ -460,11 +938,13 @@
         outline: none;
         transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
     }
+
     .wehKassenSelect:hover{
         transform: translateY(-1px);
         border-color: rgba(17,165,13,1);
         background: rgba(0,0,0,0.50);
     }
+
     .wehKassenSelect option{
         background: #111;
         color: #fff;
@@ -504,11 +984,20 @@
             <p class="wehKassenSub">
                 Zeitraum:
                 <?php
-                    echo "01.01.$year - ";
-                    if ($year === intval(date('Y'))) {
-                        echo date('d.m.Y');
+                    if ($isMultiYear) {
+                        echo "01.01.$startYear - ";
+                        if ($rangeContainsCurrentYear && $endYear === $currentYear) {
+                            echo date('d.m.Y');
+                        } else {
+                            echo "31.12.$endYear";
+                        }
                     } else {
-                        echo "31.12.$year";
+                        echo "01.01.$year - ";
+                        if ($year === intval(date('Y'))) {
+                            echo date('d.m.Y');
+                        } else {
+                            echo "31.12.$year";
+                        }
                     }
                 ?>
             </p>
@@ -516,19 +1005,23 @@
 
         <form class="wehKassenControls" method="get" action="">
             <select class="wehKassenSelect" name="year" onchange="this.form.submit()">
+                <option value="all" <?php echo ($isMultiYear ? 'selected' : ''); ?>>Alle Jahre</option>
                 <?php for ($y = $maxYear; $y >= $minYear; $y--): ?>
-                    <option value="<?php echo $y; ?>" <?php echo ($y === $year ? 'selected' : ''); ?>>
+                    <option value="<?php echo $y; ?>" <?php echo (!$isMultiYear && $y === $year ? 'selected' : ''); ?>>
                         <?php echo $y; ?>
                     </option>
                 <?php endfor; ?>
             </select>
 
             <select class="wehKassenSelect" name="view" onchange="this.form.submit()">
-                <option value="online" <?php echo ($view === 'online' ? 'selected' : ''); ?>>Online-Konten</option>
-                <option value="cash"   <?php echo ($view === 'cash' ? 'selected' : ''); ?>>Barkassen</option>
-                <option value="all"    <?php echo ($view === 'all' ? 'selected' : ''); ?>>Alle Kassen</option>
-                <option value="group"  <?php echo ($view === 'group' ? 'selected' : ''); ?>>Netz/Vorstand</option>
-                <option value="wehtvk" <?php echo ($view === 'wehtvk' ? 'selected' : ''); ?>>WEH/TvK</option>
+                <option value="online"       <?php echo ($view === 'online' ? 'selected' : ''); ?>>Online-Konten</option>
+                <option value="cash"         <?php echo ($view === 'cash' ? 'selected' : ''); ?>>Barkassen</option>
+                <option value="all"          <?php echo ($view === 'all' ? 'selected' : ''); ?>>Alle Kassen</option>
+                <option value="netzag"       <?php echo ($view === 'netzag' ? 'selected' : ''); ?>>Netzwerk-AG</option>
+                <option value="haus"         <?php echo ($view === 'haus' ? 'selected' : ''); ?>>Haus</option>
+                <option value="group"        <?php echo ($view === 'group' ? 'selected' : ''); ?>>Netz/Haus</option>
+                <option value="wehtvk"       <?php echo ($view === 'wehtvk' ? 'selected' : ''); ?>>WEH/TvK</option>
+                <option value="ein_ausgaben" <?php echo ($view === 'ein_ausgaben' ? 'selected' : ''); ?>>Ein-/Ausgaben</option>
             </select>
         </form>
     </div>
@@ -541,7 +1034,6 @@
 </div>
 
 <script>
-    // Höhe so setzen, dass kein Scrollen nötig ist
     (function () {
         const scope = document.getElementById('wehKassenScope');
         if (!scope) return;
@@ -557,11 +1049,27 @@
     const payload = <?php echo json_encode($payload, JSON_UNESCAPED_UNICODE); ?>;
 
     const chartType = payload.chartType || 'line';
+    const periodLines = payload.periodLines || [];
+    const periodLabels = payload.periodLabels || [];
 
-    // Farben
     const palette = ['#11a50d', '#2563eb', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9', '#10b981', '#f97316', '#111827'];
-    const towerBase = { weh: '#11a50d', tvk: '#ffa600' };
-    const shadeWeights = [0.00, 0.15, 0.3, 0.45]; // je höher, desto heller (Gradient)
+
+    const barBase = {
+        weh: '#11a50d',
+        tvk: '#ffa600',
+        income: '#111111',
+        expense: '#7f1d1d'
+    };
+
+    const barMixTarget = {
+        weh: '#000000',
+        tvk: '#000000',
+        income: '#6b7280',
+        expense: '#fca5a5'
+    };
+
+    const defaultShadeWeights = [0.00, 0.18, 0.34, 0.48, 0.60];
+    const expenseShadeWeights = [0.00, 0.42, 0.78, 0.90];
 
     function hexToRgb(hex) {
         const h = String(hex).replace('#', '').trim();
@@ -569,6 +1077,7 @@
         const n = parseInt(full, 16);
         return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
     }
+
     function mixHex(a, b, w) {
         const A = hexToRgb(a), B = hexToRgb(b);
         const r = Math.round(A.r * (1 - w) + B.r * w);
@@ -576,13 +1085,35 @@
         const b2 = Math.round(A.b * (1 - w) + B.b * w);
         return `rgb(${r}, ${g}, ${b2})`;
     }
-    function towerShade(towerKey, shadeIdx) {
-        const base = towerBase[towerKey] || '#999999';
-        const w = shadeWeights[Math.max(0, Math.min(3, shadeIdx || 0))];
-        return mixHex(base, '#000', w);
+
+    function barShade(stackKey, shadeIdx) {
+        const base = barBase[stackKey] || '#999999';
+        const target = barMixTarget[stackKey] || '#000000';
+        const weights = (stackKey === 'expense') ? expenseShadeWeights : defaultShadeWeights;
+        const w = weights[Math.max(0, Math.min(weights.length - 1, shadeIdx || 0))];
+        return mixHex(base, target, w);
     }
 
-    // Plugin: Hintergrund der ChartArea
+    function barBorder(stackKey) {
+        if (stackKey === 'income') return 'rgba(255, 255, 255, 0.42)';
+        if (stackKey === 'expense') return 'rgba(255, 240, 240, 0.60)';
+        return 'rgba(255, 255, 255, 0.22)';
+    }
+
+    function boundaryPixelForIndex(xScale, chartArea, idx) {
+        const i = Number(idx);
+        if (!Number.isFinite(i)) return null;
+        if (i <= 0) return chartArea.left;
+
+        const current = xScale.getPixelForValue(i);
+        const previous = xScale.getPixelForValue(i - 1);
+
+        if (Number.isFinite(current) && Number.isFinite(previous)) {
+            return (previous + current) / 2;
+        }
+        return Number.isFinite(current) ? current : null;
+    }
+
     const bgPlugin = {
         id: 'bgPlugin',
         beforeDraw(chart) {
@@ -600,9 +1131,8 @@
         }
     };
 
-    // Plugin: Monats-Trennlinien + Monatsnamen mittig unter dem Monat
-    const monthPlugin = {
-        id: 'monthPlugin',
+    const periodPlugin = {
+        id: 'periodPlugin',
         afterDraw(chart) {
             const { ctx, chartArea, scales } = chart;
             if (!chartArea || !scales.x) return;
@@ -613,8 +1143,10 @@
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
             ctx.lineWidth = 1;
 
-            (payload.monthLines || []).forEach((idx) => {
-                const x = xScale.getPixelForValue(idx);
+            periodLines.forEach((idx) => {
+                const x = boundaryPixelForIndex(xScale, chartArea, idx);
+                if (x === null) return;
+
                 ctx.beginPath();
                 ctx.moveTo(x, chartArea.top);
                 ctx.lineTo(x, chartArea.bottom);
@@ -626,30 +1158,29 @@
             ctx.textBaseline = 'top';
 
             const y = chartArea.bottom + 8;
-            (payload.monthLabels || []).forEach((m) => {
-                const x = xScale.getPixelForValue(m.index);
-                ctx.fillText(m.label, x, y);
+            periodLabels.forEach((p) => {
+                const x = scales.x.getPixelForValue(p.index);
+                ctx.fillText(p.label, x, y);
             });
 
             ctx.restore();
         }
     };
 
-    const monthRanges = (() => {
+    const periodRanges = (() => {
         const n = (payload.labels || []).length;
-        const lines = payload.monthLines || [];
-        const mls = payload.monthLabels || [];
         const ranges = [];
 
         let start = 0;
-        for (let i = 0; i < mls.length; i++) {
-            const end = (i < lines.length) ? (lines[i] - 1) : (n - 1);
+        for (let i = 0; i < periodLabels.length; i++) {
+            const end = (i < periodLines.length) ? (Number(periodLines[i]) - 1) : (n - 1);
             ranges.push({
                 start,
                 end,
-                mid: mls[i].index,
-                label: mls[i].label,
-                year: mls[i].year
+                mid: periodLabels[i].index,
+                label: periodLabels[i].label,
+                year: periodLabels[i].year,
+                month: periodLabels[i].month || null
             });
             start = end + 1;
         }
@@ -657,34 +1188,32 @@
     })();
 
     function rangeForIndex(idx) {
-        for (const r of monthRanges) {
+        for (const r of periodRanges) {
             if (idx >= r.start && idx <= r.end) return r;
         }
-        return monthRanges.length ? monthRanges[monthRanges.length - 1] : null;
+        return periodRanges.length ? periodRanges[periodRanges.length - 1] : null;
     }
 
-    // Tooltip am Cursor positionieren (nur Bar)
-    if (!Chart.Tooltip.positioners.monthCursor) {
-        Chart.Tooltip.positioners.monthCursor = function (_items, pos) {
-            return pos; // {x,y} vom Event
+    if (!Chart.Tooltip.positioners.periodCursor) {
+        Chart.Tooltip.positioners.periodCursor = function (_items, pos) {
+            return pos;
         };
     }
 
-    const monthHoverPlugin = {
-        id: 'monthHoverPlugin',
+    const periodHoverPlugin = {
+        id: 'periodHoverPlugin',
         afterEvent(chart, args) {
             if ((payload.chartType || 'line') !== 'bar') return;
 
             const e = (args && args.event) ? args.event : null;
             if (!e) return;
 
-            // nur relevante Events
             if (e.type !== 'mousemove' && e.type !== 'mouseout') return;
 
             const { chartArea, scales } = chart;
             if (!chartArea || !scales.x) return;
 
-            const st = chart.$monthHoverState || (chart.$monthHoverState = { raf: 0, pending: null });
+            const st = chart.$periodHoverState || (chart.$periodHoverState = { raf: 0, pending: null });
 
             const outside =
                 e.type === 'mouseout' ||
@@ -692,36 +1221,33 @@
                 e.y < chartArea.top  || e.y > chartArea.bottom;
 
             const xScale = scales.x;
-            const mls = payload.monthLabels || [];
-            const lines = payload.monthLines || [];
 
-            // Monatsindex anhand X-Pixel (Grenzen = Linien + ChartArea-Ränder)
-            const monthIndexAtX = (x) => {
-                if (!mls.length) return 0;
+            const periodIndexAtX = (x) => {
+                if (!periodLabels.length) return 0;
 
                 const edges = [chartArea.left];
-                for (let i = 0; i < lines.length; i++) {
-                    edges.push(xScale.getPixelForValue(lines[i]));
+                for (let i = 0; i < periodLines.length; i++) {
+                    const px = boundaryPixelForIndex(xScale, chartArea, periodLines[i]);
+                    if (px !== null) edges.push(px);
                 }
                 edges.push(chartArea.right);
 
-                // edges.length = mls.length + 1 (typisch), robust clampen
-                const mCount = Math.min(mls.length, edges.length - 1);
+                const pCount = Math.min(periodLabels.length, edges.length - 1);
 
-                for (let i = 0; i < mCount; i++) {
+                for (let i = 0; i < pCount; i++) {
                     const a = edges[i];
                     const b = edges[i + 1];
-                    if (x >= a && (x < b || i === mCount - 1)) return i;
+                    if (x >= a && (x < b || i === pCount - 1)) return i;
                 }
-                return mCount - 1;
+                return pCount - 1;
             };
 
             let active = [];
             let pos = { x: e.x, y: e.y };
 
-            if (!outside && mls.length) {
-                const mi = monthIndexAtX(e.x);
-                const mid = mls[mi].index;
+            if (!outside && periodLabels.length) {
+                const pi = periodIndexAtX(e.x);
+                const mid = periodLabels[pi].index;
 
                 for (let di = 0; di < chart.data.datasets.length; di++) {
                     const v = chart.data.datasets[di].data[mid];
@@ -731,7 +1257,6 @@
                 }
             }
 
-            // rAF throttling: max. 60 draws/s, trotzdem "breite" Hover-Zone
             st.pending = { active, pos };
 
             if (st.raf) return;
@@ -750,20 +1275,20 @@
 
     const datasets = (payload.datasets || []).map((ds, i) => {
         if (chartType === 'bar') {
-            const c = towerShade(ds.stack, ds.shade);
+            const c = barShade(ds.stack, ds.shade);
             return {
                 label: ds.label,
                 data: ds.data,
                 stack: ds.stack,
                 backgroundColor: c,
-                borderColor: c,
-                borderWidth: 0,
-                barThickness: 34,
-                maxBarThickness: 44
+                borderColor: barBorder(ds.stack),
+                borderWidth: ds.barGroup === 'ein_ausgaben' ? 1 : 0,
+                borderSkipped: false,
+                barThickness: ds.barGroup === 'ein_ausgaben' ? 38 : 34,
+                maxBarThickness: ds.barGroup === 'ein_ausgaben' ? 48 : 44
             };
         }
 
-        // line
         return {
             label: ds.label,
             data: ds.data,
@@ -782,7 +1307,7 @@
     const chart = new Chart(ctx, {
         type: chartType,
         data: { labels: payload.labels, datasets },
-        plugins: (chartType === 'bar') ? [bgPlugin, monthPlugin, monthHoverPlugin] : [bgPlugin, monthPlugin],
+        plugins: (chartType === 'bar') ? [bgPlugin, periodPlugin, periodHoverPlugin] : [bgPlugin, periodPlugin],
         options: {
             normalized: true,
             interaction: (chartType === 'bar')
@@ -798,7 +1323,7 @@
                     backgroundColor: 'rgba(255, 255, 255, 0.92)',
                     titleColor: '#000',
                     bodyColor: '#000',
-                    position: (chartType === 'bar') ? 'monthCursor' : 'average',
+                    position: (chartType === 'bar') ? 'periodCursor' : 'average',
                     callbacks: {
                         title: (items) => {
                             if (!items || !items.length) return '';
@@ -807,17 +1332,23 @@
 
                             if (chartType === 'bar') {
                                 const r = rangeForIndex(idx);
-                                return r ? `${r.label} ${r.year}` : '';
+                                if (!r) return '';
+                                return (payload.periodMode === 'year') ? `${r.label}` : `${r.label} ${r.year}`;
                             }
 
                             const iso = (payload.keys && payload.keys[idx]) ? payload.keys[idx] : '';
                             if (!iso) return '';
-                            const parts = iso.split('-'); // YYYY-MM-DD
+
+                            if (payload.axisGranularity === 'year') {
+                                return iso;
+                            }
+
+                            const parts = iso.split('-');
                             return `${parts[2]}.${parts[1]}.${parts[0]}`;
                         },
                         label: (context) => {
                             const y = context.parsed && typeof context.parsed.y !== 'undefined' ? context.parsed.y : null;
-                            if (y === null) return null; // wichtig: null nicht als 0 anzeigen
+                            if (y === null) return null;
                             return `${context.dataset.label}: ${Number(y).toFixed(2)} €`;
                         }
                     },
