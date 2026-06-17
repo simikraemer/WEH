@@ -201,6 +201,16 @@ function load_menu() {
     global $ag_complete;
     global $conn;
 
+    $turm = strtolower(trim($_SESSION['turm'] ?? 'weh'));
+
+    $navAccent = match ($turm) {
+        'tvk' => '#FFA500',
+        'weh' => '#11a50d',
+        default => '#11a50d',
+    };
+
+    $navAccentEsc = htmlspecialchars($navAccent, ENT_QUOTES, 'UTF-8');
+
     $userIP = $_SESSION['ip'];
     if (isset($_SESSION['hostname'])) {
         $hostname = $_SESSION['hostname'];
@@ -261,22 +271,20 @@ function load_menu() {
     }
 
     echo "<br>";
-    echo '<div style="text-align: center;">
-            <span style="color:white;">Welcome</span>
-            <span style="color:#11a50d;">' . trim(htmlspecialchars($_SESSION['firstname'])) . '</span>
-            <span style="color:white;"> - you are connecting from</span>
-            <span style="color:#11a50d;">' . $rangestring;
-        
+    echo '<div class="navbar-welcome" style="--nav-accent: ' . $navAccentEsc . ';">
+            <span class="navbar-welcome-label">Welcome</span>
+            <span class="navbar-welcome-name">' . trim(htmlspecialchars($_SESSION['firstname'], ENT_QUOTES, 'UTF-8')) . '!</span>';
+
     if (!$_SESSION["tuermeroam"]) {
         echo '<span id="countdown" style="margin-left: 10px; color: yellow;"></span>';
         echo ' <span style="margin-left: 10px;">
-                  <form style="display: inline;" action="denied.php" method="post">
-                      <button class="center-button" type="submit" name="logout" id="logout">Logout</button>
-                  </form>
-              </span>';
+                <form style="display: inline;" action="denied.php" method="post">
+                    <button class="center-button" type="submit" name="logout" id="logout">Logout</button>
+                </form>
+            </span>';
     }
-    echo '</span>
-        </div>';
+
+    echo '</div>';
     echo "<br>";
     
     echo '<script>
@@ -301,7 +309,7 @@ function load_menu() {
     </script>';
 
 
-    echo '<div style="text-align: center;">';
+    echo '<div class="navbar-menu-wrapper" style="--nav-accent: ' . $navAccentEsc . ';">';
     if ($_SESSION['valid']) {
         if ($_SESSION['NetzAG']) {
             $sql = "SELECT cn, endtime FROM certs WHERE alert = 2 ORDER BY endtime";

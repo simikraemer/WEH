@@ -73,8 +73,8 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
   }
   
   .header-submenu button:hover {
-    background-color: #11a50d !important;
-    color: #000;  
+    background-color: var(--nav-accent, #11a50d) !important;
+    color: #000;
   }
   
   .header-menu-item:hover .header-submenu {
@@ -83,6 +83,28 @@ Erstelle stattdessen eine neue Klasse für deinen Anwendungsfall.*/
     border: 5px solid black;
     border-radius: 5px;
     padding: 10px;
+  }
+
+  .navbar-welcome {
+    text-align: center;
+  }
+
+  .navbar-welcome-label {
+    color: white;
+  }
+
+  .navbar-welcome-name {
+    color: var(--nav-accent, #11a50d);
+  }
+
+  .navbar-menu-wrapper {
+    text-align: center;
+  }
+
+  .navbar-menu-wrapper .header-menu .center-btn:hover,
+  .navbar-menu-wrapper .header-submenu button:hover {
+    background-color: var(--nav-accent, #11a50d) !important;
+    color: #000 !important;
   }
     
   
