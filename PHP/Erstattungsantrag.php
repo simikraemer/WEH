@@ -731,9 +731,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } else {
                             $sql = "
                                 INSERT INTO erstattung
-                                    (uid, tstamp, einrichtung, betrag, iban, status, pfad)
+                                    (uid, tstamp, einrichtung, betrag, iban, status, pfad, einkaufantrag_id)
                                 VALUES
-                                    (?, ?, ?, ?, ?, 0, ?)
+                                    (?, ?, ?, ?, ?, 0, ?, NULL)
                             ";
 
                             $stmt = mysqli_prepare($conn, $sql);

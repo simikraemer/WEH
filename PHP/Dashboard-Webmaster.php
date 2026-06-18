@@ -832,8 +832,9 @@ function d2_handle_erstattung_action(mysqli $conn, array &$terminal): void
 {
     $reqId = intval($_POST['request_id'] ?? 0);
     $action = (string)($_POST['action'] ?? '');
+    $statusAgentUid = intval($_SESSION['uid'] ?? 0);
 
-    if ($reqId <= 0 || !in_array($action, ['accept', 'decline'], true)) {
+    if ($reqId <= 0 || !in_array($action, ['accept', 'decline'], true) || $statusAgentUid <= 0) {
         d2_json(['ok' => false, 'error' => 'Ungültige Erstattungsaktion.'], 400);
     }
 
@@ -857,8 +858,14 @@ function d2_handle_erstattung_action(mysqli $conn, array &$terminal): void
 
         $formattedEinrichtung = d2_format_einrichtung($conn, $einrichtung);
 
-        $stmt = mysqli_prepare($conn, "UPDATE erstattung SET status = 1 WHERE id = ? AND status = 0");
-        mysqli_stmt_bind_param($stmt, 'i', $reqId);
+        $stmt = mysqli_prepare($conn, "
+            UPDATE erstattung
+            SET status = 1,
+                status_agent_uid = ?
+            WHERE id = ?
+              AND status = 0
+        ");
+        mysqli_stmt_bind_param($stmt, 'ii', $statusAgentUid, $reqId);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
 
@@ -879,7 +886,7 @@ function d2_handle_erstattung_action(mysqli $conn, array &$terminal): void
         $message = "Hello {$name},\n\nYour reimbursement request for " . number_format((float)$betrag, 2, ',', '.') . " EUR has been approved.\nThe amount will be transferred to your IBAN shortly.\n\nIBAN: {$iban}\nPurpose: {$formattedEinrichtung} reimbursement\n\nBest regards\nVorstand WEH e.V.";
         $mailOk = d2_send_plain_mail($to, $subject, $message, 'vorstand@weh.rwth-aachen.de');
 
-        $terminal[] = "Erstattung #{$reqId} genehmigt. Transfer vom Hauskonto angelegt: " . d2_money($negBetrag) . '.';
+        $terminal[] = "Erstattung #{$reqId} genehmigt durch UID {$statusAgentUid}. Transfer vom Hauskonto angelegt: " . d2_money($negBetrag) . '.';
         $terminal[] = $mailOk ? 'Mail an User versendet.' : 'Mail an User konnte nicht versendet werden.';
         d2_json(['ok' => true, 'message' => 'Erstattung genehmigt.', 'terminal' => implode("\n", $terminal), 'refresh' => true]);
     }
@@ -902,8 +909,14 @@ function d2_handle_erstattung_action(mysqli $conn, array &$terminal): void
             d2_json(['ok' => false, 'error' => 'Erstattungsantrag nicht gefunden oder bereits verarbeitet.'], 404);
         }
 
-        $stmt = mysqli_prepare($conn, "UPDATE erstattung SET status = -1 WHERE id = ? AND status = 0");
-        mysqli_stmt_bind_param($stmt, 'i', $reqId);
+        $stmt = mysqli_prepare($conn, "
+            UPDATE erstattung
+            SET status = -1,
+                status_agent_uid = ?
+            WHERE id = ?
+              AND status = 0
+        ");
+        mysqli_stmt_bind_param($stmt, 'ii', $statusAgentUid, $reqId);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
 
@@ -912,7 +925,7 @@ function d2_handle_erstattung_action(mysqli $conn, array &$terminal): void
         $message = "Hello {$name},\n\nYour reimbursement request has been declined.\nPlease contact the Vorstand at vorstand@weh.rwth-aachen.de if you have any questions.\n\nBest regards\nVorstand WEH e.V.";
         $mailOk = d2_send_plain_mail($to, $subject, $message, 'vorstand@weh.rwth-aachen.de');
 
-        $terminal[] = "Erstattung #{$reqId} abgelehnt.";
+        $terminal[] = "Erstattung #{$reqId} abgelehnt durch UID {$statusAgentUid}.";
         $terminal[] = $mailOk ? 'Mail an User versendet.' : 'Mail an User konnte nicht versendet werden.';
         d2_json(['ok' => true, 'message' => 'Erstattung abgelehnt.', 'terminal' => implode("\n", $terminal), 'refresh' => true]);
     }
