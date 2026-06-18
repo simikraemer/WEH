@@ -1671,6 +1671,304 @@ function d2_modal(mysqli $conn): void
     d2_json(['ok' => true, 'html' => $html]);
 }
 
+
+function d2_handle_csv_import(mysqli $conn): void
+{
+    d2_require_netzag($conn);
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        d2_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
+    }
+
+    $csvText = (string)($_POST['csv_text'] ?? '');
+    if ($csvText === '') {
+        d2_json(['ok' => false, 'error' => 'empty_csv'], 400);
+    }
+
+    if (function_exists('mb_detect_encoding') && !mb_detect_encoding($csvText, 'UTF-8', true)) {
+        $csvText = mb_convert_encoding($csvText, 'UTF-8');
+    }
+
+    $CUTOFF_TS = mktime(0, 0, 0, 11, 9, 2025);
+    $NETZ_IBAN = 'DE90390500001070334600';
+    $HAUS_IBAN = 'DE37390500001070334584';
+
+    $kasseMap = [
+        $NETZ_IBAN => 72,
+        $HAUS_IBAN => 92,
+    ];
+    $netzkontoMap = [
+        $NETZ_IBAN => 1,
+        $HAUS_IBAN => 0,
+    ];
+
+    $normalizeIban = static function (string $iban): string {
+        return strtoupper(preg_replace('/\s+/', '', trim($iban)));
+    };
+
+    $parseAmount = static function (string $s): float {
+        $s = trim($s);
+        $neg = false;
+        if (substr($s, -1) === '-') {
+            $neg = true;
+            $s = substr($s, 0, -1);
+        }
+        $s = str_replace(['.', ' '], '', $s);
+        $s = str_replace(',', '.', $s);
+        $v = (float)$s;
+        return $neg ? -$v : $v;
+    };
+
+    $parseDate = static function (string $s): int {
+        $s = trim($s);
+        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $s, $m)) {
+            return mktime(12, 0, 0, (int)$m[2], (int)$m[1], (int)$m[3]);
+        }
+        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{2})$/', $s, $m)) {
+            $y = (int)$m[3];
+            $y = ($y < 70) ? 2000 + $y : 1900 + $y;
+            return mktime(12, 0, 0, (int)$m[2], (int)$m[1], $y);
+        }
+        return time();
+    };
+
+    $moneyKey = static function ($x): string {
+        $v = round((float)$x, 2);
+        return number_format($v, 2, '.', '');
+    };
+
+    $lines = preg_split('/\R/u', $csvText, -1, PREG_SPLIT_NO_EMPTY);
+    if (!$lines || count($lines) < 2) {
+        d2_json(['ok' => false, 'error' => 'no_rows'], 400);
+    }
+
+    $header = str_getcsv($lines[0], ';', '"');
+    $idx = [];
+    foreach ($header as $i => $h) {
+        $h = trim($h, " \t\n\r\0\x0B\"");
+        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
+        $idx[$h] = $i;
+    }
+
+    $required = [
+        'Auftragskonto',
+        'Buchungstag',
+        'Valutadatum',
+        'Buchungstext',
+        'Verwendungszweck',
+        'Beguenstigter/Zahlungspflichtiger',
+        'Kontonummer/IBAN',
+        'Betrag',
+    ];
+
+    foreach ($required as $col) {
+        if (!array_key_exists($col, $idx)) {
+            d2_json(['ok' => false, 'error' => 'missing_col:' . $col], 400);
+        }
+    }
+
+    $existingKnown = [];
+    $existingUnknown = [];
+
+    $prefKnown = $conn->prepare("\n        SELECT iban, kasse, tstamp, betrag\n        FROM transfers\n        WHERE konto = 4\n          AND tstamp >= ?\n          AND kasse IN (69,72,92)\n    ");
+    if (!$prefKnown) {
+        d2_json(['ok' => false, 'error' => 'db_prepare_known_failed', 'detail' => $conn->error], 500);
+    }
+    $prefKnown->bind_param('i', $CUTOFF_TS);
+    $prefKnown->execute();
+    $prefKnown->bind_result($p_iban, $p_kasse, $p_tstamp, $p_betrag);
+    while ($prefKnown->fetch()) {
+        $p_iban = $normalizeIban((string)$p_iban);
+        $k = $p_iban . '|' . (int)$p_kasse . '|' . (int)$p_tstamp . '|' . $moneyKey($p_betrag);
+        $existingKnown[$k] = ($existingKnown[$k] ?? 0) + 1;
+    }
+    $prefKnown->close();
+
+    $prefUnk = $conn->prepare("\n        SELECT iban, tstamp, betrag, COALESCE(betreff, '') AS betreff_norm\n        FROM unknowntransfers\n        WHERE tstamp >= ?\n    ");
+    if (!$prefUnk) {
+        d2_json(['ok' => false, 'error' => 'db_prepare_unknown_failed', 'detail' => $conn->error], 500);
+    }
+    $prefUnk->bind_param('i', $CUTOFF_TS);
+    $prefUnk->execute();
+    $prefUnk->bind_result($u_iban, $u_tstamp, $u_betrag, $u_betreff_norm);
+    while ($prefUnk->fetch()) {
+        $u_iban = $normalizeIban((string)$u_iban);
+        $k = $u_iban . '|' . (int)$u_tstamp . '|' . $moneyKey($u_betrag) . '|' . (string)$u_betreff_norm;
+        $existingUnknown[$k] = ($existingUnknown[$k] ?? 0) + 1;
+    }
+    $prefUnk->close();
+
+    $insKnown = $conn->prepare(
+        'INSERT INTO transfers (uid, iban, tstamp, beschreibung, konto, kasse, betrag, agent, changelog) VALUES (?, ?, ?, ?, 4, ?, ?, ?, ?)'
+    );
+    if (!$insKnown) {
+        d2_json(['ok' => false, 'error' => 'db_prepare_insert_known_failed', 'detail' => $conn->error], 500);
+    }
+
+    $insUnknown = $conn->prepare(
+        'INSERT INTO unknowntransfers (uid, tstamp, name, betreff, betrag, netzkonto, iban, agent, status) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)'
+    );
+    if (!$insUnknown) {
+        d2_json(['ok' => false, 'error' => 'db_prepare_insert_unknown_failed', 'detail' => $conn->error], 500);
+    }
+
+    $execOrFail = static function (mysqli_stmt $st) use ($conn): void {
+        if (!$st->execute()) {
+            $err = $st->error ?: 'stmt_execute_failed';
+            $conn->rollback();
+            d2_json(['ok' => false, 'error' => 'db_error', 'detail' => $err], 500);
+        }
+    };
+
+    $seenKnown = [];
+    $seenUnknown = [];
+    $agent = (int)($_SESSION['uid'] ?? 0);
+    $nowStr = date('d.m.Y H:i');
+    $inserted = 0;
+    $skipped = 0;
+    $unknown = 0;
+
+    $conn->begin_transaction();
+
+    for ($li = 1; $li < count($lines); $li++) {
+        $row = str_getcsv($lines[$li], ';', '"');
+        if (!$row || count($row) < count($header)) {
+            continue;
+        }
+
+        $auftragskonto = $normalizeIban((string)($row[$idx['Auftragskonto']] ?? ''));
+        $valutaStr = trim((string)($row[$idx['Valutadatum']] ?? ''));
+        $buchungStr = trim((string)($row[$idx['Buchungstag']] ?? ''));
+        $buchungstext = trim((string)($row[$idx['Buchungstext']] ?? ''));
+        $verwendung = trim((string)($row[$idx['Verwendungszweck']] ?? ''));
+        $name = trim((string)($row[$idx['Beguenstigter/Zahlungspflichtiger']] ?? ''));
+        $iban = $normalizeIban((string)($row[$idx['Kontonummer/IBAN']] ?? ''));
+        $betragStr = trim((string)($row[$idx['Betrag']] ?? ''));
+
+        if (!isset($kasseMap[$auftragskonto])) {
+            $skipped++;
+            continue;
+        }
+
+        if (
+            (($auftragskonto === $NETZ_IBAN && $iban === $HAUS_IBAN) || ($auftragskonto === $HAUS_IBAN && $iban === $NETZ_IBAN))
+            && stripos($verwendung, 'kassenausgleich') !== false
+        ) {
+            $skipped++;
+            continue;
+        }
+
+        $betrag = $parseAmount($betragStr);
+
+        if (($auftragskonto === $NETZ_IBAN || $auftragskonto === $HAUS_IBAN) && stripos($verwendung, 'abmeldung') !== false && $betrag < 0) {
+            $skipped++;
+            continue;
+        }
+
+        $isInterAccount = ($auftragskonto === $NETZ_IBAN && $iban === $HAUS_IBAN) || ($auftragskonto === $HAUS_IBAN && $iban === $NETZ_IBAN);
+        if ($isInterAccount && abs($betrag) > 1000) {
+            $skipped++;
+            continue;
+        }
+
+        $isEntgeltabschluss = (stripos($buchungstext, 'ENTGELTABSCHLUSS') !== false);
+        $isPaypalTransfer = ($auftragskonto === $NETZ_IBAN && stripos($name, 'paypal europe') !== false);
+
+        if ($betrag <= 0.0 && !$isEntgeltabschluss) {
+            $skipped++;
+            continue;
+        }
+
+        $tstamp = $parseDate($valutaStr !== '' ? $valutaStr : $buchungStr);
+        if ($tstamp < $CUTOFF_TS) {
+            $skipped++;
+            continue;
+        }
+
+        $kasse = $kasseMap[$auftragskonto];
+        $netzkonto = $netzkontoMap[$auftragskonto];
+        $uid = null;
+        $beschreibung = 'Transfer';
+
+        if ($isEntgeltabschluss) {
+            $beschreibung = 'Entgeltabschluss';
+            if ($auftragskonto === $NETZ_IBAN) {
+                $uid = 472;
+            } elseif ($auftragskonto === $HAUS_IBAN) {
+                $uid = 492;
+            }
+        } elseif ($isPaypalTransfer) {
+            $uid = 472;
+            $beschreibung = 'Kassenausgleich PayPal';
+        }
+
+        if ($uid === null && preg_match('/W\s*(\d{1,6})\s*H(?!\d)/iu', $verwendung, $m)) {
+            $uid = (int)$m[1];
+        }
+
+        if ($uid !== null) {
+            $betrag2 = round($betrag, 2);
+            $keyKnown = $iban . '|' . $kasse . '|' . $tstamp . '|' . $moneyKey($betrag2);
+            $seenKnown[$keyKnown] = ($seenKnown[$keyKnown] ?? 0) + 1;
+            $knownOccurrenceNo = $seenKnown[$keyKnown];
+
+            if (($existingKnown[$keyKnown] ?? 0) >= $knownOccurrenceNo) {
+                $skipped++;
+                continue;
+            }
+
+            $changelog = "[{$nowStr}] CSV-Import durch Agent {$agent}\nQuelle: Sparkasse CSV via Dashboard-Webmaster";
+            $insKnown->bind_param('isisidis', $uid, $iban, $tstamp, $beschreibung, $kasse, $betrag2, $agent, $changelog);
+            $execOrFail($insKnown);
+            $inserted++;
+
+            if ($isPaypalTransfer) {
+                $kassePaypal = 69;
+                $betragPaypal = round(-$betrag2, 2);
+                $keyPaypal = $iban . '|' . $kassePaypal . '|' . $tstamp . '|' . $moneyKey($betragPaypal);
+                $seenKnown[$keyPaypal] = ($seenKnown[$keyPaypal] ?? 0) + 1;
+                $paypalOccurrenceNo = $seenKnown[$keyPaypal];
+
+                if (($existingKnown[$keyPaypal] ?? 0) < $paypalOccurrenceNo) {
+                    $insKnown->bind_param('isisidis', $uid, $iban, $tstamp, $beschreibung, $kassePaypal, $betragPaypal, $agent, $changelog);
+                    $execOrFail($insKnown);
+                    $inserted++;
+                } else {
+                    $skipped++;
+                }
+            }
+        } else {
+            $betrag2 = round($betrag, 2);
+            $betreffNorm = $verwendung;
+            $keyUnk = $iban . '|' . $tstamp . '|' . $moneyKey($betrag2) . '|' . $betreffNorm;
+            $seenUnknown[$keyUnk] = ($seenUnknown[$keyUnk] ?? 0) + 1;
+            $unknownOccurrenceNo = $seenUnknown[$keyUnk];
+
+            if (($existingUnknown[$keyUnk] ?? 0) >= $unknownOccurrenceNo) {
+                $skipped++;
+                continue;
+            }
+
+            $insUnknown->bind_param('issdisi', $tstamp, $name, $verwendung, $betrag2, $netzkonto, $iban, $agent);
+            $execOrFail($insUnknown);
+            $unknown++;
+        }
+    }
+
+    $conn->commit();
+    $insKnown->close();
+    $insUnknown->close();
+
+    d2_json([
+        'ok' => true,
+        'inserted' => $inserted,
+        'unknown' => $unknown,
+        'skipped' => $skipped,
+        'data' => d2_collect_dashboard_data($conn),
+        'terminal' => "CSV-Import abgeschlossen. {$inserted} Transfers eingetragen, {$unknown} unbekannt, {$skipped} übersprungen."
+    ]);
+}
+
 function d2_handle_action(mysqli $conn): void
 {
     global $mailconfig;
@@ -2187,6 +2485,9 @@ if (isset($_GET['d2api'])) {
         case 'action':
             d2_handle_action($conn);
             break;
+        case 'csvimport':
+            d2_handle_csv_import($conn);
+            break;
         default:
             d2_json(['ok' => false, 'error' => 'Unbekannter API-Endpunkt.'], 404);
     }
@@ -2284,6 +2585,23 @@ $initialData = d2_collect_dashboard_data($conn);
         .d2-card.d2-state-good { border-color: #11a50d; }
         .d2-card.d2-state-bad { border-color: #c01818; background: linear-gradient(180deg, rgba(72, 24, 24, 0.97), rgba(30, 8, 8, 0.97)); }
         .d2-card.d2-state-warn { border-color: #c01818; background: linear-gradient(180deg, rgba(72, 24, 24, 0.97), rgba(30, 8, 8, 0.97)); color: #fff; }
+        .d2-card.d2-card-csv-upload {
+            cursor: pointer;
+            transition: transform .12s ease, filter .12s ease, box-shadow .12s ease, border-color .12s ease;
+        }
+        .d2-card.d2-card-csv-upload:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+            border-color: #3bea37;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 10px 22px rgba(0,0,0,0.30), 0 0 0 2px rgba(17,165,13,0.15);
+        }
+        .d2-card.d2-card-csv-upload.d2-card-csv-running {
+            opacity: .72;
+            cursor: wait;
+        }
+        .d2-csv-file-input {
+            display: none;
+        }
         .d2-card-title {
             font-size: clamp(14px, 0.92vw, 16px);
             letter-spacing: 0;
@@ -2982,6 +3300,7 @@ load_menu();
     </div>
 </div>
 <div class="d2-modal-root" id="d2ModalRoot"></div>
+<input type="file" id="d2CsvFileInput" class="d2-csv-file-input" accept=".csv,text/csv">
 <div class="d2-toast" id="d2Toast">In Zwischenablage kopiert</div>
 
 <script>
@@ -3077,8 +3396,11 @@ function d2RenderCards() {
     const card = cards[key] || {};
     const detail = String(card.detail || "").trim();
     const compact = card.compact ? " d2-card-compact" : "";
+    const csvKasse = key === "netzkonto" ? "72" : (key === "hauskonto" ? "92" : "");
+    const csvClass = csvKasse ? " d2-card-csv-upload" : "";
+    const csvAttr = csvKasse ? ` data-d2-csv-kasse="${csvKasse}" tabindex="0" role="button"` : "";
     return `
-      <article class="d2-card d2-state-${d2Escape(card.state || "warn")}${compact}">
+      <article class="d2-card d2-state-${d2Escape(card.state || "warn")}${compact}${csvClass}"${csvAttr}>
         <div class="d2-card-title">${d2Escape(card.title)}</div>
         <div class="d2-card-value">${d2Escape(card.value)}</div>
         ${detail ? `<div class="d2-card-detail">${d2Escape(detail)}</div>` : ""}
@@ -3153,6 +3475,53 @@ function d2UpdateCountdowns() {
     }
     out.textContent = d2FormatSeconds(remaining / 1000);
   });
+}
+
+
+async function d2ImportSparkasseCsv(file, kasseId) {
+  if (!file) return;
+
+  const activeCard = document.querySelector(`[data-d2-csv-kasse="${CSS.escape(String(kasseId))}"]`);
+  if (activeCard) activeCard.classList.add("d2-card-csv-running");
+
+  d2Terminal(`CSV-Import gestartet (${kasseId === "72" ? "Netzkonto" : "Hauskonto"}).`);
+
+  try {
+    const text = await file.text();
+    const form = new FormData();
+    form.append("csv_text", text);
+    form.append("kasse_id", String(kasseId || ""));
+
+    const res = await fetch(`${D2.apiBase}?d2api=csvimport`, {
+      method: "POST",
+      credentials: "same-origin",
+      body: form,
+      headers: { "Accept": "application/json" }
+    });
+
+    const raw = await res.text();
+    let json = null;
+    try { json = JSON.parse(raw); } catch (_) {}
+
+    if (!res.ok || !json || !json.ok) {
+      throw new Error(json?.error || raw.trim() || `HTTP ${res.status}`);
+    }
+
+    if (json.data) {
+      D2.data = json.data;
+      d2RenderAll();
+      d2UpdateCountdowns();
+    } else {
+      await d2Refresh(true);
+    }
+
+    d2Terminal(json.terminal || `CSV-Import abgeschlossen: ${json.inserted || 0} eingetragen, ${json.unknown || 0} unbekannt, ${json.skipped || 0} übersprungen.`);
+  } catch (err) {
+    d2Terminal(`CSV-Import fehlgeschlagen: ${err.message || err}`, "error");
+    alert(`CSV-Import fehlgeschlagen:\n${err.message || err}`);
+  } finally {
+    if (activeCard) activeCard.classList.remove("d2-card-csv-running");
+  }
 }
 
 async function d2Refresh(silent = false) {
@@ -3496,6 +3865,40 @@ function d2SetDashboardHeight() {
     document.documentElement.style.removeProperty("--d2-terminal-height");
   }
 }
+
+
+document.addEventListener("click", event => {
+  const csvCard = event.target.closest("[data-d2-csv-kasse]");
+  if (!csvCard) return;
+
+  const input = document.getElementById("d2CsvFileInput");
+  if (!input) return;
+
+  input.dataset.d2CsvKasse = csvCard.dataset.d2CsvKasse || "";
+  input.value = "";
+  input.click();
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const csvCard = event.target.closest("[data-d2-csv-kasse]");
+  if (!csvCard) return;
+
+  event.preventDefault();
+  const input = document.getElementById("d2CsvFileInput");
+  if (!input) return;
+
+  input.dataset.d2CsvKasse = csvCard.dataset.d2CsvKasse || "";
+  input.value = "";
+  input.click();
+});
+
+document.getElementById("d2CsvFileInput")?.addEventListener("change", event => {
+  const input = event.currentTarget;
+  const file = input.files && input.files[0] ? input.files[0] : null;
+  const kasseId = input.dataset.d2CsvKasse || "";
+  d2ImportSparkasseCsv(file, kasseId);
+});
 
 d2RenderAll();
 d2UpdateCountdowns();
