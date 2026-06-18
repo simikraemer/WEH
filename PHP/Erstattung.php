@@ -509,6 +509,43 @@ if (!function_exists('erstattung_bind_dynamic')) {
     }
 }
 
+if (!function_exists('erstattung_column_exists')) {
+    function erstattung_column_exists(mysqli $conn, string $table, string $column): bool {
+        static $cache = [];
+
+        $cacheKey = $table . '.' . $column;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        $stmt = mysqli_prepare($conn, "
+            SELECT COUNT(*) AS cnt
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = ?
+              AND column_name = ?
+        ");
+
+        if (!$stmt) {
+            $cache[$cacheKey] = false;
+            return false;
+        }
+
+        mysqli_stmt_bind_param($stmt, "ss", $table, $column);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $row = $res ? mysqli_fetch_assoc($res) : null;
+
+        if ($res) {
+            mysqli_free_result($res);
+        }
+        mysqli_stmt_close($stmt);
+
+        $cache[$cacheKey] = !empty($row['cnt']);
+        return $cache[$cacheKey];
+    }
+}
+
 if (!function_exists('erstattung_filter_label')) {
     function erstattung_filter_label(string $periodLabel, int $agFilterId, array $agOptions): string {
         if ($agFilterId > 0 && isset($agOptions[$agFilterId])) {
@@ -533,6 +570,14 @@ if (!function_exists('erstattung_fetch_filtered_requests')) {
             $agParams[] = 'ag:' . $agFilterId;
         }
 
+        $hasStatusAgentColumn = erstattung_column_exists($conn, 'erstattung', 'status_agent_uid');
+        $statusAgentSelect = $hasStatusAgentColumn
+            ? "e.status_agent_uid, status_agent.name AS status_agent_name,"
+            : "NULL AS status_agent_uid, NULL AS status_agent_name,";
+        $statusAgentJoin = $hasStatusAgentColumn
+            ? "LEFT JOIN users status_agent ON status_agent.uid = e.status_agent_uid"
+            : "";
+
         $sql = "
             SELECT
                 e.id,
@@ -546,14 +591,13 @@ if (!function_exists('erstattung_fetch_filtered_requests')) {
                 e.iban,
                 e.pfad,
                 e.status,
-                e.status_agent_uid,
-                status_agent.name AS status_agent_name,
+                {$statusAgentSelect}
                 e.einkaufantrag_id,
                 u.turm,
                 u.room
             FROM erstattung e
             JOIN users u ON e.uid = u.uid
-            LEFT JOIN users status_agent ON status_agent.uid = e.status_agent_uid
+            {$statusAgentJoin}
             WHERE 1 = 1
             {$periodSql}
             {$agSql}
@@ -876,8 +920,8 @@ $tvkSums = $pageData['charts']['tvkSums'];
         .charts-wrapper {
             display: flex;
             justify-content: center;
-            margin: 2em 0;
-            padding: 0 2em;
+            margin: 1.2em 0 2em 0;
+            padding: 0;
         }
 
         .charts-grid {
@@ -932,13 +976,6 @@ $tvkSums = $pageData['charts']['tvkSums'];
             font-size: 1.35em;
             font-weight: 800;
             color: #fff;
-        }
-
-        .refund-history-subtitle {
-            margin-top: 3px;
-            font-size: 0.9em;
-            color: var(--refund-muted);
-            font-weight: 500;
         }
 
         .refund-history-controls {
@@ -1432,43 +1469,46 @@ if (function_exists('load_menu')) {
 }
 ?>
 
-<div class="charts-wrapper">
-    <div class="charts-grid">
-        <div class="chart-box">
-            <canvas id="chartWeh"></canvas>
-        </div>
-
-        <div class="chart-box">
-            <canvas id="chartTvk"></canvas>
-        </div>
-
-        <div class="chart-box chart-box-wide">
-            <canvas id="chartAG"></canvas>
-        </div>
-    </div>
-</div>
-
 <div class="refund-history-wrapper" id="refundHistoryWrapper">
     <div class="refund-history-head">
         <div>
             <div class="refund-history-title">Bisherige Erstattungsanträge</div>
-            <div class="refund-history-subtitle">Anzeige für <span id="refund-filter-label"><?= erstattung_h($currentFilterLabel) ?></span>. Eintrag anklicken für Rechnung, Erstattungsdaten und ggf. Einkaufantrag.</div>
         </div>
 
         <div class="refund-history-controls">
             <select id="refund-period-select" name="erstattung_period" class="semester-dropdown refund-semester-select" aria-label="Zeitraum">
                 <option value="all" <?= $selectedPeriodValue === 'all' ? 'selected' : '' ?>>Alle Jahre</option>
                 <?php foreach ($semester_options as $label => $start_ts): ?>
-                    <option value="<?= (int)$start_ts ?>" <?= ((string)$start_ts === (string)$selectedPeriodValue) ? 'selected' : '' ?>><?= erstattung_h($label) ?></option>
+                    <option value="<?= (int)$start_ts ?>" <?= ((string)$start_ts === (string)$selectedPeriodValue) ? 'selected' : '' ?>>
+                        <?= erstattung_h($label) ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
 
             <select id="refund-ag-select" name="erstattung_ag_id" class="semester-dropdown refund-ag-select" aria-label="AG">
                 <option value="0" <?= $selectedAgFilterId === 0 ? 'selected' : '' ?>>Alle AGs</option>
                 <?php foreach ($ag_filter_options as $ag_id => $ag_name): ?>
-                    <option value="<?= (int)$ag_id ?>" <?= ((int)$ag_id === (int)$selectedAgFilterId) ? 'selected' : '' ?>><?= erstattung_h($ag_name) ?></option>
+                    <option value="<?= (int)$ag_id ?>" <?= ((int)$ag_id === (int)$selectedAgFilterId) ? 'selected' : '' ?>>
+                        <?= erstattung_h($ag_name) ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
+        </div>
+    </div>
+
+    <div class="charts-wrapper">
+        <div class="charts-grid">
+            <div class="chart-box">
+                <canvas id="chartWeh"></canvas>
+            </div>
+
+            <div class="chart-box">
+                <canvas id="chartTvk"></canvas>
+            </div>
+
+            <div class="chart-box chart-box-wide">
+                <canvas id="chartAG"></canvas>
+            </div>
         </div>
     </div>
 
@@ -1943,7 +1983,10 @@ function updateFilterView(data) {
     setRefundRequests(data.requests || []);
     renderRefundHistoryTable(refundRequests);
 
-    document.getElementById('refund-filter-label').textContent = data.filterLabel || semesterLabel;
+    const filterLabelNode = document.getElementById('refund-filter-label');
+    if (filterLabelNode) {
+        filterLabelNode.textContent = data.filterLabel || semesterLabel;
+    }
 
     updateChartData(chartWeh, wehLabels, data.charts.wehSums || [], 'WEH Etagen 0-17 (€) · ' + (data.filterLabel || semesterLabel));
     updateChartData(chartTvk, tvkLabels, data.charts.tvkSums || [], 'TVK Etagen 0-15 (€) · ' + (data.filterLabel || semesterLabel));
@@ -1974,13 +2017,27 @@ async function loadRefundData() {
             credentials: 'same-origin'
         });
 
-        const payload = await response.json();
+        const responseText = await response.text();
+        let payload = null;
+
+        try {
+            payload = JSON.parse(responseText);
+        } catch (parseError) {
+            throw new Error('AJAX-Antwort war kein gültiges JSON. Prüfe PHP-Fehlerausgabe im Network-Tab.');
+        }
 
         if (!response.ok || !payload.ok) {
             throw new Error(payload.error || 'Filter konnten nicht geladen werden.');
         }
 
         updateFilterView(payload.data);
+
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('ajax');
+        cleanUrl.searchParams.delete('semester_start');
+        cleanUrl.searchParams.set('period', String(periodSelect.value));
+        cleanUrl.searchParams.set('ag_id', String(agSelect.value));
+        window.history.replaceState({}, '', cleanUrl.toString());
     } catch (error) {
         alert(error.message || 'Filter konnten nicht geladen werden.');
     } finally {
