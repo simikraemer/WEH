@@ -406,22 +406,22 @@ function load_menu() {
             echo '<div class="header-menu-item">';
             echo '<button class="center-btn">Webmaster</button>';
             echo '<div class="header-submenu">';
+            echo '<button onclick="window.location.href=\'/Dashboard-Webmaster.php\';" style="white-space: nowrap;">Dashboard</button> ';
             echo '<button onclick="window.location.href=\'/SetSessions.php\';" style="white-space: nowrap;">Sessions verwalten</button> ';
             echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
-            echo '<button onclick="window.location.href=\'/TransferExport.php\';" style="white-space: nowrap;">Transfer Export</button> ';
             echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Konten-Verlauf</button> ';
-            echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
+            #echo '<button class="center-btn" onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
             echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
-            echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
+            #echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
             echo '<button onclick="window.location.href=\'/PayPalTest.php\';" style="white-space: nowrap;">PayPal Test</button> ';
-            echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
+            #echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
             echo '<button onclick="window.location.href=\'/Constants.php\';" style="white-space: nowrap;">Konstanten</button> ';
             #echo '<button onclick="window.location.href=\'/EilendersFluch.php\';" style="white-space: nowrap;">Eilender\'s Fluch</button>';
             echo '<button onclick="window.location.href=\'/WaschmarkenExchange.php\';" style="white-space: nowrap;">Waschmarken Exchange</button> ';
             echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
-            echo '<button onclick="window.location.href=\'/loki.php\';" style="white-space: nowrap;">Loki View</button> ';
-            echo '<button onclick="window.location.href=\'/sigyn.php\';" style="white-space: nowrap;">Sigyn View</button> ';
-            echo '<button onclick="window.location.href=\'/forseti.php\';" style="white-space: nowrap;">Forseti View</button> ';
+            #echo '<button onclick="window.location.href=\'/loki.php\';" style="white-space: nowrap;">Loki View</button> ';
+            #echo '<button onclick="window.location.href=\'/sigyn.php\';" style="white-space: nowrap;">Sigyn View</button> ';
+            #echo '<button onclick="window.location.href=\'/forseti.php\';" style="white-space: nowrap;">Forseti View</button> ';
             #echo '<button onclick="window.location.href=\'/Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
             #echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
             echo '<button onclick="window.location.href=\'/Notaus.php\';" style="white-space: nowrap;">Notaus</button>';
@@ -478,10 +478,10 @@ function load_menu() {
         #    echo '</div>';
         #}
 
-        if (!$_SESSION["aktiv"] && $_SESSION["etagensprecher"] > 0 && $_SESSION["turm"] == 'weh' ) {
+        if ($_SESSION["etagensprecher"] > 0 && $_SESSION["turm"] == 'weh' ) {
             echo '<div class="header-menu">';
             echo '<div class="header-menu-item">';
-            echo '<button class="center-btn" onclick="window.location.href=\'/Erstattungsantrag.php\';" style="white-space: nowrap;">Etagensprecher</button>';
+            echo '<button class="center-btn" onclick="window.location.href=\'/Erstattungsantrag-Etagensprecher.php\';" style="white-space: nowrap;">Etagensprecher</button>';
             echo '</div>';
             echo '</div>';
         }
@@ -572,6 +572,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'Vorstand') {                                        
+                    echo '<button onclick="window.location.href=\'/Dashboard-Vorstand.php\';" style="white-space: nowrap;">Dashboard</button> ';
                     echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
                     if ($_SESSION['Schrift']) {
                         echo '<button onclick="window.location.href=\'/ProtokollUpload.php\';" style="white-space: nowrap;">Protokoll hochladen</button> ';
