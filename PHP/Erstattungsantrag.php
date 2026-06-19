@@ -1194,10 +1194,9 @@ load_menu();
 
         <p>
             Wenn du über <strong>100,00 €</strong> einkaufen willst oder der Zweck des Einkaufs nicht eindeutig mit den
-            Aufgaben der AG zusammenhängt, solltest du dich vorher mit dem Vorstand absprechen. Dafür kannst du links
-            einen Einkaufsantrag stellen. Sobald drei Vorstandsmitglieder den Antrag bestätigen, kann er rechts
-            für den eigentlichen Erstattungsantrag ausgewählt werden. Wenn drei Vorstandsmitglieder ablehnen, wird der
-            Antrag hier nicht mehr angezeigt.
+            Aufgaben der AG zusammenhängt, muss der Vorstand den Kauf erst genehmigen. Dafür kannst du links
+            einen Einkaufsantrag stellen. Sobald drei Vorstandsmitglieder den Antrag bestätigen, wird die AG via Mail informiert und der Kauf kann regulär getätigt werden.
+            Wenn drei Vorstandsmitglieder ablehnen, wird eure AG via Mail informiert.
         </p>
     </section>
 
@@ -1333,7 +1332,7 @@ load_menu();
                                 name="einkauf_titel"
                                 id="einkauf_titel"
                                 maxlength="255"
-                                placeholder="z.B. Ersatzteile für AG-Gerät"
+                                placeholder=""
                                 required
                             >
                         </div>
@@ -1343,7 +1342,7 @@ load_menu();
                             <textarea
                                 name="einkauf_beschreibung"
                                 id="einkauf_beschreibung"
-                                placeholder="Was soll gekauft werden? Warum braucht die AG das? Gibt es bereits eine grobe Preisabschätzung?"
+                                placeholder=""
                                 required
                             ></textarea>
                         </div>
@@ -1448,7 +1447,7 @@ load_menu();
                             type="text"
                             name="iban"
                             id="iban"
-                            placeholder="DE90 3905 0000 1070 3346 00"
+                            placeholder="DE37 3905 0000 1070 3345 84"
                             required
                         >
                     </div>
