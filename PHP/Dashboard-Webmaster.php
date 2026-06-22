@@ -710,12 +710,22 @@ function d2_modal_erstattung(mysqli $conn, int $id): string
                     <button type="button" class="d2-copy-btn" data-copy="<?= d2_h($einrichtung) ?> Erstattung"><span>Zweck</span><?= d2_h($einrichtung) ?> Erstattung</button>
                 </div>
 
-                <div class="d2-button-row">
-                    <button type="submit" name="action" value="accept" class="d2-submit d2-green-submit">Überwiesen</button>
-                    <button type="submit" name="action" value="decline" class="d2-submit d2-red-submit">Ablehnen</button>
-                </div>
             </div>
         </div>
+
+        <div class="d2-radio-row">
+            <label><input type="radio" name="action" value="accept"> <span class="d2-green">ÜBERWIESEN</span></label>
+            <label><input type="radio" name="action" value="decline"> <span class="d2-red">ABLEHNEN</span></label>
+            <label><input type="radio" name="action" value="remove"> <span class="d2-warn">REMOVE</span></label>
+        </div>
+
+        <div class="d2-hint">
+            Bei Überwiesen wird ein Transfer angelegt und eine Mail versendet.<br>
+            Bei Ablehnen wird der User per Mail informiert.<br>
+            Remove setzt den Antrag auf entfernt, ohne Mail und ohne Transfer.
+        </div>
+
+        <button type="submit" class="d2-submit">Hau raus!</button>
     </form>
     <?php
     return d2_modal_shell('Erstattung bearbeiten', ob_get_clean(), 'd2-wide-modal');
@@ -834,8 +844,29 @@ function d2_handle_erstattung_action(mysqli $conn, array &$terminal): void
     $action = (string)($_POST['action'] ?? '');
     $statusAgentUid = intval($_SESSION['uid'] ?? 0);
 
-    if ($reqId <= 0 || !in_array($action, ['accept', 'decline'], true) || $statusAgentUid <= 0) {
+    if ($reqId <= 0 || !in_array($action, ['accept', 'decline', 'remove'], true) || $statusAgentUid <= 0) {
         d2_json(['ok' => false, 'error' => 'Ungültige Erstattungsaktion.'], 400);
+    }
+
+    if ($action === 'remove') {
+        $stmt = mysqli_prepare($conn, "
+            UPDATE erstattung
+            SET status = -1,
+                status_agent_uid = ?
+            WHERE id = ?
+              AND status = 0
+        ");
+        mysqli_stmt_bind_param($stmt, 'ii', $statusAgentUid, $reqId);
+        mysqli_stmt_execute($stmt);
+        $affected = mysqli_stmt_affected_rows($stmt);
+        mysqli_stmt_close($stmt);
+
+        if ($affected <= 0) {
+            d2_json(['ok' => false, 'error' => 'Erstattungsantrag nicht gefunden oder bereits verarbeitet.'], 404);
+        }
+
+        $terminal[] = "Erstattung #{$reqId} entfernt durch UID {$statusAgentUid}, ohne Mailversand.";
+        d2_json(['ok' => true, 'message' => 'Erstattung entfernt.', 'terminal' => implode("\n", $terminal), 'refresh' => true]);
     }
 
     if ($action === 'accept') {
