@@ -292,7 +292,7 @@
                     u.turm AS turm,
                     SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Netzbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS netz,
                     SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Hausbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS haus,
-                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung = 'Waschmarken generiert' THEN ABS(t.betrag) ELSE 0 END) AS wasch,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.konto = 6 THEN ABS(t.betrag) ELSE 0 END) AS wasch,
                     SUM(CASE WHEN t.print_id IS NOT NULL THEN ABS(t.betrag) ELSE 0 END) AS druck
                 FROM transfers t
                 JOIN users u ON u.uid = t.uid
@@ -344,7 +344,7 @@
                     u.turm AS turm,
                     SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Netzbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS netz,
                     SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung LIKE 'Abrechnung Hausbeitrag%' THEN ABS(t.betrag) ELSE 0 END) AS haus,
-                    SUM(CASE WHEN t.print_id IS NULL AND t.beschreibung = 'Waschmarken generiert' THEN ABS(t.betrag) ELSE 0 END) AS wasch,
+                    SUM(CASE WHEN t.print_id IS NULL AND t.konto = 6 THEN ABS(t.betrag) ELSE 0 END) AS wasch,
                     SUM(CASE WHEN t.print_id IS NOT NULL THEN ABS(t.betrag) ELSE 0 END) AS druck
                 FROM transfers t
                 JOIN users u ON u.uid = t.uid
@@ -544,7 +544,7 @@
                     OR (t.print_id IS NOT NULL AND t.print_id <> 0)
                     OR t.beschreibung LIKE 'Abrechnung Hausbeitrag%'
                     OR t.beschreibung LIKE 'Abrechnung Netzbeitrag%'
-                    OR t.beschreibung = 'Waschmarken generiert'
+                    OR t.konto = 6
                 )
             ";
 
@@ -557,7 +557,7 @@
                 $endTsExcl,
                 "
                     $internalPairFilter
-                    AND t.beschreibung = 'Waschmarken generiert'
+                    AND t.konto = 6
                 "
             );
             add_period_sums_to_bucket($out, $wasch, 'income', 'wasch');

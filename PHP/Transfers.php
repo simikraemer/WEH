@@ -1405,7 +1405,7 @@ if ($kid === -11) {
         JOIN users u ON t.uid = u.uid
         WHERE t.tstamp >= ? AND t.tstamp < ?
           AND $BASE_NOT_IN
-          AND t.beschreibung = 'Waschmarken generiert'
+          AND t.konto = 6
         ORDER BY t.tstamp DESC
     ";
     $stmt = mysqli_prepare($conn, $sql);
@@ -1424,7 +1424,7 @@ if ($kid === -11) {
                 t.beschreibung LIKE 'Abrechnung Hausbeitrag%'
              OR t.beschreibung LIKE 'Abrechnung Netzbeitrag%'
           )
-          AND t.beschreibung <> 'Waschmarken generiert'
+          AND t.konto <> 6
         ORDER BY t.tstamp DESC
     ";
     $stmt = mysqli_prepare($conn, $sql);
