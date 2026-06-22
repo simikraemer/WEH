@@ -803,6 +803,7 @@ $approvedPurchaseRequests = array_values(array_filter($openPurchaseRequests, sta
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="WEH.css" media="screen">
+    <title>WEH Backend</title>
 
     <style>
         :root {

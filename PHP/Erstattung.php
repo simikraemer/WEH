@@ -891,6 +891,7 @@ $tvkSums = $pageData['charts']['tvkSums'];
 <html>
 <head>
     <meta charset="UTF-8">
+    <title>WEH Backend</title>
     <link rel="stylesheet" href="WEH.css" media="screen">
     <link rel="stylesheet" href="TRANSFERS.css" media="screen">
 

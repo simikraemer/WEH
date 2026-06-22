@@ -228,6 +228,8 @@ if ($turm !== "weh") {
     $flooractionbudget = 0.0;
 }
 
+$betragOffen = max(0, $flooractionbudget - $betragGenehmigt - $betragInBearbeitung);
+
 if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
     $uid = intval($_SESSION['uid'] ?? 0);
     $tstamp = time();
@@ -242,6 +244,8 @@ if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
 
     if ($uid <= 0 || $iban === '' || $betrag <= 0) {
         $bannerMessage = 'Ungültige Eingabe.';
+    } elseif ($betrag > $betragOffen) {
+        $bannerMessage = 'Der Betrag ist höher als das verfügbare Budget dieser Etage.';
     } elseif (!isset($_FILES['rechnung']) || $_FILES['rechnung']['error'] !== UPLOAD_ERR_OK) {
         $bannerMessage = 'Keine Datei empfangen.';
     } else {
@@ -348,7 +352,6 @@ if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
     }
 }
 
-$betragOffen = max(0, $flooractionbudget - $betragGenehmigt - $betragInBearbeitung);
 $einrichtungLabel = erstattung_format_einrichtung($einrichtungsKey);
 ?>
 <!DOCTYPE html>
@@ -356,7 +359,7 @@ $einrichtungLabel = erstattung_format_einrichtung($einrichtungsKey);
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="WEH.css" media="screen">
-
+    <title>WEH Backend</title>
     <style>
         :root {
             --turm-accent: <?= erstattung_h($turmAccent) ?>;
@@ -661,6 +664,7 @@ load_menu();
                         min="0"
                         name="betrag"
                         id="betrag"
+                        max="<?= erstattung_h(number_format($betragOffen, 2, '.', '')) ?>"
                         placeholder="€"
                         required
                     >
