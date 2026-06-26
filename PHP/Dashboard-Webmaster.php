@@ -1127,33 +1127,6 @@ function d2_collect_dashboard_data(mysqli $conn): array
         $certCompact = false;
     }
 
-    $downhosts_list = [];
-    $nagiosError = '';
-    $nagiosconfig = $config['nagios'] ?? null;
-    if (is_array($nagiosconfig) && !empty($nagiosconfig['host'])) {
-        $nagiosURL = $nagiosconfig['host'] . 'cgi-bin/statusjson.cgi?query=hostlist&details=true';
-        $nagioscontext = stream_context_create([
-            'http' => [
-                'header' => 'Authorization: Basic ' . base64_encode($nagiosconfig['user'] . ':' . $nagiosconfig['password']),
-                'timeout' => 8,
-            ],
-        ]);
-        $response = @file_get_contents($nagiosURL, false, $nagioscontext);
-        $data = $response ? json_decode($response, true) : null;
-
-        if (isset($data['data']['hostlist']) && is_array($data['data']['hostlist'])) {
-            foreach ($data['data']['hostlist'] as $host => $info) {
-                if (isset($info['status']) && (int)$info['status'] === 4 && (int)($info['scheduled_downtime_depth'] ?? 0) === 0) {
-                    $downhosts_list[] = $host;
-                }
-            }
-        } else {
-            $nagiosError = 'Nagios nicht erreichbar oder JSON ungültig';
-        }
-    } else {
-        $nagiosError = 'Nagios-Konfiguration fehlt';
-    }
-
     $stmt = mysqli_prepare($conn, "
         SELECT a.id, a.tstamp, a.betrag, a.iban, a.ag, g.name AS ag_name
         FROM agessen a
@@ -1275,7 +1248,6 @@ function d2_collect_dashboard_data(mysqli $conn): array
             'netzkonto' => ['title' => 'Netzkonto', 'state' => $balances[72] >= 0 ? 'good' : 'bad', 'value' => d2_money($balances[72]), 'detail' => '', 'meta' => ''],
             'hauskonto' => ['title' => 'Hauskonto', 'state' => $balances[92] >= 0 ? 'good' : 'bad', 'value' => d2_money($balances[92]), 'detail' => '', 'meta' => ''],
             'certs' => ['title' => 'Auslaufende Zertifikate', 'state' => $certState, 'value' => $certValue, 'detail' => $certDetail, 'meta' => 'Nächstes Ablaufdatum', 'compact' => $certCompact],
-            'nagios' => ['title' => 'Host-Ausfälle', 'state' => ($nagiosError !== '' || count($downhosts_list) > 0) ? 'bad' : 'good', 'value' => $nagiosError !== '' ? 'Fehler' : (count($downhosts_list) > 0 ? count($downhosts_list) . ' offline' : '-'), 'detail' => $nagiosError !== '' ? $nagiosError : (count($downhosts_list) > 0 ? implode(', ', $downhosts_list) : ''), 'meta' => '', 'hosts' => $downhosts_list, 'compact' => count($downhosts_list) > 0],
             'mitglieder' => ['title' => 'Anzahl Vereinsmitglieder', 'state' => 'good', 'value' => (string)$members, 'detail' => '', 'meta' => ''],
         ],
         'queues' => $queueMap,
@@ -3262,7 +3234,7 @@ $initialData = d2_collect_dashboard_data($conn);
             }
         }
 
-        /* Webmaster-Fix: Allgemein und offene Vorgänge desktop immer 3-spaltig; Terminalhöhe folgt linker Seite. */
+        /* Webmaster-Fix: Allgemein desktop 4-spaltig, offene Vorgänge 3-spaltig, Skripte 6-spaltig; Terminalhöhe folgt linker Seite. */
         @media (min-width: 901px) {
             .d2-layout {
                 height: auto !important;
@@ -3275,10 +3247,18 @@ $initialData = d2_collect_dashboard_data($conn);
             }
 
             .d2-metric-grid,
+            .d2-page.d2-compact-left .d2-metric-grid {
+                grid-template-columns: repeat(4, minmax(140px, 1fr)) !important;
+            }
+
             .d2-queue-grid,
-            .d2-page.d2-compact-left .d2-metric-grid,
             .d2-page.d2-compact-left .d2-queue-grid {
                 grid-template-columns: repeat(3, minmax(160px, 1fr)) !important;
+            }
+
+            .d2-script-grid,
+            .d2-page.d2-compact-left .d2-script-grid {
+                grid-template-columns: repeat(6, minmax(100px, 1fr)) !important;
             }
 
             .d2-terminal-wrap {
@@ -3303,24 +3283,14 @@ load_menu();
         <main class="d2-left">
             <section class="d2-left-shell">
                 <section class="d2-section d2-metric-section">
-                    <div class="d2-panel-head">
-                        <div class="d2-panel-title">Allgemein</div>
-                    </div>
                     <div class="d2-metric-grid" id="d2MetricGrid"></div>
                 </section>
 
                 <section class="d2-section d2-queue-section">
-                    <div class="d2-panel-head">
-                        <div class="d2-panel-title">Offene Vorgänge</div>
-                        <button type="button" class="d2-terminal-mini" data-d2-refresh="1">Aktualisieren</button>
-                    </div>
                     <div class="d2-queue-grid" id="d2QueueGrid"></div>
                 </section>
 
                 <section class="d2-section d2-script-section">
-                    <div class="d2-panel-head">
-                        <div class="d2-panel-title">Skripte ausführen</div>
-                    </div>
                     <div class="d2-script-grid" id="d2ScriptGrid"></div>
                 </section>
             </section>
@@ -3435,7 +3405,7 @@ async function d2ReadScriptResponse(res, type = "normal") {
 function d2RenderCards() {
   const grid = document.getElementById("d2MetricGrid");
   const cards = D2.data.cards || {};
-  const order = ["gesamtgeld", "netzkapital", "hauskapital", "bilanz", "netzkonto", "hauskonto", "certs", "nagios", "mitglieder"];
+  const order = ["gesamtgeld", "netzkapital", "hauskapital", "bilanz", "netzkonto", "hauskonto", "certs", "mitglieder"];
   grid.innerHTML = order.map(key => {
     const card = cards[key] || {};
     const detail = String(card.detail || "").trim();
@@ -3900,7 +3870,6 @@ function d2SetDashboardHeight() {
   const available = Math.max(360, window.innerHeight - top - 72);
   document.documentElement.style.setProperty("--d2-page-height", `${available}px`);
 
-  /* Die Webmaster-Seite soll desktop nicht in 4er-Grids springen. */
   page.classList.remove("d2-compact-left");
 
   if (leftShell && terminal && window.innerWidth > 900) {

@@ -562,7 +562,7 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/KartedesRumtreibers.php\';" style="white-space: nowrap;">Karte des Rumtreibers</button> ';
                     echo '<button onclick="window.location.href=\'/Lastradius.php\';" style="white-space: nowrap;">Last Radius</button> ';
                     echo '<button onclick="window.location.href=\'/Sperre.php\';">Sperren</button> ';
-                    echo '<button onclick="window.location.href=\'/APs.php\';">APs</button> ';
+                    echo '<button onclick="window.location.href=\'/APs2.php\';">APs</button> ';
                     echo '<button onclick="window.location.href=\'/Certs.php\';">SSL-Zertifikate</button> ';
                     echo '<button onclick="window.location.href=\'/Switches.php\';">Switches</button> ';
                     echo '<button onclick="window.location.href=\'/mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
@@ -1862,6 +1862,10 @@ function formatTurm(string $turm): string {
 
     if ($turm === 'tvk') {
         return 'TvK';
+    }
+
+    if ($turm === 'far') {
+        return 'FaRü';
     }
 
     return strtoupper($turm);
