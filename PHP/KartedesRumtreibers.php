@@ -137,8 +137,13 @@ function weh_fetch_nagios_states(array $config): array
     ];
 }
 
-function weh_load_aps(mysqli $conn, array $nagiosHostStates): array
+function weh_load_aps(mysqli $conn, array $nagiosHostStates, string $turm = 'weh'): array
 {
+    $turm = strtolower(trim($turm));
+    if (!in_array($turm, ['weh', 'tvk'], true)) {
+        $turm = 'weh';
+    }
+
     $aps = [];
     $apsByHostname = [];
     $unmatchedApHostnames = [];
@@ -150,22 +155,53 @@ function weh_load_aps(mysqli $conn, array $nagiosHostStates): array
         SELECT
             id,
             room,
+            turm,
             hostname,
             beschreibung,
             coord_x,
             coord_y,
             coord_z,
+            status,
+            location,
             CASE
+                WHEN LOWER(COALESCE(location, '')) = 'bewohnerzimmer' THEN 'room'
+                WHEN LOWER(COALESCE(location, '')) = 'technikkamin' THEN 'kamin'
+                WHEN LOWER(COALESCE(location, '')) = 'sonstiges' THEN 'building'
                 WHEN room BETWEEN 100 AND 1716 THEN 'room'
                 WHEN room BETWEEN 2000 AND 2100 THEN 'kamin'
                 ELSE 'building'
             END AS ap_category
         FROM aps
-        WHERE turm = 'weh'
-          AND nagios = 1
+        WHERE LOWER(turm) = ?
+          AND COALESCE(hostname, '') <> ''
+          AND status IN ('in_betrieb', 'testbetrieb', 'designiert')
+        ORDER BY
+            CASE
+                WHEN LOWER(COALESCE(location, '')) = 'bewohnerzimmer' THEN 1
+                WHEN LOWER(COALESCE(location, '')) = 'technikkamin' THEN 2
+                WHEN LOWER(COALESCE(location, '')) = 'sonstiges' THEN 3
+                ELSE 4
+            END,
+            room ASC,
+            hostname ASC
     ";
 
-    $apResult = mysqli_query($conn, $apSql);
+    $stmt = mysqli_prepare($conn, $apSql);
+    if (!$stmt) {
+        return [
+            'aps' => [],
+            'aps_by_hostname' => [],
+            'room_ap_count' => 0,
+            'kamin_ap_count' => 0,
+            'building_ap_count' => 0,
+            'unmatched_ap_hostnames' => [],
+        ];
+    }
+
+    mysqli_stmt_bind_param($stmt, 's', $turm);
+    mysqli_stmt_execute($stmt);
+    $apResult = mysqli_stmt_get_result($stmt);
+
     if ($apResult) {
         while ($row = mysqli_fetch_assoc($apResult)) {
             if (
@@ -205,8 +241,11 @@ function weh_load_aps(mysqli $conn, array $nagiosHostStates): array
             $ap = [
                 'id' => (int)$row['id'],
                 'room' => isset($row['room']) ? (int)$row['room'] : null,
+                'turm' => $turm,
                 'hostname' => $hostname,
                 'beschreibung' => (string)($row['beschreibung'] ?? ''),
+                'status' => (string)($row['status'] ?? ''),
+                'location' => (string)($row['location'] ?? ''),
                 'x' => (float)$row['coord_x'],
                 'y' => (float)$row['coord_y'],
                 'z' => (float)$row['coord_z'],
@@ -224,6 +263,8 @@ function weh_load_aps(mysqli $conn, array $nagiosHostStates): array
         }
         mysqli_free_result($apResult);
     }
+
+    mysqli_stmt_close($stmt);
 
     $unmatchedApHostnames = array_values(array_unique($unmatchedApHostnames));
     sort($unmatchedApHostnames);
@@ -1371,7 +1412,7 @@ if (
 
         $devices = weh_get_user_devices($conn, $uid);
         $nagios = weh_fetch_nagios_states($config);
-        $apLoad = weh_load_aps($conn, $nagios['host_states']);
+        $apLoad = weh_load_aps($conn, $nagios['host_states'], 'weh');
         $apsByHostname = $apLoad['aps_by_hostname'];
 
         $macs = [];
@@ -1582,7 +1623,7 @@ if (
             }
         }
 
-        $apLoad = weh_load_aps($conn, []);
+        $apLoad = weh_load_aps($conn, [], 'weh');
         $apsByHostname = $apLoad['aps_by_hostname'];
 
         $batchDebug = [
@@ -1688,13 +1729,16 @@ require('template.php');
 
 if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true)) {
     $nagios = weh_fetch_nagios_states($config);
-    $apLoad = weh_load_aps($conn, $nagios['host_states']);
 
-    $aps = $apLoad['aps'];
-    $roomApCount = $apLoad['room_ap_count'];
-    $kaminApCount = $apLoad['kamin_ap_count'];
-    $buildingApCount = $apLoad['building_ap_count'];
-    $unmatchedApHostnames = $apLoad['unmatched_ap_hostnames'];
+    $apLoadsByTower = [
+        'weh' => weh_load_aps($conn, $nagios['host_states'], 'weh'),
+        'tvk' => weh_load_aps($conn, $nagios['host_states'], 'tvk'),
+    ];
+
+    $apsByTower = [
+        'weh' => $apLoadsByTower['weh']['aps'],
+        'tvk' => $apLoadsByTower['tvk']['aps'],
+    ];
 
     $nagiosDebugSummary = [
         'nagios_url' => $nagios['url'],
@@ -1703,14 +1747,25 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         'nagios_host_count' => count($nagios['host_states']),
         'nagios_downhosts_count' => count($nagios['downhosts']),
         'nagios_downhosts' => $nagios['downhosts'],
-        'aps_loaded_from_db' => count($aps),
-        'room_aps_count' => $roomApCount,
-        'kamin_aps_count' => $kaminApCount,
-        'building_aps_count' => $buildingApCount,
-        'unmatched_ap_hostnames' => $unmatchedApHostnames,
+        'towers' => [
+            'weh' => [
+                'aps_loaded_from_db' => count($apLoadsByTower['weh']['aps']),
+                'room_aps_count' => $apLoadsByTower['weh']['room_ap_count'],
+                'kamin_aps_count' => $apLoadsByTower['weh']['kamin_ap_count'],
+                'building_aps_count' => $apLoadsByTower['weh']['building_ap_count'],
+                'unmatched_ap_hostnames' => $apLoadsByTower['weh']['unmatched_ap_hostnames'],
+            ],
+            'tvk' => [
+                'aps_loaded_from_db' => count($apLoadsByTower['tvk']['aps']),
+                'room_aps_count' => $apLoadsByTower['tvk']['room_ap_count'],
+                'kamin_aps_count' => $apLoadsByTower['tvk']['kamin_ap_count'],
+                'building_aps_count' => $apLoadsByTower['tvk']['building_ap_count'],
+                'unmatched_ap_hostnames' => $apLoadsByTower['tvk']['unmatched_ap_hostnames'],
+            ],
+        ],
     ];
 
-    $apsJson = json_encode($aps, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $apsJson = json_encode($apsByTower, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $nagiosDebugSummaryJson = json_encode($nagiosDebugSummary, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 ?>
 <head>
@@ -1802,6 +1857,20 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         .view-select {
             min-width: 140px;
+        }
+
+        .tower-select {
+            min-width: 92px;
+        }
+
+        .wlc-disabled-note {
+            color: #4b5563;
+            font-size: 13px;
+            display: none;
+        }
+
+        .wlc-disabled-note.is-visible {
+            display: inline-block;
         }
 
         .user-search-wrap {
@@ -2112,6 +2181,11 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         </div>
 
         <div class="tower-controls-row">
+            <select id="towerSelect" class="tower-select">
+                <option value="weh">WEH</option>
+                <option value="tvk">TvK</option>
+            </select>
+
             <select id="towerViewMode" class="view-select">
                 <option value="grid">Gitter</option>
                 <option value="blocks">Blöcke</option>
@@ -2128,7 +2202,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             </div>
         </div>
 
-        <div class="tower-controls-row">
+        <div class="tower-controls-row" id="userSearchRow">
             <div class="user-search-wrap">
                 <input type="text" id="userSearchInput" class="user-search-input" placeholder="User suchen: Name, Username oder Zimmer">
                 <span id="userInlineSpinner" class="user-inline-spinner"></span>
@@ -2136,8 +2210,9 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             </div>
         </div>
 
-        <div class="tower-controls-row">
+        <div class="tower-controls-row" id="allDevicesRow">
             <button type="button" id="loadAllUserDevicesButton">Alle Devices abfragen</button>
+            <span id="wlcDisabledNote" class="wlc-disabled-note">WLC-Abfrage nur im WEH verfügbar.</span>
             <span id="allUserDevicesProgress" class="all-users-progress">0/0</span>
         </div>
 
@@ -2206,7 +2281,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
-        const APS_DATA = <?php echo $apsJson ?: '[]'; ?>;
+        const APS_DATA_BY_TOWER = <?php echo $apsJson ?: '{"weh":[],"tvk":[]}'; ?>;
         const AJAX_URL = window.location.pathname;
 
         const GRID_X = 11;
@@ -2216,6 +2291,13 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         const AP_RADIUS = 2.0;
         const LOCATE_TIMEOUT_MS = 30000;
         const ALL_USERS_CHUNK_SIZE = 10;
+
+        const TOWER_CONFIG = {
+            weh: { label: 'WEH', floorMax: 17, wlcEnabled: true },
+            tvk: { label: 'TvK', floorMax: 15, wlcEnabled: false }
+        };
+
+        let currentTower = 'weh';
 
         const FLOOR_DEFS = [
             { value: -3, label: 'Tiefkeller', short: 'Tiefkeller' },
@@ -2243,14 +2325,31 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         const FLOOR_MIN = FLOOR_DEFS[0].value;
         const FLOOR_MAX = FLOOR_DEFS[FLOOR_DEFS.length - 1].value;
+
+        function getCurrentTowerConfig() {
+            return TOWER_CONFIG[currentTower] || TOWER_CONFIG.weh;
+        }
+
+        function getCurrentFloorMax() {
+            return getCurrentTowerConfig().floorMax;
+        }
+
+        function getCurrentFloorDefs() {
+            const maxFloor = getCurrentFloorMax();
+            return FLOOR_DEFS.filter((floor) => floor.value <= maxFloor);
+        }
         const IS_MOBILE_LAYOUT = window.matchMedia('(max-width: 768px)').matches;
         const MOBILE_CAMERA_Y_OFFSET = IS_MOBILE_LAYOUT ? 2.2 : 0;
 
+        const towerSelect = document.getElementById('towerSelect');
         const towerViewMode = document.getElementById('towerViewMode');
         const floorFromSelect = document.getElementById('floorFrom');
         const floorToSelect = document.getElementById('floorTo');
         const resetFloorsButton = document.getElementById('resetFloors');
 
+        const userSearchRow = document.getElementById('userSearchRow');
+        const allDevicesRow = document.getElementById('allDevicesRow');
+        const wlcDisabledNote = document.getElementById('wlcDisabledNote');
         const userSearchInput = document.getElementById('userSearchInput');
         const userSuggestions = document.getElementById('userSuggestions');
         const userInlineSpinner = document.getElementById('userInlineSpinner');
@@ -2290,20 +2389,35 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
 
         let allUsersRunState = null;
 
-        for (const floor of FLOOR_DEFS) {
-            const optionFrom = document.createElement('option');
-            optionFrom.value = String(floor.value);
-            optionFrom.textContent = floor.label;
-            floorFromSelect.appendChild(optionFrom);
+        function populateFloorSelects(keepCurrent = false) {
+            const oldFrom = parseInt(floorFromSelect.value || String(FLOOR_MIN), 10);
+            const oldTo = parseInt(floorToSelect.value || String(getCurrentFloorMax()), 10);
+            const maxFloor = getCurrentFloorMax();
 
-            const optionTo = document.createElement('option');
-            optionTo.value = String(floor.value);
-            optionTo.textContent = floor.label;
-            floorToSelect.appendChild(optionTo);
+            floorFromSelect.innerHTML = '';
+            floorToSelect.innerHTML = '';
+
+            for (const floor of getCurrentFloorDefs()) {
+                const optionFrom = document.createElement('option');
+                optionFrom.value = String(floor.value);
+                optionFrom.textContent = floor.label;
+                floorFromSelect.appendChild(optionFrom);
+
+                const optionTo = document.createElement('option');
+                optionTo.value = String(floor.value);
+                optionTo.textContent = floor.label;
+                floorToSelect.appendChild(optionTo);
+            }
+
+            const nextFrom = keepCurrent ? Math.min(Math.max(oldFrom, FLOOR_MIN), maxFloor) : FLOOR_MIN;
+            const nextTo = keepCurrent ? Math.min(Math.max(oldTo, FLOOR_MIN), maxFloor) : maxFloor;
+
+            floorFromSelect.value = String(nextFrom);
+            floorToSelect.value = String(nextTo);
         }
 
-        floorFromSelect.value = String(FLOOR_MIN);
-        floorToSelect.value = String(FLOOR_MAX);
+        populateFloorSelects(false);
+        towerSelect.value = currentTower;
         towerViewMode.value = 'grid';
 
         const canvas = document.getElementById('towerCanvas');
@@ -2919,7 +3033,9 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             return group;
         }
 
-        for (const ap of APS_DATA) {
+        const ALL_APS = Object.values(APS_DATA_BY_TOWER).flat();
+
+        for (const ap of ALL_APS) {
             const state =
                 ap.nagios_state === 'online'
                     ? 'online'
@@ -3047,11 +3163,13 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
                     (ap.ap_category === 'kamin' && showKaminAps) ||
                     (ap.ap_category === 'building' && showBuildingAps);
 
+                const towerVisible = String(ap.turm || 'weh').toLowerCase() === currentTower;
+
                 const floorVisible =
                     (y + AP_RADIUS) >= minFloor &&
                     (y - AP_RADIUS) <= (maxFloor + 1);
 
-                group.visible = categoryVisible && floorVisible;
+                group.visible = towerVisible && categoryVisible && floorVisible;
             }
 
             if (!apGroup.visible) {
@@ -3129,6 +3247,31 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             loadAllUserDevicesButton.textContent = isRunning ? 'Abbrechen' : 'Alle Devices abfragen';
         }
 
+        function updateTowerControls() {
+            const wlcEnabled = !!getCurrentTowerConfig().wlcEnabled;
+
+            userSearchRow.style.display = wlcEnabled ? '' : 'none';
+            allDevicesRow.style.display = '';
+            loadAllUserDevicesButton.style.display = wlcEnabled ? '' : 'none';
+            allUserDevicesProgress.style.display = wlcEnabled ? '' : 'none';
+            wlcDisabledNote.classList.toggle('is-visible', !wlcEnabled);
+
+            if (!wlcEnabled) {
+                abortAllUsersRun();
+                selectedUser = null;
+                userSearchInput.readOnly = false;
+                userSearchInput.value = '';
+                userSearchInput.classList.remove('is-selected');
+                userSuggestions.classList.remove('is-open');
+                userSuggestions.innerHTML = '';
+                clearSelectedDeviceMarkers();
+                clearBulkDeviceMarkers();
+                toggleUserDevices.checked = false;
+                setAllUsersProgress(0, 0);
+                setUserLoading(false);
+            }
+        }
+
         function abortAllUsersRun() {
             if (allUsersRunState) {
                 allUsersRunState.aborted = true;
@@ -3187,6 +3330,10 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         }
 
         async function searchUsers(query) {
+            if (!getCurrentTowerConfig().wlcEnabled) {
+                return [];
+            }
+
             if (currentSearchAbortController) {
                 currentSearchAbortController.abort();
             }
@@ -3230,6 +3377,10 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         }
 
         async function locateUser(user) {
+            if (!getCurrentTowerConfig().wlcEnabled) {
+                return;
+            }
+
             abortAllUsersRun();
             clearBulkDeviceMarkers();
             setAllUsersProgress(0, 0);
@@ -3312,6 +3463,10 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
         }
 
         async function startAllUserDevicesRun() {
+            if (!getCurrentTowerConfig().wlcEnabled) {
+                return;
+            }
+
             if (allUsersRunState && !allUsersRunState.aborted) {
                 abortAllUsersRun();
                 return;
@@ -3475,13 +3630,35 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             }
         });
 
+        towerSelect.addEventListener('change', () => {
+            const nextTower = String(towerSelect.value || 'weh').toLowerCase();
+            if (!TOWER_CONFIG[nextTower] || nextTower === currentTower) {
+                towerSelect.value = currentTower;
+                return;
+            }
+
+            currentTower = nextTower;
+
+            if (!getCurrentTowerConfig().wlcEnabled) {
+                toggleRoomAps.checked = true;
+                toggleKaminAps.checked = true;
+                toggleBuildingAps.checked = true;
+            }
+
+            populateFloorSelects(false);
+            clearSelectedUser({ resetDebug: false });
+            clearAllBulkDevices({ resetProgress: true });
+            updateTowerControls();
+            applyFloorSelection();
+        });
+
         floorFromSelect.addEventListener('change', applyFloorSelection);
         floorToSelect.addEventListener('change', applyFloorSelection);
         towerViewMode.addEventListener('change', applyFloorSelection);
 
         resetFloorsButton.addEventListener('click', () => {
             floorFromSelect.value = String(FLOOR_MIN);
-            floorToSelect.value = String(FLOOR_MAX);
+            floorToSelect.value = String(getCurrentFloorMax());
             applyFloorSelection();
         });
 
@@ -3605,6 +3782,7 @@ if (auth($conn) && (isset($_SESSION["NetzAG"]) && $_SESSION["NetzAG"] === true))
             hoverTooltip.style.display = 'none';
         });
 
+        updateTowerControls();
         applyFloorSelection();
         updateOriginVisibility();
         setSelectedUser(null);
