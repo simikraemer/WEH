@@ -636,39 +636,50 @@ if (auth($conn) && $_SESSION['valid']) {
   echo "</tr>";
   while(mysqli_stmt_fetch($stmt)) {
 
-    $cellStyle = ($sublet == 1) ? "style='background-color: #8d150c;'" : "";
-    echo "<tr>";
+    $canSeeSublet = (
+      (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"])
+    );
 
-    if ((isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"])) {
-      echo "<td $cellStyle><input type='text' name='ip[]' value='".$ip."'></td>";
-      echo "<input type='hidden' name='id[]' value='".$id."' readonly>";
-  } else {
-      echo "<input type='hidden' name='ip[]' value='".$ip."' readonly>";
-      echo "<input type='hidden' name='id[]' value='".$id."' readonly>";
-      echo "<td $cellStyle style='font-size: 16px;'>$ip</td>";
-  }
-  echo "<td $cellStyle><input type='text' name='mac1[]' value='".$mac."'></td>";
-  echo "<td $cellStyle><input type='text' name='mac2[]' value='".$mac2."'></td>";
-  echo "<td $cellStyle><input type='text' name='mac3[]' value='".$mac3."'></td>";
-  echo "<td $cellStyle><input type='text' name='hostname[]' value='".$hostname."'></td>";   
-  
-    
-  if ($_SESSION["NetzAG"]) {
-    echo "<td $cellStyle>";
-    echo "<form method='post' style='margin: 0;'>";
-    echo "<input type='hidden' name='uid' value='" . htmlspecialchars($selected_uid, ENT_QUOTES, 'UTF-8') . "'>";
-    echo "<button type='button' name='remove' value='" . $id . "' onclick='submitRemove(this)' style='background: none; border: none; cursor: pointer; padding: 0;'>";
-    echo '<img src="images/trash_white.png" 
-      class="animated-trash-icon" 
-      style="width: 24px; height: 24px;">';
-    echo "</button>";
-    echo "</form>";
-    echo "</td>";
-  }
+    $isVisibleSublet = ($canSeeSublet && (int)$sublet === 1);
 
+    $rowStyle = $isVisibleSublet
+      ? " style='background-color: #8d150c; box-shadow: inset 0 0 0 2px #ffb3ad;'"
+      : "";
 
-    
-    
+    $inputStyle = $isVisibleSublet
+      ? " style='background-color: #8d150c; color: white; border: 1px solid #ffb3ad;'"
+      : "";
+
+    echo "<tr$rowStyle>";
+
+    if (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"]) {
+      echo "<td><input type='text' name='ip[]' value='" . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8') . "'$inputStyle></td>";
+      echo "<input type='hidden' name='id[]' value='" . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . "' readonly>";
+    } else {
+      echo "<input type='hidden' name='ip[]' value='" . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8') . "' readonly>";
+      echo "<input type='hidden' name='id[]' value='" . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . "' readonly>";
+      echo "<td style='font-size: 16px;'>" . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8') . "</td>";
+    }
+
+    echo "<td><input type='text' name='mac1[]' value='" . htmlspecialchars($mac, ENT_QUOTES, 'UTF-8') . "'$inputStyle></td>";
+    echo "<td><input type='text' name='mac2[]' value='" . htmlspecialchars($mac2, ENT_QUOTES, 'UTF-8') . "'$inputStyle></td>";
+    echo "<td><input type='text' name='mac3[]' value='" . htmlspecialchars($mac3, ENT_QUOTES, 'UTF-8') . "'$inputStyle></td>";
+    echo "<td><input type='text' name='hostname[]' value='" . htmlspecialchars($hostname, ENT_QUOTES, 'UTF-8') . "'$inputStyle></td>";
+
+    if ($_SESSION["NetzAG"]) {
+      echo "<td>";
+      echo "<form method='post' style='margin: 0;'>";
+      echo "<input type='hidden' name='uid' value='" . htmlspecialchars($selected_uid, ENT_QUOTES, 'UTF-8') . "'>";
+      echo "<button type='button' name='remove' value='" . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . "' onclick='submitRemove(this)' style='background: none; border: none; cursor: pointer; padding: 0;'>";
+      echo '<img src="images/trash_white.png" 
+        class="animated-trash-icon" 
+        style="width: 24px; height: 24px;">';
+      echo "</button>";
+      echo "</form>";
+      echo "</td>";
+    }
+
+    echo "</tr>";
   }
   
   mysqli_stmt_close($stmt);
