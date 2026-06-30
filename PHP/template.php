@@ -424,7 +424,8 @@ function load_menu() {
             #echo '<button onclick="window.location.href=\'/forseti.php\';" style="white-space: nowrap;">Forseti View</button> ';
             #echo '<button onclick="window.location.href=\'/Testmail.php\';" style="white-space: nowrap;">Testmail</button>';
             #echo '<button onclick="window.location.href=\'/MACtranslate.php\';" style="white-space: nowrap;">MAC Übersetzung</button>';
-            echo '<button onclick="window.location.href=\'/Notaus.php\';" style="white-space: nowrap;">Notaus</button>';
+            echo '<button onclick="window.location.href=\'/Notaus.php\';" style="white-space: nowrap;">Notaus WEH</button>';
+            echo '<button onclick="window.location.href=\'/Notaus_TvK.php\';" style="white-space: nowrap;">Notaus TvK</button>';
             echo '</div>';
             echo '</div>';
             echo '</div>';
