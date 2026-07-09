@@ -100,6 +100,64 @@ function wp2_json(array $payload, int $statusCode = 200): never
     exit;
 }
 
+function wp2_is_netzag(): bool
+{
+    return !empty($_SESSION['NetzAG']);
+}
+
+function wp2_get_webprinter_interactive(mysqli $conn): bool
+{
+    $name = 'webprinteractive';
+    $value = null;
+
+    $stmt = mysqli_prepare(
+        $conn,
+        'SELECT `wert` FROM `weh`.`constants` WHERE `name` = ? LIMIT 1'
+    );
+
+    if ($stmt === false) {
+        return true;
+    }
+
+    mysqli_stmt_bind_param($stmt, 's', $name);
+
+    if (!mysqli_stmt_execute($stmt)) {
+        mysqli_stmt_close($stmt);
+        return true;
+    }
+
+    mysqli_stmt_bind_result($stmt, $value);
+    $found = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    if ($found !== true || $value === null) {
+        return true;
+    }
+
+    return ((float)$value) >= 1.0;
+}
+
+function wp2_set_webprinter_interactive(mysqli $conn, bool $interactive): bool
+{
+    $name = 'webprinteractive';
+    $value = $interactive ? 1.0 : 0.0;
+
+    $stmt = mysqli_prepare(
+        $conn,
+        'UPDATE `weh`.`constants` SET `wert` = ? WHERE `name` = ? LIMIT 1'
+    );
+
+    if ($stmt === false) {
+        return false;
+    }
+
+    mysqli_stmt_bind_param($stmt, 'ds', $value, $name);
+    $ok = mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    return $ok;
+}
+
 function wp2_boot_state(): void
 {
     if (!isset($_SESSION['webprinter_v2']) || !is_array($_SESSION['webprinter_v2'])) {
@@ -1025,6 +1083,10 @@ if (!wp2_is_authorized($conn)) {
     exit;
 }
 
+$isNetzAG = wp2_is_netzag();
+$webprinterInteractive = wp2_get_webprinter_interactive($conn);
+$webprinterMaintenanceMessage = 'The printers are currently under maintenance and will be available again shortly.';
+
 /**
  * =========================
  * AJAX
@@ -1032,6 +1094,33 @@ if (!wp2_is_authorized($conn)) {
  */
 if ($isAjax) {
     $action = (string)($_REQUEST['action'] ?? '');
+
+    if ($action === 'set_webprinter_interactive') {
+        if (!$isNetzAG) {
+            wp2_json(['ok' => false, 'message' => 'Access denied.'], 403);
+        }
+
+        $interactive = !empty($_POST['interactive']);
+        $ok = wp2_set_webprinter_interactive($conn, $interactive);
+
+        if (!$ok) {
+            wp2_json(['ok' => false, 'message' => 'Could not update Webprinter maintenance state.'], 500);
+        }
+
+        wp2_json([
+            'ok' => true,
+            'interactive' => $interactive,
+            'message' => $interactive ? 'Webprinter enabled.' : 'Webprinter disabled.',
+        ]);
+    }
+
+    if (!$webprinterInteractive && !$isNetzAG) {
+        wp2_json([
+            'ok' => false,
+            'maintenance' => true,
+            'message' => $webprinterMaintenanceMessage,
+        ], 503);
+    }
 
     switch ($action) {
         case 'set_selected_printer': {
@@ -1419,9 +1508,11 @@ if (function_exists('load_menu')) {
 }
 
 $visiblePrinters = [];
-foreach ($drucker as $printer) {
-    if (!empty($printer['visible'])) {
-        $visiblePrinters[] = wp2_collect_printer_state($printer);
+if ($webprinterInteractive || $isNetzAG) {
+    foreach ($drucker as $printer) {
+        if (!empty($printer['visible'])) {
+            $visiblePrinters[] = wp2_collect_printer_state($printer);
+        }
     }
 }
 
@@ -1431,6 +1522,9 @@ $boot = [
     'printers' => $visiblePrinters,
     'billing_targets' => wp2_allowed_billing_targets(),
     'current_uid' => (int)($_SESSION['uid'] ?? 0),
+    'is_netzag' => $isNetzAG,
+    'webprinter_interactive' => $webprinterInteractive,
+    'maintenance_message' => $webprinterMaintenanceMessage,
 ];
 ?>
 
@@ -2116,6 +2210,122 @@ $boot = [
     box-shadow: 0 16px 36px rgba(0,0,0,0.28);
   }
 
+  .wp2-maintenance-card{
+    max-width: 760px;
+    margin: 80px auto;
+    padding: 28px;
+    text-align: center;
+  }
+
+  .wp2-maintenance-card h1{
+    margin: 0 0 12px;
+    font-size: 1.7rem;
+    font-weight: 900;
+  }
+
+  .wp2-maintenance-card p{
+    margin: 0;
+    color: rgba(255,255,255,0.82);
+    line-height: 1.5;
+    font-size: 1.05rem;
+  }
+
+  .wp2-maintenance-banner{
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255,178,51,0.16);
+    border: 1px solid rgba(255,178,51,0.36);
+    color: #fff3d7;
+    font-weight: 800;
+    line-height: 1.45;
+  }
+
+  .wp2-admin-switch{
+    position: fixed;
+    right: 18px;
+    top: 18px;
+    z-index: 10000;
+    width: min(300px, calc(100vw - 36px));
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(18,20,18,0.96);
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.32);
+    color: #fff;
+  }
+
+  .wp2-admin-switch.is-inactive{
+    border-color: rgba(255,178,51,0.55);
+    background: rgba(36,28,12,0.96);
+  }
+
+  .wp2-admin-switch-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .wp2-admin-switch-label{
+    display: grid;
+    gap: 3px;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  .wp2-admin-switch-label small{
+    color: rgba(255,255,255,0.72);
+    font-weight: 700;
+  }
+
+  .wp2-admin-switch input{
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .wp2-switch-slider{
+    position: relative;
+    flex: 0 0 auto;
+    width: 52px;
+    height: 30px;
+    border-radius: 999px;
+    background: rgba(255,120,120,0.32);
+    border: 1px solid rgba(255,255,255,0.18);
+    transition: .18s ease;
+  }
+
+  .wp2-switch-slider::before{
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    left: 3px;
+    top: 2px;
+    border-radius: 50%;
+    background: #fff;
+    transition: .18s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  }
+
+  .wp2-admin-switch input:checked + .wp2-switch-slider{
+    background: rgba(17,165,13,0.82);
+  }
+
+  .wp2-admin-switch input:checked + .wp2-switch-slider::before{
+    transform: translateX(22px);
+  }
+
+  .wp2-admin-switch-state{
+    margin-top: 8px;
+    font-size: .86rem;
+    color: rgba(255,255,255,0.76);
+    line-height: 1.35;
+  }
+
   @media (max-width: 900px){
     .wp2-review-grid{
       grid-template-columns: 1fr;
@@ -2162,7 +2372,35 @@ $boot = [
 <div id="countdown" style="display:none;"></div>
 <div id="countdownElement" style="display:none;"></div>
 
+<?php if ($isNetzAG): ?>
+<div class="wp2-admin-switch <?= $webprinterInteractive ? 'is-active' : 'is-inactive' ?>" id="wp2AdminSwitchBox">
+  <label class="wp2-admin-switch-row">
+    <span class="wp2-admin-switch-label">
+      Webprinter
+      <small id="wp2InteractiveLabel"><?= $webprinterInteractive ? 'enabled' : 'disabled / maintenance' ?></small>
+    </span>
+    <input type="checkbox" id="wp2InteractiveSwitch" <?= $webprinterInteractive ? 'checked' : '' ?>>
+    <span class="wp2-switch-slider" aria-hidden="true"></span>
+  </label>
+  <div class="wp2-admin-switch-state" id="wp2InteractiveState">
+    <?= $webprinterInteractive ? 'Users can currently print.' : 'Maintenance mode is active. Normal users are blocked.' ?>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="wp2-wrap">
+<?php if (!$webprinterInteractive && !$isNetzAG): ?>
+  <section class="wp2-card wp2-maintenance-card">
+    <h1>Webprinter maintenance</h1>
+    <p><?= htmlspecialchars($webprinterMaintenanceMessage, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+  </section>
+<?php else: ?>
+  <?php if (!$webprinterInteractive && $isNetzAG): ?>
+    <div class="wp2-maintenance-banner">
+      Maintenance mode is active. Normal users cannot interact with the Webprinter.
+    </div>
+  <?php endif; ?>
+
   <!-- <section class="wp2-card wp2-hero">
     <h1 class="wp2-title">Webprinter 2.0</h1>
     <p class="wp2-subtitle">
@@ -2314,6 +2552,7 @@ $boot = [
       </div>
     </div>
   </section>
+<?php endif; ?>
 </div>
 
 <div class="wp2-loader" id="wp2Loader">
@@ -2325,6 +2564,7 @@ $boot = [
 
 <div class="wp2-toast" id="wp2Toast"></div>
 
+<?php if ($webprinterInteractive || $isNetzAG): ?>
 <script>
 (() => {
   const boot = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
@@ -2380,6 +2620,10 @@ $boot = [
     back3: document.getElementById('wp2Back3'),
     back4: document.getElementById('wp2Back4'),
     submit: document.getElementById('wp2Submit'),
+    interactiveSwitch: document.getElementById('wp2InteractiveSwitch'),
+    interactiveLabel: document.getElementById('wp2InteractiveLabel'),
+    interactiveState: document.getElementById('wp2InteractiveState'),
+    adminSwitchBox: document.getElementById('wp2AdminSwitchBox'),
   };
 
   function escapeHtml(value) {
@@ -2849,6 +3093,27 @@ $boot = [
     }
   }
 
+  function updateAdminSwitchUI(interactive) {
+    if (!el.interactiveSwitch) return;
+
+    el.interactiveSwitch.checked = Boolean(interactive);
+
+    if (el.interactiveLabel) {
+      el.interactiveLabel.textContent = interactive ? 'enabled' : 'disabled / maintenance';
+    }
+
+    if (el.interactiveState) {
+      el.interactiveState.textContent = interactive
+        ? 'Users can currently print.'
+        : 'Maintenance mode is active. Normal users are blocked.';
+    }
+
+    if (el.adminSwitchBox) {
+      el.adminSwitchBox.classList.toggle('is-active', Boolean(interactive));
+      el.adminSwitchBox.classList.toggle('is-inactive', !interactive);
+    }
+  }
+
   function bindEvents() {
     el.steps.addEventListener('click', async (event) => {
       const btn = event.target.closest('[data-step-target]');
@@ -2960,6 +3225,30 @@ $boot = [
     el.back2.addEventListener('click', () => setStep(1));
     el.back3.addEventListener('click', () => setStep(2));
     el.back4.addEventListener('click', () => setStep(3));
+
+    if (el.interactiveSwitch) {
+      el.interactiveSwitch.addEventListener('change', async () => {
+        const nextInteractive = Boolean(el.interactiveSwitch.checked);
+        const previousInteractive = !nextInteractive;
+
+        try {
+          showLoader(nextInteractive ? 'Enabling Webprinter…' : 'Disabling Webprinter…');
+          updateAdminSwitchUI(nextInteractive);
+
+          await api('set_webprinter_interactive', {
+            interactive: nextInteractive ? '1' : '',
+          });
+
+          window.location.reload();
+        } catch (error) {
+          updateAdminSwitchUI(previousInteractive);
+          toast(error.message || 'Could not update Webprinter maintenance state.');
+        } finally {
+          hideLoader();
+        }
+      });
+    }
+
     el.submit.addEventListener('click', submitPrint);
   }
 
@@ -2971,12 +3260,14 @@ $boot = [
     renderBilling();
     updateModeInfo();
     updateGrayscaleUI();
+    updateAdminSwitchUI(Boolean(boot.webprinter_interactive));
   }
 
   bindEvents();
   init();
 })();
 </script>
+<?php endif; ?>
 
 <?php
 $conn->close();

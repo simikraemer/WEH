@@ -28,7 +28,7 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
     $intnamen = array(
         "standard_ips" => "Standardanzahl NAT-IPs",
         "essen_count" => "AG-Essen Mindestteilnehmer",
-        "eilendersfluch" => "Eilender's Fluch",
+        #"eilendersfluch" => "Eilender's Fluch",
     );
 
     $kassennamen = array(
@@ -41,6 +41,7 @@ if (auth($conn) && (isset($_SESSION["Webmaster"]) && $_SESSION["Webmaster"] === 
 
     $boolnamen = array(
         "paypalactive" => "PayPal aktiv",
+        "webprinteractive" => "WebPrinter aktiv",
     );
 
     if (isset($_POST["submit"])) {
