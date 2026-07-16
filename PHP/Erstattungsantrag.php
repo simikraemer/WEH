@@ -480,6 +480,10 @@ if (!function_exists('sendErstattungNotificationMail')) {
 $isAuthenticated = !empty($_SESSION['valid']) && !empty($_SESSION['uid']);
 $uid = intval($_SESSION['uid'] ?? 0);
 
+$isVorstand = !empty($_SESSION['Vorstand']);
+$isNetzAg = !empty($_SESSION['NetzAG']);
+$canExceedStandardRefundLimit = $isAuthenticated && ($isVorstand || $isNetzAg);
+
 $agOptions = $isAuthenticated ? erstattung_get_user_ag_options($conn) : [];
 $allowedAgIds = array_map(static function ($agOption) {
     return intval($agOption['id']);
@@ -557,6 +561,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $linkedPurchaseRequest = null;
         $linkedPurchaseRequestId = 0;
         $betragLimit = 100.0;
+        $enforceBetragLimit = true;
         $einrichtung = '';
         $mailExtraInfo = '';
 
@@ -588,6 +593,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $bannerMessage = 'Bitte wähle eine gültige AG aus.';
             } else {
                 $betragLimit = 100.0;
+                $enforceBetragLimit = !$canExceedStandardRefundLimit;
                 $einrichtung = 'ag:' . $agId;
             }
         }
@@ -595,7 +601,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($bannerMessage === '') {
             if ($uid <= 0 || $einrichtung === '' || $iban === '' || $betrag <= 0) {
                 $bannerMessage = 'Ungültige Eingabe.';
-            } elseif ($betrag > $betragLimit + 0.00001) {
+            } elseif ($enforceBetragLimit && $betrag > $betragLimit + 0.00001) {
                 $bannerMessage = 'Der Betrag überschreitet den erlaubten Maximalbetrag von '
                     . number_format($betragLimit, 2, ',', '.')
                     . ' €.';
@@ -1199,6 +1205,15 @@ load_menu();
             einen Einkaufsantrag stellen. Sobald drei Vorstandsmitglieder den Antrag bestätigen, wird die AG via Mail informiert und der Kauf kann regulär getätigt werden.
             Wenn drei Vorstandsmitglieder ablehnen, wird eure AG via Mail informiert.
         </p>
+
+        <?php if ($canExceedStandardRefundLimit): ?>
+            <p>
+                <strong>Ausnahme für Vorstand und Netzwerk-AG:</strong>
+                Das reguläre Limit ohne genehmigten Einkaufsantrag bleibt <strong>100,00 €</strong>.
+                In begründeten Ausnahmefällen kannst du mit deiner Berechtigung dennoch direkt einen höheren
+                Erstattungsbetrag eintragen.
+            </p>
+        <?php endif; ?>
     </section>
 
     <div class="ag-layout">
@@ -1371,6 +1386,9 @@ load_menu();
                         data-title=""
                     >
                         Kein Einkaufsantrag — normaler AG-Einkauf bis 100,00 €
+                        <?php if ($canExceedStandardRefundLimit): ?>
+                            — Ausnahme für Vorstand/NetzAG möglich
+                        <?php endif; ?>
                     </option>
 
                     <?php foreach ($approvedPurchaseRequests as $request): ?>
@@ -1434,7 +1452,9 @@ load_menu();
                             type="number"
                             step="0.01"
                             min="0.01"
-                            max="100.00"
+                            <?php if (!$canExceedStandardRefundLimit): ?>
+                                max="100.00"
+                            <?php endif; ?>
                             name="betrag"
                             id="betrag"
                             placeholder="€"
@@ -1455,7 +1475,12 @@ load_menu();
                 </div>
 
                 <div id="betrag_limit_label" class="limit-hint">
-                    Maximal erstattbarer Betrag: 100,00 €
+                    <?php if ($canExceedStandardRefundLimit): ?>
+                        Reguläres Limit ohne Einkaufsantrag: 100,00 €.<br>
+                        Ausnahme für Vorstand/NetzAG: In begründeten Ausnahmefällen ist eine direkte Eintragung über 100,00 € möglich.
+                    <?php else: ?>
+                        Maximal erstattbarer Betrag: 100,00 €
+                    <?php endif; ?>
                 </div>
 
                 <button type="submit">
@@ -1473,6 +1498,7 @@ load_menu();
         const amountInput = document.getElementById('betrag');
         const limitLabel = document.getElementById('betrag_limit_label');
         const selectedInfo = document.getElementById('selected_purchase_info');
+        const canExceedStandardRefundLimit = <?= $canExceedStandardRefundLimit ? 'true' : 'false' ?>;
 
         function formatEuro(value) {
             return value.toLocaleString('de-DE', {
@@ -1492,11 +1518,25 @@ load_menu();
             const agId = selectedOption.getAttribute('data-ag-id') || '';
             const title = selectedOption.getAttribute('data-title') || '';
 
-            amountInput.max = maxbetrag.toFixed(2);
-            limitLabel.textContent = 'Maximal erstattbarer Betrag: ' + formatEuro(maxbetrag);
+            if (purchaseRequestId > 0) {
+                amountInput.max = maxbetrag.toFixed(2);
+                limitLabel.textContent = 'Maximal erstattbarer Betrag laut genehmigtem Einkaufsantrag: '
+                    + formatEuro(maxbetrag);
 
-            if (amountInput.value !== '' && parseFloat(amountInput.value) > maxbetrag) {
-                amountInput.value = maxbetrag.toFixed(2);
+                if (amountInput.value !== '' && parseFloat(amountInput.value) > maxbetrag) {
+                    amountInput.value = maxbetrag.toFixed(2);
+                }
+            } else if (canExceedStandardRefundLimit) {
+                amountInput.removeAttribute('max');
+                limitLabel.innerHTML = 'Reguläres Limit ohne Einkaufsantrag: 100,00 €.<br>'
+                    + 'Ausnahme für Vorstand/NetzAG: In begründeten Ausnahmefällen ist eine direkte Eintragung über 100,00 € möglich.';
+            } else {
+                amountInput.max = maxbetrag.toFixed(2);
+                limitLabel.textContent = 'Maximal erstattbarer Betrag: ' + formatEuro(maxbetrag);
+
+                if (amountInput.value !== '' && parseFloat(amountInput.value) > maxbetrag) {
+                    amountInput.value = maxbetrag.toFixed(2);
+                }
             }
 
             if (purchaseRequestId > 0 && agId !== '') {
