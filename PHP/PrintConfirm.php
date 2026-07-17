@@ -1,101 +1,305 @@
 <?php
-require('template.php'); // hieraus kommt $conn
-mysqli_set_charset($conn, "utf8");
+require('template.php');
 
-// **1️⃣ Sicherheit: Prüfen, ob die Anfrage vom Server kommt**
-if (php_sapi_name() !== 'cli') { // Falls NICHT CLI, dann Web-Sicherheitsprüfung
+mysqli_set_charset($conn, 'utf8mb4');
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+/*
+|--------------------------------------------------------------------------
+| Sicherheit
+|--------------------------------------------------------------------------
+*/
+
+if (php_sapi_name() !== 'cli') {
     if ($_SERVER['REMOTE_ADDR'] !== $_SERVER['SERVER_ADDR']) {
-        header("Location: denied.php");
+        header('Location: denied.php');
         exit;
     }
 }
 
-// **2️⃣ CUPS-Job-ID & Gedruckte Seiten aus GET-Parameter holen**
+/*
+|--------------------------------------------------------------------------
+| CUPS-ID aus Parameter
+|--------------------------------------------------------------------------
+*/
+
+$cups_id = 0;
+
 if (isset($argv[1])) {
-    $cups_id = intval($argv[1]);
+    $cups_id = (int)$argv[1];
 }
 
-// Falls keine CUPS-ID übergeben wurde → Fehler
-if (!$cups_id) {
-    die("❌ Fehler: Keine CUPS-ID angegeben.\n");
+if ($cups_id <= 0) {
+    die("❌ Fehler: Keine gültige CUPS-ID angegeben.\n");
 }
 
-echo "✅ Verarbeitung für CUPS-Job-ID: $cups_id\n";
+echo "✅ Verarbeitung für CUPS-Job-ID: {$cups_id}\n";
 
-// **3️⃣ Gedruckte Seiten aus page_log ermitteln**
-function getPrintedPages($cups_id) {
-    $log_file = "/var/log/cups/page_log";
+/*
+|--------------------------------------------------------------------------
+| Gedruckte Seiten aus page_log ermitteln
+|--------------------------------------------------------------------------
+*/
 
-    if (!file_exists($log_file)) {
-        return 0; // Falls die Log-Datei nicht existiert, 0 zurückgeben
+function getPrintedPages(int $cupsId): int
+{
+    $logFile = '/var/log/cups/page_log';
+
+    if (!file_exists($logFile)) {
+        return 0;
     }
 
-    // grep-Befehl zum Filtern der richtigen Zeile
-    $command = "grep 'CUPS_ID:$cups_id ' $log_file";
+    $command = sprintf(
+        "grep %s %s",
+        escapeshellarg("CUPS_ID:{$cupsId} "),
+        escapeshellarg($logFile)
+    );
+
+    $output = [];
     exec($command, $output);
 
-    if (!empty($output)) {
-        // Extrahiere die Seitenzahl aus der gefilterten Zeile
-        foreach ($output as $line) {
-            if (strpos($line, "PAGES:") !== false) {
-                $pages = explode("PAGES:", $line);
-                if (isset($pages[1])) {
-                    return intval(trim($pages[1]));
-                }
-            }
+    if (empty($output)) {
+        return 0;
+    }
+
+    /*
+     * Bei mehreren Treffern wird der letzte Eintrag verwendet.
+     */
+    $output = array_reverse($output);
+
+    foreach ($output as $line) {
+        if (
+            preg_match(
+                '/PAGES:\s*([0-9]+)/',
+                $line,
+                $matches
+            )
+        ) {
+            return (int)$matches[1];
         }
     }
 
-    return 0; // Falls keine gültige Seitenzahl gefunden wurde
+    return 0;
 }
 
 $gesamtseiten = getPrintedPages($cups_id);
-echo "📄 Ergebnis: Gedruckte Seiten für CUPS_ID $cups_id = $gesamtseiten\n";
 
+echo "📄 Gedruckte Seiten für CUPS_ID {$cups_id}: {$gesamtseiten}\n";
 
-// **4️⃣ Status ermitteln (1 = abgeschlossen, 2 = abgebrochen)**
-$status = ($gesamtseiten > 0) ? 1 : 2;
+/*
+|--------------------------------------------------------------------------
+| Printjob anhand der CUPS-ID laden
+|
+| Wichtig:
+| cups_id dient nur zum Auffinden.
+| transfers.print_id erhält anschließend printjobs.id.
+|--------------------------------------------------------------------------
+*/
 
-// **5️⃣ Update der printjobs-Tabelle (tatsächlich gedruckte Seiten & Status setzen)**
-$update_sql = "UPDATE weh.printjobs SET true_pages = ?, status = ? WHERE cups_id = ?";
-$stmt = $conn->prepare($update_sql);
-$stmt->bind_param("iii", $gesamtseiten, $status, $cups_id);
+$selectSql = "
+    SELECT
+        id,
+        uid,
+        title,
+        duplex,
+        grey,
+        status
+    FROM weh.printjobs
+    WHERE cups_id = ?
+    ORDER BY id DESC
+    LIMIT 1
+";
+
+$stmt = $conn->prepare($selectSql);
+$stmt->bind_param('i', $cups_id);
 $stmt->execute();
+
+$result = $stmt->get_result();
+$printjob = $result->fetch_assoc();
+
 $stmt->close();
 
-// **6️⃣ Benutzer-ID, Titel, Druckmodus & Graustufen ermitteln**
-$select_sql = "SELECT uid, title, duplex, grey FROM weh.printjobs WHERE cups_id = ?";
-$stmt = $conn->prepare($select_sql);
-$stmt->bind_param("i", $cups_id);
-$stmt->execute();
-$stmt->bind_result($uid, $title, $duplex, $grey);
-$stmt->fetch();
-$stmt->close();
+if (!$printjob) {
+    die(
+        "❌ Fehler: Kein Printjob für CUPS_ID {$cups_id} gefunden.\n"
+    );
+}
 
-// **7️⃣ Druckmodus & Graustufen richtig setzen**
-$druckmodus = ($duplex == 1) ? "duplex" : "simplex";
-$graustufen = ($grey == 1);
+$printjob_id = (int)$printjob['id'];
+$uid = (int)$printjob['uid'];
+$title = (string)$printjob['title'];
+$duplex = (int)$printjob['duplex'];
+$grey = (int)$printjob['grey'];
+$currentStatus = (int)$printjob['status'];
 
-// **8️⃣ Gesamtpreis berechnen (negativer Betrag für Abrechnung)**
-$gesamtpreis = (-1) * berechne_gesamtpreis($gesamtseiten, $druckmodus, $graustufen);
+echo "🔗 Gefundene Printjob-ID: {$printjob_id}\n";
 
-// **9️⃣ Transfer für die Abrechnung in DB eintragen**
-$konto = 3; // Standardkonto für Drucker
-$kasse = 3; // Standardkasse für Drucker
-$print_id = $cups_id;
-$beschreibung = $title;
+/*
+|--------------------------------------------------------------------------
+| Bereits erstattete Jobs nicht erneut abrechnen
+|--------------------------------------------------------------------------
+*/
+
+if ($currentStatus === 4) {
+    die(
+        "⚠️ Printjob {$printjob_id} wurde bereits erstattet. "
+        . "Keine erneute Verarbeitung.\n"
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Status und Preis berechnen
+|--------------------------------------------------------------------------
+*/
+
+$status = $gesamtseiten > 0
+    ? 1
+    : 2;
+
+$druckmodus = $duplex === 1
+    ? 'duplex'
+    : 'simplex';
+
+$graustufen = $grey === 1;
+
+$gesamtpreis = (-1) * berechne_gesamtpreis(
+    $gesamtseiten,
+    $druckmodus,
+    $graustufen
+);
+
+$konto = 3;
+$kasse = 3;
 $print_pages = $gesamtseiten;
-$tstamp = time(); // Aktueller Unix-Timestamp
+$tstamp = time();
 
-$insert_sql = "INSERT INTO weh.transfers 
-    (uid, tstamp, beschreibung, konto, kasse, betrag, print_id, print_pages) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-$stmt = $conn->prepare($insert_sql);
-$stmt->bind_param("iisiidii", $uid, $tstamp, $beschreibung, $konto, $kasse, $gesamtpreis, $print_id, $print_pages);
-$stmt->execute();
-$stmt->close();
+/*
+|--------------------------------------------------------------------------
+| Printjob und Transfer gemeinsam verarbeiten
+|--------------------------------------------------------------------------
+*/
 
-echo "✅ Druckauftrag verarbeitet! Gedruckte Seiten: $gesamtseiten | Betrag: $gesamtpreis €";
+try {
+    $conn->begin_transaction();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Printjob aktualisieren
+    |
+    | Update jetzt über die echte printjobs.id, nicht erneut über cups_id.
+    |--------------------------------------------------------------------------
+    */
+
+    $updateSql = "
+        UPDATE weh.printjobs
+        SET
+            true_pages = ?,
+            status = ?
+        WHERE id = ?
+    ";
+
+    $stmt = $conn->prepare($updateSql);
+    $stmt->bind_param(
+        'iii',
+        $gesamtseiten,
+        $status,
+        $printjob_id
+    );
+    $stmt->execute();
+    $stmt->close();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Doppelte Abrechnung verhindern
+    |--------------------------------------------------------------------------
+    */
+
+    $existingTransferSql = "
+        SELECT id
+        FROM weh.transfers
+        WHERE print_id = ?
+        LIMIT 1
+    ";
+
+    $stmt = $conn->prepare($existingTransferSql);
+    $stmt->bind_param('i', $printjob_id);
+    $stmt->execute();
+
+    $existingTransferResult = $stmt->get_result();
+    $existingTransfer = $existingTransferResult->fetch_assoc();
+
+    $stmt->close();
+
+    if ($existingTransfer) {
+        $conn->commit();
+
+        echo
+            "⚠️ Für Printjob {$printjob_id} existiert bereits "
+            . "Transfer {$existingTransfer['id']}. "
+            . "Kein weiterer Transfer angelegt.\n";
+
+        $conn->close();
+        exit;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Transfer anlegen
+    |
+    | Entscheidende Änderung:
+    | print_id = printjobs.id
+    | NICHT print_id = cups_id
+    |--------------------------------------------------------------------------
+    */
+
+    $insertSql = "
+        INSERT INTO weh.transfers
+        (
+            uid,
+            tstamp,
+            beschreibung,
+            konto,
+            kasse,
+            betrag,
+            print_id,
+            print_pages
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ";
+
+    $stmt = $conn->prepare($insertSql);
+    $stmt->bind_param(
+        'iisiidii',
+        $uid,
+        $tstamp,
+        $title,
+        $konto,
+        $kasse,
+        $gesamtpreis,
+        $printjob_id,
+        $print_pages
+    );
+    $stmt->execute();
+    $stmt->close();
+
+    $conn->commit();
+
+    echo
+        "✅ Druckauftrag verarbeitet!\n"
+        . "Printjob-ID: {$printjob_id}\n"
+        . "CUPS-ID: {$cups_id}\n"
+        . "Gedruckte Seiten: {$gesamtseiten}\n"
+        . "Betrag: {$gesamtpreis} €\n";
+} catch (Throwable $exception) {
+    $conn->rollback();
+
+    die(
+        "❌ Fehler bei der Verarbeitung: "
+        . $exception->getMessage()
+        . "\n"
+    );
+}
 
 $conn->close();
 ?>

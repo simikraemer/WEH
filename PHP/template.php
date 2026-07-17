@@ -647,6 +647,11 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/WerkzeugAdministration.php\';">Buchungen</button> ';
                     echo '<button onclick="window.location.href=\'/WerkzeugBuchen.php\';">Buchen</button> ';
                 }
+                if ($agName === 'DruckerAG') {
+                    echo '<button onclick="window.location.href=\'/Druckjob.php\';">Druckaufträge</button> ';
+                    echo '<button onclick="window.location.href=\'/TopPrinter.php\';">Top-Printer</button> ';
+                    echo '<button onclick="window.location.href=\'/Printer2.php\';">Web-Printer</button> ';
+                }
                 if ($agName === 'FahrradAG') {
                     echo '<button onclick="window.location.href=\'/FahrradAdministration.php\';">Stellplatz Administration</button> ';
                     /* echo '<button onclick="window.location.href=\'/Fahrradmail.php\';">Nachricht an Stellplatzuser</button> '; */
