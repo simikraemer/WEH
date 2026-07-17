@@ -1624,7 +1624,7 @@ function druckjobs_sort_marker(string $column): string
         }
 
         .printjobs-room-tower {
-            margin-left: 4px;
+            margin-right: 4px;
             font-weight: 800;
         }
 
@@ -2308,12 +2308,12 @@ function druckjobs_sort_marker(string $column): string
                         </td>
 
                         <td>
-                            <?= druckjobs_h($room) ?>
                             <span
                                 class="printjobs-room-tower <?= druckjobs_h($turmClass) ?>"
                             >
                                 <?= druckjobs_h($turm) ?>
                             </span>
+                            <?= druckjobs_h($room) ?>
                         </td>
 
                         <td
