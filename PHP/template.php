@@ -630,6 +630,7 @@ function load_menu() {
                 }
                 if ($agName === 'WEH-WaschAG') {
                     echo '<button onclick="window.location.href=\'https://www.weh.rwth-aachen.de/waschen\';">Waschsystem</button> ';
+                    echo '<button onclick="window.location.href=\'/Rundmail_Regular.php\';" style="white-space: nowrap;">Rundmail Vorlagen</button> ';
                     echo '<button onclick="window.location.href=\'/WaschRefund.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
                 }
                 if ($agName === 'TvK-WaschAG') {
@@ -637,11 +638,13 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/WaschRefundTvK.php\';" style="white-space: nowrap;">Waschmarken erstatten</button> ';
                 }
                 if ($agName === 'WohnzimmerAG') {
+                    echo '<button onclick="window.location.href=\'/Rundmail_Regular.php\';" style="white-space: nowrap;">Rundmail Vorlagen</button> ';
                     echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'SportAG') {                                        
                     echo '<button onclick="window.location.href=\'/FitnessNew.php\';" style="white-space: nowrap;">Fitness-Introduction</button>';
                     echo '<button onclick="window.location.href=\'/FitnessUsers.php\';" style="white-space: nowrap;">Liste Fitness-User</button> ';
+                    echo '<button onclick="window.location.href=\'/Rundmail_Regular.php\';" style="white-space: nowrap;">Rundmail Vorlagen</button> ';
                 }
                 if ($agName === 'WerkzeugAG') {
                     echo '<button onclick="window.location.href=\'/WerkzeugAdministration.php\';">Buchungen</button> ';
