@@ -556,8 +556,8 @@ function load_menu() {
                 if ($agName === 'NetzAG') {
                     echo '<button onclick="window.location.href=\'/Dashboard.php\';">Dashboard</button> ';
                     echo '<button onclick="window.location.href=\'/House.php\';">Haus</button> ';
+                    echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
                     if ($_SESSION['kasse']) {
-                        echo '<button onclick="window.location.href=\'/Transfers.php\';" style="white-space: nowrap;">Transfers</button> ';
                         echo '<button onclick="window.location.href=\'/CountCash.php\';" style="white-space: nowrap;">Bargeld zählen</button> ';
                     }
                     echo '<button onclick="window.location.href=\'/KartedesRumtreibers.php\';" style="white-space: nowrap;">Karte des Rumtreibers</button> ';
