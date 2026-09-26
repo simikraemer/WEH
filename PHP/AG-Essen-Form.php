@@ -1,11 +1,204 @@
 <?php
-  session_start();
+session_start();
 ?>
 <!DOCTYPE html>
 <html>
-    <head>
+<head>
     <link rel="stylesheet" href="WEH.css" media="screen">
-    </head>
+    <style>
+        .agessen-action-cell {
+            white-space: nowrap;
+        }
+
+        .agessen-action-buttons {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+        }
+
+        .agessen-action-buttons form {
+            display: inline-flex;
+            margin: 0;
+        }
+
+        .agessen-small-btn {
+            appearance: none;
+            border: 1px solid rgba(255,255,255,.28);
+            border-radius: 7px;
+            padding: 7px 11px;
+            min-width: 0;
+            margin: 0;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.1;
+            cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease, transform .15s ease;
+        }
+
+        .agessen-edit-btn {
+            background: #11a50d;
+            border-color: #11a50d;
+            color: #fff;
+        }
+
+        .agessen-delete-btn {
+            background: #7e1717;
+            border-color: #a82a2a;
+            color: #fff;
+        }
+
+        .agessen-small-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .agessen-small-btn:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .agessen-edit-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .78);
+            z-index: 9998;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .agessen-edit-modal {
+            position: relative;
+            width: min(560px, 94vw);
+            background: #171717;
+            color: #fff;
+            border: 1px solid rgba(17,165,13,.65);
+            border-radius: 16px;
+            padding: 24px 26px 26px;
+            box-sizing: border-box;
+            box-shadow: 0 24px 80px rgba(0,0,0,.7);
+        }
+
+        .agessen-edit-modal h2 {
+            margin: 0 42px 6px;
+            text-align: center;
+            font-size: 27px;
+        }
+
+        .agessen-edit-note {
+            margin: 0 0 22px;
+            text-align: center;
+            color: rgba(255,255,255,.65);
+            font-size: 14px;
+        }
+
+        .agessen-edit-close {
+            position: absolute;
+            top: 13px;
+            right: 13px;
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 50%;
+            background: #fff;
+            color: #111;
+            font-size: 22px;
+            line-height: 30px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .agessen-edit-row {
+            display: grid;
+            grid-template-columns: 92px minmax(0, 1fr);
+            gap: 14px;
+            align-items: center;
+            margin: 13px 0;
+        }
+
+        .agessen-edit-row label {
+            color: rgba(255,255,255,.78);
+            font-size: 14px;
+        }
+
+        .agessen-edit-row input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,.22);
+            border-radius: 8px;
+            background: #0e0e0e;
+            color: #fff;
+            padding: 10px 12px;
+            font: inherit;
+        }
+
+        .agessen-edit-row input:focus {
+            outline: none;
+            border-color: #11a50d;
+            box-shadow: 0 0 0 2px rgba(17,165,13,.2);
+        }
+
+        .agessen-edit-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .agessen-modal-btn {
+            appearance: none;
+            border: 1px solid rgba(255,255,255,.24);
+            border-radius: 8px;
+            padding: 9px 16px;
+            min-width: 110px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .agessen-modal-cancel {
+            background: #2b2b2b;
+            color: #fff;
+        }
+
+        .agessen-modal-save {
+            background: #11a50d;
+            border-color: #11a50d;
+            color: #fff;
+        }
+
+        @media (max-width: 620px) {
+            .agessen-action-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .agessen-small-btn {
+                width: 100%;
+            }
+
+            .agessen-edit-row {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+
+            .agessen-edit-actions {
+                justify-content: stretch;
+            }
+
+            .agessen-modal-btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
 <?php
 require('template.php');
 mysqli_set_charset($conn, "utf8");
@@ -21,7 +214,6 @@ if (auth($conn) && ($_SESSION['valid'])) {
     }
 
     if (!isset($_POST["ag"])) {
-
         if (!$hasAgMembership) {
             echo '<h1 style="font-size: 60px; color: white; text-align: center;">You are currently not a member of any AG!</h1>';
         } else {
@@ -33,11 +225,10 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 }
             }
 
-            // Prüfe, ob nur eine AG verfügbar ist
             if (count($availableAgs) === 1) {
                 $singleAgKey = array_key_first($availableAgs);
                 echo '<form id="auto-ag-form" method="post">
-                        <input type="hidden" name="ag" value="' . $singleAgKey . '">
+                        <input type="hidden" name="ag" value="' . htmlspecialchars($singleAgKey, ENT_QUOTES, 'UTF-8') . '">
                       </form>';
                 echo '<script>
                         document.getElementById("auto-ag-form").submit();
@@ -47,7 +238,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 echo '<form method="post" style="display:flex; justify-content:center; align-items:center; flex-wrap: wrap;">';
 
                 foreach ($availableAgs as $key => $value) {
-                    echo '<button type="submit" name="ag" value="' . $key . '" class="house-button" style="font-size:50px; margin:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">' . $value . '</button>';
+                    echo '<button type="submit" name="ag" value="' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '" class="house-button" style="font-size:50px; margin:10px; background-color:#fff; color:#000; border:2px solid #000; padding:10px 20px; transition:background-color 0.2s;">' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</button>';
                 }
 
                 echo '</form>';
@@ -55,28 +246,22 @@ if (auth($conn) && ($_SESSION['valid'])) {
             }
         }
     } else {
-        # AG wurde ausgewählt
-
         $ag = strval($_POST["ag"]);
+
+        if (!isset($ag_complete[$ag]) || !isset($_SESSION[$ag_complete[$ag]['session']]) || !$_SESSION[$ag_complete[$ag]['session']] || $ag_complete[$ag]['agessen'] != 1) {
+            echo '<div style="text-align:center; color:red; font-size:30px;">Ungültige oder nicht erlaubte AG.</div>';
+            $conn->close();
+            exit();
+        }
+
         $agname = $ag_complete[$ag]["name"];
         $trinkgeldfaktor = 1.1;
         $zeit = time();
+        $lockDuration = 30 * 60;
+        $lockCutoff = $zeit - $lockDuration;
         $startOfSemester = unixtime2startofsemesteragessen($zeit);
         $semester = unixtime2semesteragessen($zeit);
-
-        $sql = "SELECT SUM(betrag) FROM agessen WHERE ag = ? AND tstamp > ?";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ss", $ag, $startOfSemester);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $spent);
-        mysqli_stmt_fetch($stmt);
-        mysqli_stmt_close($stmt);
-
-        $schonwaseingetragen = True;
-        if ($spent === null) {
-            $spent = 0;
-            $schonwaseingetragen = False;
-        }
+        $currentUserUid = (int)$_SESSION['user'];
 
         $sql = "SELECT COUNT(uid) FROM users WHERE CONCAT(',', groups, ',') LIKE CONCAT('%,', ?, ',%') AND pid in (11,64) ORDER BY room";
         $stmt = mysqli_prepare($conn, $sql);
@@ -106,17 +291,168 @@ if (auth($conn) && ($_SESSION['valid'])) {
             $mindestteilnehmer_effektiv = 1;
         }
 
-        if ($ag == 7 || $ag == 9 || $ag == 11 || $ag == 25) { # NetzAG&Vorstand&WaschAG&FahrradAG dürfen doppelten Wert fraisen
+        if ($ag == 7 || $ag == 9 || $ag == 11 || $ag == 25) {
             $budgetpP = $budgetpP * 2;
         }
+
+        $actionMessage = null;
+        $actionError = null;
+
+        /*
+         * Offenen eigenen Antrag bearbeiten.
+         * Veränderbar sind nur Betrag und IBAN.
+         * Teilnehmer und Rechnung bleiben unverändert.
+         */
+        if (isset($_POST['edit_agessen'])) {
+            $editId = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
+            $newBetrag = isset($_POST['edit_betrag']) ? (float)$_POST['edit_betrag'] : 0;
+            $newIban = isset($_POST['edit_iban']) ? $_POST['edit_iban'] : '';
+            $newIban = rtrim(chunk_split(str_replace(' ', '', $newIban), 4, ' '));
+
+            $sql = "SELECT betrag, iban, teilnehmer, pfad, status, lock_tstamp, lock_uid
+                    FROM agessen
+                    WHERE id = ? AND ag = ? AND uid = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "isi", $editId, $ag, $currentUserUid);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $oldBetrag, $oldIban, $teilnehmer, $pfad, $status, $lockTstamp, $lockUid);
+
+            if (!mysqli_stmt_fetch($stmt)) {
+                $actionError = 'Der Antrag wurde nicht gefunden oder gehört nicht dir.';
+                mysqli_stmt_close($stmt);
+            } else {
+                mysqli_stmt_close($stmt);
+
+                if ((int)$status !== 0) {
+                    $actionError = 'Der Antrag wurde bereits angenommen und kann nicht mehr geändert werden.';
+                } elseif ($lockTstamp !== null && (int)$lockTstamp >= $lockCutoff) {
+                    $actionError = 'Der Antrag wird gerade vom Kassenwart geprüft und kann momentan nicht geändert werden.';
+                } else {
+                    $teilnehmerArray = array_values(array_filter(array_map('trim', explode(',', (string)$teilnehmer)), 'strlen'));
+                    $count_teilnehmer = count($teilnehmerArray);
+                    $limit = $budgetpP * $count_teilnehmer * $trinkgeldfaktor;
+                    $limitstring = number_format($limit, 2, ',', '.') . ' €';
+
+                    $sql = "SELECT COALESCE(SUM(betrag), 0) FROM agessen WHERE ag = ? AND tstamp > ?";
+                    $stmt = mysqli_prepare($conn, $sql);
+                    mysqli_stmt_bind_param($stmt, "ss", $ag, $startOfSemester);
+                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_bind_result($stmt, $spentForEdit);
+                    mysqli_stmt_fetch($stmt);
+                    mysqli_stmt_close($stmt);
+
+                    $spentWithoutCurrent = (float)$spentForEdit - (float)$oldBetrag;
+                    $offenWithoutCurrent = (($budgetpP * $count_members) - $spentWithoutCurrent) * $trinkgeldfaktor;
+                    $offenWithoutCurrentAnzeige = max(0, $offenWithoutCurrent);
+
+                    if ($newBetrag <= 0) {
+                        $actionError = 'Der Betrag muss größer als 0 sein!';
+                    } elseif ($newBetrag > $offenWithoutCurrent) {
+                        $actionError = 'Der Betrag ist zu hoch! Ihr könnt für diesen Antrag maximal ' . number_format($offenWithoutCurrentAnzeige, 2, ',', '.') . ' € eintragen.';
+                    } elseif ($count_teilnehmer < $mindestteilnehmer_effektiv) {
+                        $actionError = 'Der Antrag erfüllt die aktuelle Mindestteilnehmerzahl nicht mehr und kann daher nicht geändert werden.';
+                    } elseif ($newBetrag > $limit) {
+                        $actionError = 'Der Betrag ist zu hoch! Für ' . $count_teilnehmer . ' Teilnehmer ist das Betragslimit bei ' . $limitstring . '!';
+                    } elseif (!isValidIBAN($newIban) || strpos($newIban, "Bar ") === 0) {
+                        $actionError = 'Die IBAN ' . htmlspecialchars($newIban, ENT_QUOTES, 'UTF-8') . ' hat ein falsches Format!';
+                    } elseif (abs((float)$oldBetrag - $newBetrag) < 0.00001 && trim((string)$oldIban) === trim($newIban)) {
+                        $actionMessage = 'Es wurden keine Änderungen vorgenommen.';
+                    } else {
+                        $sql = "UPDATE agessen
+                                SET betrag = ?, iban = ?, lock_tstamp = NULL, lock_uid = NULL
+                                WHERE id = ?
+                                  AND ag = ?
+                                  AND uid = ?
+                                  AND status = 0
+                                  AND (lock_tstamp IS NULL OR lock_tstamp < ?)";
+                        $stmt = mysqli_prepare($conn, $sql);
+                        mysqli_stmt_bind_param($stmt, "dsisii", $newBetrag, $newIban, $editId, $ag, $currentUserUid, $lockCutoff);
+                        $saveOk = mysqli_stmt_execute($stmt);
+                        $affected = mysqli_stmt_affected_rows($stmt);
+                        mysqli_stmt_close($stmt);
+
+                        if (!$saveOk) {
+                            $actionError = 'Fehler beim Speichern der Änderung.';
+                        } elseif ($affected < 1) {
+                            $actionError = 'Der Antrag konnte nicht geändert werden. Er wurde möglicherweise gerade vom Kassenwart geöffnet oder bereits angenommen.';
+                        } else {
+                            $actionMessage = 'Der offene Antrag wurde geändert.';
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Offenen eigenen Antrag löschen. */
+        if (isset($_POST['delete_agessen'])) {
+            $deleteId = isset($_POST['delete_id']) ? (int)$_POST['delete_id'] : 0;
+            $deletePfad = null;
+
+            $sql = "SELECT pfad, status, lock_tstamp
+                    FROM agessen
+                    WHERE id = ? AND ag = ? AND uid = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "isi", $deleteId, $ag, $currentUserUid);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $deletePfad, $deleteStatus, $deleteLockTstamp);
+
+            if (!mysqli_stmt_fetch($stmt)) {
+                $actionError = 'Der Antrag wurde nicht gefunden oder gehört nicht dir.';
+                mysqli_stmt_close($stmt);
+            } else {
+                mysqli_stmt_close($stmt);
+
+                if ((int)$deleteStatus !== 0) {
+                    $actionError = 'Der Antrag wurde bereits angenommen und kann nicht mehr gelöscht werden.';
+                } elseif ($deleteLockTstamp !== null && (int)$deleteLockTstamp >= $lockCutoff) {
+                    $actionError = 'Der Antrag wird gerade vom Kassenwart geprüft und kann momentan nicht gelöscht werden.';
+                } else {
+                    $sql = "DELETE FROM agessen
+                            WHERE id = ?
+                              AND ag = ?
+                              AND uid = ?
+                              AND status = 0
+                              AND (lock_tstamp IS NULL OR lock_tstamp < ?)";
+                    $stmt = mysqli_prepare($conn, $sql);
+                    mysqli_stmt_bind_param($stmt, "isii", $deleteId, $ag, $currentUserUid, $lockCutoff);
+                    $deleteOk = mysqli_stmt_execute($stmt);
+                    $affected = mysqli_stmt_affected_rows($stmt);
+                    mysqli_stmt_close($stmt);
+
+                    if (!$deleteOk) {
+                        $actionError = 'Fehler beim Löschen des Antrags.';
+                    } elseif ($affected < 1) {
+                        $actionError = 'Der Antrag konnte nicht gelöscht werden. Er wurde möglicherweise gerade vom Kassenwart geöffnet oder bereits angenommen.';
+                    } else {
+                        if ($deletePfad && strpos($deletePfad, 'rechnungen/') === 0 && is_file($deletePfad)) {
+                            @unlink($deletePfad);
+                        }
+                        $actionMessage = 'Der offene Antrag wurde gelöscht.';
+                    }
+                }
+            }
+        }
+
+        $sql = "SELECT SUM(betrag) FROM agessen WHERE ag = ? AND tstamp > ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "ss", $ag, $startOfSemester);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $spent);
+        mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+
+        $schonwaseingetragen = true;
+        if ($spent === null) {
+            $spent = 0;
+            $schonwaseingetragen = false;
+        }
+
         $offenohnetrinkgeld = ($budgetpP * $count_members) - $spent;
         $offen = $offenohnetrinkgeld * $trinkgeldfaktor;
-
-        // nur für die Anzeige auf 0 deckeln
         $offenohnetrinkgeld_anzeige = max(0, $offenohnetrinkgeld);
         $offen_anzeige = max(0, $offen);
 
-        if (isset($_POST["reload"]) && $_POST["reload"] == 1) { // Notwendig, damit Seite aktualisieren nicht den Post erneut schickt
+        if (isset($_POST["reload"]) && $_POST["reload"] == 1) {
             if (isset($_POST["esseneintragen"])) {
                 if (isset($_POST['iban'])) {
                     $iban = $_POST['iban'];
@@ -128,7 +464,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 $isBarAntrag = false;
                 if (isset($_POST['barkasseCheckbox']) && $_POST['barkasseCheckbox'] == '1') {
                     if (isset($_POST['bar']) && $_POST['bar'] != "") {
-                        $iban = trim($_POST['bar']); // z.B. "Bar 93"
+                        $iban = trim($_POST['bar']);
                         $isBarAntrag = true;
                     } else {
                         $iban = '';
@@ -314,7 +650,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                         echo "<br>";
 
                         echo '<form id="agForm" method="post" style="display:none;">';
-                        echo '<input type="hidden" name="ag" value="' . $ag . '">';
+                        echo '<input type="hidden" name="ag" value="' . htmlspecialchars($ag, ENT_QUOTES, 'UTF-8') . '">';
                         echo '</form>';
 
                         echo '<script>
@@ -328,11 +664,18 @@ if (auth($conn) && ($_SESSION['valid'])) {
             }
         }
 
+        if ($actionMessage !== null) {
+            echo '<div style="text-align:center; font-size:28px; color:#66FF99; margin:20px 0;">' . htmlspecialchars($actionMessage, ENT_QUOTES, 'UTF-8') . '</div>';
+        }
+        if ($actionError !== null) {
+            echo '<div style="text-align:center; font-size:24px; color:red; margin:20px 0;">' . $actionError . '</div>';
+        }
+
         echo '<div style="text-align: center; font-size: 60px; color: white;">';
-        echo $agname;
+        echo htmlspecialchars($agname, ENT_QUOTES, 'UTF-8');
         echo '</div><br><br><br>';
         echo '<div style="text-align: center; font-size: 30px; color: white;">';
-        echo 'Offenes Essensbudget im ' . $semester . '';
+        echo 'Offenes Essensbudget im ' . htmlspecialchars($semester, ENT_QUOTES, 'UTF-8');
         echo '</div>';
         echo '<div style="text-align: center; font-size: 40px; color: white;">';
         echo number_format($offenohnetrinkgeld_anzeige, 2, ',', '.') . ' €';
@@ -347,7 +690,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo "<br>";
 
             echo '<div style="text-align: center; font-size: 60px; color: white;">';
-            echo "Einträge im $semester";
+            echo "Einträge im " . htmlspecialchars($semester, ENT_QUOTES, 'UTF-8');
             echo '</div><br><br><br>';
 
             echo "<style>
@@ -365,9 +708,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
             </style>";
 
             echo "<table class='agessentable'>";
-            echo "<tr><th>Datum</th><th>Status</th><th>Betrag</th><th>IBAN</th><th>Teilnehmer</th></tr>";
+            echo "<tr><th>Datum</th><th>Status</th><th>Betrag</th><th>IBAN</th><th>Rechnung</th><th>Teilnehmer</th><th>Aktion</th></tr>";
 
-            $sql = "SELECT a.tstamp, a.status, a.betrag, a.iban, 
+            $sql = "SELECT a.id, a.uid, a.tstamp, a.status, a.betrag, a.iban, a.pfad, a.lock_tstamp, a.lock_uid,
             GROUP_CONCAT(
                 CONCAT(
                     SUBSTRING_INDEX(u.firstname, ' ', 1),
@@ -384,18 +727,54 @@ if (auth($conn) && ($_SESSION['valid'])) {
             $stmt = mysqli_prepare($conn, $sql);
             mysqli_stmt_bind_param($stmt, "ss", $ag, $startOfSemester);
             mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $tstamp, $status, $betrag, $iban, $teilnehmerstring);
+            mysqli_stmt_bind_result($stmt, $entryId, $entryUid, $tstamp, $status, $betrag, $iban, $pfad, $lockTstamp, $lockUid, $teilnehmerstring);
+
             while (mysqli_stmt_fetch($stmt)) {
                 $tstamp_show = date('d.m.Y', $tstamp);
                 $statusstring = ($status == 0) ? "In Bearbeitung" : (($status == 1) ? "Überwiesen" : "");
                 $betrag_show = number_format($betrag, 2, ',', '.') . ' €';
-                echo "<tr><td>$tstamp_show</td><td>$statusstring</td><td>$betrag_show</td><td>$iban</td><td>$teilnehmerstring</td></tr>";
+                $invoiceLink = '<a href="' . htmlspecialchars($pfad, ENT_QUOTES, 'UTF-8') . '" target="_blank" class="white-text">[Link]</a>';
+                $isEditableOpen = ((int)$status === 0);
+                $isLocked = ($lockTstamp !== null && (int)$lockTstamp >= (time() - $lockDuration));
+
+                echo '<tr>';
+                echo '<td>' . htmlspecialchars($tstamp_show, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '<td>' . htmlspecialchars($statusstring, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '<td>' . htmlspecialchars($betrag_show, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '<td>' . htmlspecialchars($iban, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '<td>' . $invoiceLink . '</td>';
+                echo '<td>' . htmlspecialchars($teilnehmerstring, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '<td class="agessen-action-cell">';
+
+                if ($isEditableOpen) {
+                    if ($isLocked) {
+                        echo '<span title="Agent ' . (int)$lockUid . '">Wird gerade geprüft</span>';
+                    } else {
+                        echo '<div class="agessen-action-buttons">';
+                        echo '<button type="button" class="agessen-small-btn agessen-edit-btn edit-agessen-btn"'
+                            . ' data-id="' . (int)$entryId . '"'
+                            . ' data-betrag="' . htmlspecialchars((string)$betrag, ENT_QUOTES, 'UTF-8') . '"'
+                            . ' data-iban="' . htmlspecialchars($iban, ENT_QUOTES, 'UTF-8') . '">Bearbeiten</button>';
+
+                        echo '<form method="post" onsubmit="return confirm(\'Diesen offenen Antrag wirklich löschen? Die Rechnung wird ebenfalls gelöscht.\');">';
+                        echo '<input type="hidden" name="ag" value="' . htmlspecialchars($ag, ENT_QUOTES, 'UTF-8') . '">';
+                        echo '<input type="hidden" name="delete_id" value="' . (int)$entryId . '">';
+                        echo '<button type="submit" name="delete_agessen" class="agessen-small-btn agessen-delete-btn">Löschen</button>';
+                        echo '</form>';
+                        echo '</div>';
+                    }
+                } else {
+                    echo '—';
+                }
+
+                echo '</td>';
+                echo '</tr>';
             }
             echo "</table>";
             mysqli_stmt_close($stmt);
         }
-        echo "<br><br><br><br>";
 
+        echo "<br><br><br><br>";
         echo "<br>";
         echo '<hr style="border-top: 1px solid white;">';
         echo "<br>";
@@ -426,7 +805,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
             echo '<select id="bar" name="bar" style="width: 200px;">';
             echo '<option value="">Bitte auswählen</option>';
             foreach ($options as $value => $label) {
-                echo '<option value="Bar ' . $value . '">' . $label . '</option>';
+                echo '<option value="Bar ' . $value . '">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</option>';
             }
             echo '</select>';
             echo '</div>';
@@ -457,7 +836,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
             echo '<div style="text-align: center; margin-bottom: 10px;">';
             echo '<label for="user_' . $uid . '" style="display: inline-block; color: white; font-size:25px; text-align: left;">';
-            echo '<input type="checkbox" id="user_' . $uid . '" name="selected_users[]" value="' . $uid . '"> ' . $name;
+            echo '<input type="checkbox" id="user_' . $uid . '" name="selected_users[]" value="' . $uid . '"> ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
             echo '</label>';
             echo '</div>';
         }
@@ -482,8 +861,8 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo '<br>';
 
         echo '<div style="text-align: center; margin-bottom: 10px;">';
-        echo '<input type="hidden" name="ag" value="' . $ag . '">';
-        echo '<input type="hidden" name="reload" value=1>';
+        echo '<input type="hidden" name="ag" value="' . htmlspecialchars($ag, ENT_QUOTES, 'UTF-8') . '">';
+        echo '<input type="hidden" name="reload" value="1">';
         echo '<button type="submit" name="esseneintragen" class="center-btn" style="display: block; margin: 0 auto;">Absenden</button>';
         echo '</div>';
         echo '</form>';
@@ -503,6 +882,68 @@ if (auth($conn) && ($_SESSION['valid'])) {
                 }
             }
         </script>';
+
+        ?>
+        <div id="agessenEditBackdrop" class="agessen-edit-backdrop">
+            <div class="agessen-edit-modal" role="dialog" aria-modal="true" aria-labelledby="agessenEditTitle">
+                <button type="button" class="agessen-edit-close" id="closeAgessenEdit" aria-label="Schließen">×</button>
+                <h2 id="agessenEditTitle">AG-Essen bearbeiten</h2>
+                <p class="agessen-edit-note">Rechnung und Teilnehmer bleiben unverändert.</p>
+
+                <form method="post" id="agessenEditForm">
+                    <input type="hidden" name="ag" value="<?php echo htmlspecialchars($ag, ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="edit_id" id="editAgessenId">
+
+                    <div class="agessen-edit-row">
+                        <label for="editAgessenBetrag"><strong>Betrag:</strong></label>
+                        <input type="number" step="0.01" min="0.01" name="edit_betrag" id="editAgessenBetrag" required>
+                    </div>
+
+                    <div class="agessen-edit-row">
+                        <label for="editAgessenIban"><strong>IBAN:</strong></label>
+                        <input type="text" name="edit_iban" id="editAgessenIban" required>
+                    </div>
+
+                    <div class="agessen-edit-actions">
+                        <button type="button" class="agessen-modal-btn agessen-modal-cancel" id="cancelAgessenEdit">Abbrechen</button>
+                        <button type="submit" name="edit_agessen" class="agessen-modal-btn agessen-modal-save">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+        (() => {
+            const backdrop = document.getElementById('agessenEditBackdrop');
+            const idInput = document.getElementById('editAgessenId');
+            const betragInput = document.getElementById('editAgessenBetrag');
+            const ibanInput = document.getElementById('editAgessenIban');
+
+            document.querySelectorAll('.edit-agessen-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    idInput.value = button.dataset.id;
+                    betragInput.value = button.dataset.betrag;
+                    ibanInput.value = button.dataset.iban;
+                    backdrop.style.display = 'flex';
+                });
+            });
+
+            document.getElementById('closeAgessenEdit').addEventListener('click', () => {
+                backdrop.style.display = 'none';
+            });
+
+            document.getElementById('cancelAgessenEdit').addEventListener('click', () => {
+                backdrop.style.display = 'none';
+            });
+
+            backdrop.addEventListener('click', event => {
+                if (event.target === backdrop) {
+                    backdrop.style.display = 'none';
+                }
+            });
+        })();
+        </script>
+        <?php
     }
 } else {
     header("Location: denied.php");

@@ -6,8 +6,13 @@ require('conn.php');
 date_default_timezone_set('Europe/Berlin');
 require_once 'vendor/autoload.php';
 
+$kassenwarteHandleShit = true;
+// true  = Kassenwarte übernehmen AG-Essen und die finanziellen Einkaufs-/Erstattungsanträge.
+//         Die beiden entsprechenden Queue-Container werden im Webmaster-Dashboard ausgeblendet.
+// false = bisherige Ansicht mit allen sechs Queue-Containern.
+
 /*
- * Dashboard2.1.php
+ * Dashboard2.2.php
  * - Ajax/API-Antworten laufen über ?d2api=...
  * - template.php wird absichtlich gepuffert geladen, damit dessen HTML-Ausgabe keine JSON-Antworten zerstört.
  * - Die fachliche Logik entspricht Dashboard.php; die Oberfläche arbeitet ohne Seitenreloads.
@@ -1060,7 +1065,7 @@ function d2_handle_purchase_action(mysqli $conn, array &$terminal): void
 
 function d2_collect_dashboard_data(mysqli $conn): array
 {
-    global $config;
+    global $config, $kassenwarteHandleShit;
 
     $nowTs = time();
 
@@ -1230,16 +1235,39 @@ function d2_collect_dashboard_data(mysqli $conn): array
                 ];
             }, $pskonly),
         ],
-        'AGEssen' => ['title' => 'AG-Essen', 'type' => 'AGEssen', 'items' => array_map(static function ($entry) {
-            return ['id' => intval($entry['id']), 'label' => d2_money((float)$entry['betrag']), 'sub' => (string)($entry['ag_name'] ?? ('AG #' . $entry['ag'])), 'tower' => 'weh'];
-        }, $agessen)],
-        'Erstattung' => ['title' => 'Erstattung', 'type' => 'Erstattung', 'items' => array_map(static function ($entry) use ($conn) {
-            return ['id' => intval($entry['id']), 'label' => d2_money((float)$entry['betrag']), 'sub' => d2_format_einrichtung($conn, (string)$entry['einrichtung']), 'tower' => 'weh'];
-        }, $erstattungen)],
     ];
+
+    if (!$kassenwarteHandleShit) {
+        $queueMap['AGEssen'] = [
+            'title' => 'AG-Essen',
+            'type' => 'AGEssen',
+            'items' => array_map(static function ($entry) {
+                return [
+                    'id' => intval($entry['id']),
+                    'label' => d2_money((float)$entry['betrag']),
+                    'sub' => (string)($entry['ag_name'] ?? ('AG #' . $entry['ag'])),
+                    'tower' => 'weh',
+                ];
+            }, $agessen),
+        ];
+
+        $queueMap['Erstattung'] = [
+            'title' => 'Erstattung',
+            'type' => 'Erstattung',
+            'items' => array_map(static function ($entry) use ($conn) {
+                return [
+                    'id' => intval($entry['id']),
+                    'label' => d2_money((float)$entry['betrag']),
+                    'sub' => d2_format_einrichtung($conn, (string)$entry['einrichtung']),
+                    'tower' => 'weh',
+                ];
+            }, $erstattungen),
+        ];
+    }
 
     return [
         'generatedAt' => date(DateTime::ATOM, $nowTs),
+        'kassenwarteHandleShit' => $kassenwarteHandleShit,
         'cards' => [
             'gesamtgeld' => ['title' => 'Gesamt-Kapital', 'state' => $gesamtKapital >= 0 ? 'good' : 'bad', 'value' => d2_money($gesamtKapital), 'detail' => '', 'meta' => ''],
             'netzkapital' => ['title' => 'Netz-Kapital', 'state' => $netzKapital >= 0 ? 'good' : 'bad', 'value' => d2_money($netzKapital), 'detail' => '', 'meta' => ''],
@@ -3256,6 +3284,15 @@ $initialData = d2_collect_dashboard_data($conn);
                 grid-template-columns: repeat(3, minmax(160px, 1fr)) !important;
             }
 
+            .d2-page.d2-kassenwart-finance-mode .d2-queue-grid,
+            .d2-page.d2-kassenwart-finance-mode.d2-compact-left .d2-queue-grid {
+                grid-template-columns: repeat(2, minmax(240px, 1fr)) !important;
+            }
+
+            .d2-page.d2-kassenwart-finance-mode .d2-queue-card {
+                min-height: 112px;
+            }
+
             .d2-script-grid,
             .d2-page.d2-compact-left .d2-script-grid {
                 grid-template-columns: repeat(6, minmax(100px, 1fr)) !important;
@@ -3278,7 +3315,7 @@ $initialData = d2_collect_dashboard_data($conn);
 echo $d2_template_output;
 load_menu();
 ?>
-<div class="d2-page" id="d2Page">
+<div class="d2-page<?= $kassenwarteHandleShit ? ' d2-kassenwart-finance-mode' : '' ?>" id="d2Page">
     <div class="d2-layout">
         <main class="d2-left">
             <section class="d2-left-shell">

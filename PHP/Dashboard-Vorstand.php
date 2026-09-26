@@ -900,9 +900,101 @@ function dv_modal_transfer(mysqli $conn, int $id): string
     return dv_modal_shell('Unklare Zahlung zuweisen', ob_get_clean());
 }
 
+function dv_try_lock_agessen(mysqli $conn, int $id): array
+{
+    $agentUid = intval($_SESSION['uid'] ?? 0);
+    $now = time();
+    $cutoff = $now - 1800;
+
+    if ($id <= 0 || $agentUid <= 0) {
+        return ['ok' => false, 'error' => 'Ungültiger AG-Essen-Lock.'];
+    }
+
+    $stmt = mysqli_prepare($conn, "
+        UPDATE agessen
+        SET lock_tstamp = ?, lock_uid = ?
+        WHERE id = ?
+          AND status = 0
+          AND (
+                lock_tstamp IS NULL
+             OR lock_tstamp < ?
+             OR lock_uid IS NULL
+             OR lock_uid = ?
+          )
+    ");
+    mysqli_stmt_bind_param($stmt, 'iiiii', $now, $agentUid, $id, $cutoff, $agentUid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    $stmt = mysqli_prepare($conn, "
+        SELECT a.status, a.lock_tstamp, a.lock_uid, u.name
+        FROM agessen a
+        LEFT JOIN users u ON u.uid = a.lock_uid
+        WHERE a.id = ?
+        LIMIT 1
+    ");
+    mysqli_stmt_bind_param($stmt, 'i', $id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $status, $lockTstamp, $lockUid, $lockName);
+    $found = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    if (!$found) {
+        return ['ok' => false, 'error' => 'AG-Essen-Antrag nicht gefunden.'];
+    }
+
+    if ((int)$status !== 0) {
+        return ['ok' => false, 'error' => 'AG-Essen-Antrag wurde bereits verarbeitet.'];
+    }
+
+    if ((int)$lockUid === $agentUid && (int)$lockTstamp >= $cutoff) {
+        return ['ok' => true, 'lock_tstamp' => (int)$lockTstamp, 'lock_uid' => (int)$lockUid];
+    }
+
+    if ((int)$lockTstamp >= $cutoff && (int)$lockUid > 0) {
+        $lockedUntil = date('H:i:s', (int)$lockTstamp + 1800);
+        $lockedBy = trim((string)$lockName) !== '' ? (string)$lockName . ' (UID ' . (int)$lockUid . ')' : 'UID ' . (int)$lockUid;
+
+        return [
+            'ok' => false,
+            'error' => 'Dieser AG-Essen-Antrag ist bereits durch ' . $lockedBy . ' geöffnet. Der Lock läuft spätestens um ' . $lockedUntil . ' ab.'
+        ];
+    }
+
+    return ['ok' => false, 'error' => 'AG-Essen-Antrag konnte nicht gesperrt werden. Bitte erneut versuchen.'];
+}
+
+function dv_unlock_agessen(mysqli $conn): void
+{
+    $id = intval($_POST['id'] ?? 0);
+    $agentUid = intval($_SESSION['uid'] ?? 0);
+
+    if ($id <= 0 || $agentUid <= 0) {
+        dv_json(['ok' => false, 'error' => 'Ungültiger AG-Essen-Unlock.'], 400);
+    }
+
+    $stmt = mysqli_prepare($conn, "
+        UPDATE agessen
+        SET lock_tstamp = NULL,
+            lock_uid = NULL
+        WHERE id = ?
+          AND lock_uid = ?
+    ");
+    mysqli_stmt_bind_param($stmt, 'ii', $id, $agentUid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    dv_json(['ok' => true]);
+}
+
 function dv_modal_agessen(mysqli $conn, int $id): string
 {
     global $ag_complete;
+
+    $lockResult = dv_try_lock_agessen($conn, $id);
+    if (empty($lockResult['ok'])) {
+        dv_json(['ok' => false, 'error' => $lockResult['error'] ?? 'AG-Essen-Antrag konnte nicht gesperrt werden.'], 409);
+    }
 
     $ibanLabels = ['Bar 1' => 'Netzbarkasse 1', 'Bar 2' => 'Netzbarkasse 2', 'Bar 93' => 'Kassenwartkasse 1', 'Bar 94' => 'Kassenwartkasse 2'];
 
@@ -936,13 +1028,14 @@ function dv_modal_agessen(mysqli $conn, int $id): string
     <form method="post" class="dv-action-form">
         <input type="hidden" name="agessen_confirm" value="1">
         <input type="hidden" name="id" value="<?= dv_h($row['id']) ?>">
+        <input type="hidden" name="agessen_lock_id" value="<?= dv_h($row['id']) ?>">
         <input type="hidden" name="pfad" value="<?= dv_h($row['pfad']) ?>">
         <input type="hidden" name="betrag" value="<?= dv_h($row['betrag']) ?>">
         <input type="hidden" name="iban" value="<?= dv_h($row['iban']) ?>">
         <input type="hidden" name="ag" value="<?= dv_h($row['ag']) ?>">
         <input type="hidden" name="uid" value="<?= dv_h($row['uid']) ?>">
 
-        <?= dv_account_info('AG-Essen: hochgeladene Rechnung vom Hauskonto DE37 3905 0000 1070 3345 84 erstatten. Bei Bar-Auswahl wird wie in AG-Essen.php die entsprechende Barkasse benutzt.') ?>
+        <?= dv_account_info('AG-Essen: hochgeladene Rechnung vom Hauskonto DE37 3905 0000 1070 3345 84 erstatten. Bei Bar-Auswahl wird wie in AG-Essen.php die entsprechende Barkasse benutzt. Solange dieses Modal geöffnet ist, ist der Antrag für Änderungen gesperrt; der Lock verfällt spätestens nach 30 Minuten.') ?>
 
         <div class="dv-modal-split">
             <div><?= dv_file_preview($row['pfad']) ?></div>
@@ -1471,24 +1564,70 @@ function dv_handle_agessen_action(mysqli $conn, array &$terminal): void
     global $ag_complete;
 
     $id = intval($_POST['id'] ?? 0);
-    $pfad = (string)($_POST['pfad'] ?? '');
-    $insert_betrag = (-1) * floatval(str_replace(',', '.', (string)($_POST['betrag'] ?? '0')));
-    $iban = (string)($_POST['iban'] ?? '');
-    $ag = intval($_POST['ag'] ?? 0);
     $dummy_uid = 492;
     $zeit = time();
     $agent = intval($_SESSION['uid'] ?? 0);
-    $agName = $ag_complete[$ag]['name'] ?? dv_get_ag_name($conn, $ag);
-    $insert_beschreibung = 'AG-Essen ' . $agName;
+    $lockCutoff = $zeit - 1800;
 
-    if ($id <= 0 || $insert_betrag >= 0 || $ag <= 0) {
+    if ($id <= 0 || $agent <= 0) {
         dv_json(['ok' => false, 'error' => 'Ungültiger AG-Essen-Antrag.'], 400);
     }
 
-    $stmt = mysqli_prepare($conn, "UPDATE agessen SET status = 1 WHERE id = ? AND status = 0");
-    mysqli_stmt_bind_param($stmt, 'i', $id);
+    // Aktuelle Werte ausschließlich aus der DB lesen.
+    // Die Bestätigung ist nur mit einem noch aktiven, eigenen 30-Minuten-Lock erlaubt.
+    $stmt = mysqli_prepare($conn, "
+        SELECT pfad, betrag, iban, ag
+        FROM agessen
+        WHERE id = ?
+          AND status = 0
+          AND lock_uid = ?
+          AND lock_tstamp IS NOT NULL
+          AND lock_tstamp >= ?
+        LIMIT 1
+    ");
+    mysqli_stmt_bind_param($stmt, 'iii', $id, $agent, $lockCutoff);
     mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $pfad, $betrag, $iban, $ag);
+    $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
+
+    if (!$found) {
+        dv_json([
+            'ok' => false,
+            'error' => 'Der AG-Essen-Lock ist nicht mehr aktiv oder der Antrag wurde bereits verarbeitet. Bitte das Modal schließen und den Antrag neu öffnen.'
+        ], 409);
+    }
+
+    $insert_betrag = (-1) * (float)$betrag;
+    $ag = intval($ag);
+    $agName = $ag_complete[$ag]['name'] ?? dv_get_ag_name($conn, $ag);
+    $insert_beschreibung = 'AG-Essen ' . $agName;
+
+    if ($insert_betrag >= 0 || $ag <= 0) {
+        dv_json(['ok' => false, 'error' => 'Ungültiger AG-Essen-Antrag.'], 400);
+    }
+
+    $stmt = mysqli_prepare($conn, "
+        UPDATE agessen
+        SET status = 1,
+            lock_tstamp = NULL,
+            lock_uid = NULL
+        WHERE id = ?
+          AND status = 0
+          AND lock_uid = ?
+          AND lock_tstamp >= ?
+    ");
+    mysqli_stmt_bind_param($stmt, 'iii', $id, $agent, $lockCutoff);
+    mysqli_stmt_execute($stmt);
+    $updated = mysqli_stmt_affected_rows($stmt);
+    mysqli_stmt_close($stmt);
+
+    if ($updated !== 1) {
+        dv_json([
+            'ok' => false,
+            'error' => 'AG-Essen konnte nicht bestätigt werden, weil der Lock zwischenzeitlich abgelaufen ist oder der Antrag bereits verarbeitet wurde.'
+        ], 409);
+    }
 
     $konto = ($insert_betrag >= 0) ? 4 : 8;
     $zeitstempel = date('d.m.Y H:i', $zeit);
@@ -1757,6 +1896,8 @@ if (isset($_GET['dvapi'])) {
             dv_search_users($conn);
         case 'modal':
             dv_modal($conn);
+        case 'unlock-agessen':
+            dv_unlock_agessen($conn);
         case 'action':
             dv_handle_action($conn);
         default:
@@ -2643,7 +2784,8 @@ load_menu();
 const DV = {
   data: <?= json_encode($initialData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
   apiBase: "<?= dv_h(basename(__FILE__)) ?>",
-  searchTimer: null
+  searchTimer: null,
+  activeAgessenLock: null
 };
 
 function dvEscape(value) {
@@ -2747,19 +2889,61 @@ async function dvRefresh(silent = false) {
   }
 }
 
+async function dvReleaseAgessenLock(useBeacon = false) {
+  const id = Number(DV.activeAgessenLock || 0);
+  if (!id) return;
+
+  DV.activeAgessenLock = null;
+
+  const url = `${DV.apiBase}?dvapi=unlock-agessen`;
+  const fd = new FormData();
+  fd.append("id", String(id));
+
+  if (useBeacon && navigator.sendBeacon) {
+    navigator.sendBeacon(url, fd);
+    return;
+  }
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      body: fd,
+      keepalive: true
+    });
+  } catch (err) {
+    // Kein harter Fehler: spätestens nach 30 Minuten verfällt der Lock automatisch.
+  }
+}
+
 async function dvOpenModal(type, id) {
   try {
+    if (DV.activeAgessenLock) {
+      await dvReleaseAgessenLock(false);
+    }
+
     dvTerminal(`Öffne ${type} #${id}...`, "muted");
     const res = await fetch(`${DV.apiBase}?dvapi=modal&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`, { credentials: "same-origin", cache: "no-store" });
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
     document.getElementById("dvModalRoot").innerHTML = json.html;
+
+    if (type === "AGEssen") {
+      DV.activeAgessenLock = Number(id);
+      dvTerminal(`AG-Essen #${id} für 30 Minuten gesperrt.`, "muted");
+    }
   } catch (err) {
     dvTerminal(`Modal-Fehler: ${err.message || err}`, "error");
+    alert(err.message || err);
   }
 }
 
 function dvCloseModal() {
+  if (DV.activeAgessenLock) {
+    dvReleaseAgessenLock(false);
+  }
   document.getElementById("dvModalRoot").innerHTML = "";
 }
 
@@ -2933,6 +3117,12 @@ document.addEventListener("input", function(event) {
   if (searchInput) {
     clearTimeout(DV.searchTimer);
     DV.searchTimer = setTimeout(() => dvSearchUsers(searchInput), 180);
+  }
+});
+
+window.addEventListener("pagehide", function() {
+  if (DV.activeAgessenLock) {
+    dvReleaseAgessenLock(true);
   }
 });
 

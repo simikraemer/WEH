@@ -1,4 +1,10 @@
 <?php
+// Session immer vor jeglichem Output initialisieren.
+// Viele Seiten starten die Session bereits selbst; der Guard verhindert Doppelstarts.
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
 $config = json_decode(file_get_contents('/etc/credentials/config.json'), true);
 
 $mysql_config = $config['wehphp'];
@@ -129,9 +135,17 @@ function setupUserSession($user, $isRoaming = true) {
     $_SESSION['expired'] = time() + ($isRoaming ? 600 : 3600); // 10 minutes for roaming, 60 minutes for non-roaming
 }
 
+// Session-ID nur bei einem echten Authentifizierungswechsel erneuern.
+// Niemals bei jedem Seitenaufruf: das kann parallele Requests und direkte
+// Datei-Requests (z. B. rechnungen/check_access.php) aus ihrer Session werfen.
+function regenerateSessionIdAfterLogin(): void {
+    if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+        session_regenerate_id(true);
+    }
+}
+
 // In der auth-Funktion:
 function auth($conn) {
-    session_regenerate_id();
     global $ag_complete;
     global $buchungsroomgrouparray;
     global $buchungsroomarray;
@@ -158,6 +172,7 @@ function auth($conn) {
     
         if($user = array_shift($result)) {
             if (strpos(',,'.$user['groups'].',', ',1,') != "") {
+                regenerateSessionIdAfterLogin();
                 setupUserSession($user);
                 return true;
             } else {
@@ -171,7 +186,6 @@ function auth($conn) {
 
 // In der auth_from_outside-Funktion:
 function auth_from_outside($conn, $uid) {
-    session_regenerate_id();
     global $ag_complete;
     echo "<title>WEH Backend</title>";
 
@@ -186,6 +200,7 @@ function auth_from_outside($conn, $uid) {
 
     if($user = array_shift($result)) {
         if (strpos(',,'.$user['groups'].',', ',1,') != "") {
+            regenerateSessionIdAfterLogin();
             setupUserSession($user, false);
             return true;
         } else {
