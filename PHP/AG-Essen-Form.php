@@ -173,6 +173,20 @@ session_start();
             color: #fff;
         }
 
+        .agessen-semester-info {
+            width: fit-content;
+            max-width: min(760px, 90%);
+            margin: 18px auto 0;
+            padding: 10px 16px;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,.28);
+            border-radius: 9px;
+            background: rgba(255,255,255,.06);
+            color: rgba(255,255,255,.82);
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.4;
+        }
         @media (max-width: 620px) {
             .agessen-action-buttons {
                 flex-direction: column;
@@ -510,7 +524,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
                     if (isset($_FILES['file'])) {
                         echo "<p>File Error: " . $_FILES['file']['error'] . "</p>";
                     } else {
-                        echo "<p>No file found in \$_FILES array.</p>";
+                        echo "<p>No file found in \\$_FILES array.</p>";
                     }
                     echo "</div>";
                 } else {
@@ -682,6 +696,9 @@ if (auth($conn) && ($_SESSION['valid'])) {
         echo '</div>';
         echo '<div style="text-align: center; font-size: 25px; color: white;">';
         echo "(" . number_format($offen_anzeige, 2, ',', '.') . ' € mit Trinkgeld)';
+        echo '</div>';
+        echo '<div class="agessen-semester-info">';
+        echo '<strong>Hinweis:</strong> Sommersemester vom 14.04. bis 14.10. und Wintersemester vom 14.10. bis 14.04.';
         echo '</div>';
 
         if ($schonwaseingetragen) {
