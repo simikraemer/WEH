@@ -270,11 +270,11 @@ if (auth($conn) && ($_SESSION['valid'])) {
 
     $agname = $ag_complete[$ag]["name"];
     $zeit = time();
-    // Bis zum 14.10.2026 um 00:00 Uhr gilt weiterhin der bisherige
+    // Bis zum 15.10.2026 um 00:00 Uhr gilt weiterhin der bisherige
     // Trinkgeldaufschlag von 10 %. Ab diesem Zeitpunkt wird Trinkgeld
     // dauerhaft nicht mehr bei Budgets oder Betragslimits berücksichtigt.
-    // Unix-Timestamp 1791928800 entspricht 14.10.2026 00:00:00 Europe/Berlin.
-    $trinkgeldStichtag = 1791928800;
+    // Unix-Timestamp 1792015200 entspricht 15.10.2026 00:00:00 Europe/Berlin.
+    $trinkgeldStichtag = 1792015200;
     $trinkgeldAktiv = $zeit < $trinkgeldStichtag;
     $trinkgeldfaktor = $trinkgeldAktiv ? 1.1 : 1.0;
     $lockDuration = 30 * 60;
@@ -353,7 +353,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
           $limit = $budgetpP * $count_teilnehmer * $trinkgeldfaktor;
           $limitstring = number_format($limit, 2, ',', '.') . ' €';
 
-          $sql = "SELECT COALESCE(SUM(betrag), 0) FROM agessen WHERE ag = ? AND tstamp > ?";
+          $sql = "SELECT COALESCE(SUM(betrag), 0) FROM agessen WHERE ag = ? AND tstamp >= ?";
           $stmt = mysqli_prepare($conn, $sql);
           mysqli_stmt_bind_param($stmt, "ss", $ag, $startOfSemester);
           mysqli_stmt_execute($stmt);
@@ -453,7 +453,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
       }
     }
 
-    $sql = "SELECT SUM(betrag) FROM agessen WHERE ag = ? AND tstamp > ?";
+    $sql = "SELECT SUM(betrag) FROM agessen WHERE ag = ? AND tstamp >= ?";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "ss", $ag, $startOfSemester);
     mysqli_stmt_execute($stmt);
@@ -706,7 +706,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
       echo '</div>';
     }
     echo '<div class="agessen-semester-info">';
-    echo '<strong>Hinweis:</strong> Sommersemester vom 14.04. bis 14.10. und Wintersemester vom 14.10. bis 14.04.';
+    echo '<strong>Hinweis:</strong> Sommersemester vom 15.04. bis 14.10. und Wintersemester vom 15.10. bis 14.04.';
     echo '</div>';
 
     if ($schonwaseingetragen) {
@@ -746,7 +746,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
       ) AS teilnehmer_namen
       FROM weh.agessen a
       JOIN weh.users u ON FIND_IN_SET(u.uid, REPLACE(a.teilnehmer, ',', ',')) > 0
-      WHERE a.ag = ? AND a.tstamp > ?
+      WHERE a.ag = ? AND a.tstamp >= ?
       GROUP BY a.id
       ORDER BY a.tstamp DESC";
       $stmt = mysqli_prepare($conn, $sql);

@@ -1084,18 +1084,18 @@ function unixtime2startofsemesteragessen(int $unixtime): int
     $year = (int)date('Y', $unixtime);
     $monthDay = date('m-d', $unixtime);
 
-    if ($monthDay >= '04-14' && $monthDay < '10-14') {
-        // Sommersemester: ab 14.04.
-        return mktime(0, 0, 0, 4, 14, $year);
+    if ($monthDay >= '04-15' && $monthDay < '10-15') {
+        // Sommersemester: 15.04. bis einschließlich 14.10.
+        return mktime(0, 0, 0, 4, 15, $year);
     }
 
-    if ($monthDay >= '10-14') {
-        // Wintersemester: ab 14.10.
-        return mktime(0, 0, 0, 10, 14, $year);
+    if ($monthDay >= '10-15') {
+        // Wintersemester: ab 15.10.
+        return mktime(0, 0, 0, 10, 15, $year);
     }
 
-    // Januar bis einschließlich 13.04. -> noch Wintersemester des Vorjahres
-    return mktime(0, 0, 0, 10, 14, $year - 1);
+    // Januar bis einschließlich 14.04. -> Wintersemester des Vorjahres
+    return mktime(0, 0, 0, 10, 15, $year - 1);
 }
 
 function unixtime2semesteragessen(int $unixtime): string
@@ -1103,11 +1103,11 @@ function unixtime2semesteragessen(int $unixtime): string
     $year = (int)date('Y', $unixtime);
     $monthDay = date('m-d', $unixtime);
 
-    if ($monthDay >= '04-14' && $monthDay < '10-14') {
+    if ($monthDay >= '04-15' && $monthDay < '10-15') {
         return 'SS ' . $year;
     }
 
-    if ($monthDay >= '10-14') {
+    if ($monthDay >= '10-15') {
         return 'WS ' . $year . '/' . substr((string)($year + 1), -2);
     }
 

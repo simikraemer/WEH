@@ -192,10 +192,11 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     $table_start_date = date("Y-m-d", $table_start);
 
     if (date("m", $table_start) == 4) {
-        $table_end_date = date("Y-m-d", strtotime("14-10-" . date("Y", $table_start)));
+        $table_end_date = date("Y-m-d", strtotime("15-10-" . date("Y", $table_start)));
     } elseif (date("m", $table_start) == 10) {
-        $table_end_date = date("Y-m-d", strtotime("14-04-" . (date("Y", $table_start) + 1)));
+        $table_end_date = date("Y-m-d", strtotime("15-04-" . (date("Y", $table_start) + 1)));
     }
+
     $table_end = strtotime($table_end_date);
 
     echo "<table class='agessentable' style='margin-bottom: 60px;'>";
@@ -212,7 +213,7 @@ if (auth($conn) && ($_SESSION["Webmaster"] || $_SESSION["Kassenwart"] || $_SESSI
     ) AS teilnehmer_namen
     FROM weh.agessen a
     JOIN weh.users u ON FIND_IN_SET(u.uid, REPLACE(a.teilnehmer, ',', ',')) > 0
-    WHERE a.status = 1 AND a.tstamp > ? AND a.tstamp < ?
+    WHERE a.status = 1 AND a.tstamp >= ? AND a.tstamp < ?
     GROUP BY a.id
     ORDER BY a.tstamp DESC";
     $stmt = mysqli_prepare($conn, $sql);
