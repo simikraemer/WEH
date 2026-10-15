@@ -987,6 +987,46 @@ function dv_unlock_agessen(mysqli $conn): void
     dv_json(['ok' => true]);
 }
 
+/**
+ * Der Antragsteller wird anhand der gespeicherten UID ermittelt.
+ * Die vereinsinterne Adresse folgt dem bereits für Erstattungen genutzten Schema.
+ */
+function dv_agessen_submitter(mysqli $conn, int $uid): ?array
+{
+    if ($uid <= 0) {
+        return null;
+    }
+
+    $stmt = mysqli_prepare($conn, "SELECT name, room, turm FROM users WHERE uid = ? LIMIT 1");
+    if (!$stmt) {
+        return null;
+    }
+
+    mysqli_stmt_bind_param($stmt, 'i', $uid);
+    mysqli_stmt_execute($stmt);
+    $rows = dv_stmt_rows($stmt);
+    mysqli_stmt_close($stmt);
+
+    return $rows[0] ?? null;
+}
+
+function dv_agessen_submitter_mail(?array $submitter): ?string
+{
+    if ($submitter === null) {
+        return null;
+    }
+
+    $room = intval($submitter['room'] ?? 0);
+    $turm = strtolower(trim((string)($submitter['turm'] ?? '')));
+
+    if ($room < 1 || $room > 9999 || !in_array($turm, ['weh', 'tvk'], true)) {
+        return null;
+    }
+
+    $email = dv_build_user_room_email($room, $turm);
+    return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+}
+
 function dv_modal_agessen(mysqli $conn, int $id): string
 {
     global $ag_complete;
@@ -1022,10 +1062,12 @@ function dv_modal_agessen(mysqli $conn, int $id): string
     $agName = $ag_complete[$agId]['name'] ?? dv_get_ag_name($conn, $agId);
     $betrag = number_format((float)$row['betrag'], 2, ',', '.');
     $ibanShow = $ibanLabels[$row['iban']] ?? $row['iban'];
+    $submitter = dv_agessen_submitter($conn, intval($row['uid']));
+    $submitterMail = dv_agessen_submitter_mail($submitter);
 
     ob_start();
     ?>
-    <form method="post" class="dv-action-form">
+    <form method="post" class="dv-action-form dv-agessen-form">
         <input type="hidden" name="agessen_confirm" value="1">
         <input type="hidden" name="id" value="<?= dv_h($row['id']) ?>">
         <input type="hidden" name="agessen_lock_id" value="<?= dv_h($row['id']) ?>">
@@ -1035,7 +1077,7 @@ function dv_modal_agessen(mysqli $conn, int $id): string
         <input type="hidden" name="ag" value="<?= dv_h($row['ag']) ?>">
         <input type="hidden" name="uid" value="<?= dv_h($row['uid']) ?>">
 
-        <?= dv_account_info('AG-Essen: hochgeladene Rechnung vom Hauskonto DE37 3905 0000 1070 3345 84 erstatten. Bei Bar-Auswahl wird wie in AG-Essen.php die entsprechende Barkasse benutzt. Solange dieses Modal geöffnet ist, ist der Antrag für Änderungen gesperrt; der Lock verfällt spätestens nach 30 Minuten.') ?>
+        <?= dv_account_info('AG-Essen: Mit „Überwiesen“ wird die Erstattung verbucht. Bei Ablehnung muss ein Grund angegeben werden; der Antragsteller erhält eine automatische E-Mail. Bei Bar-Auswahl wird wie in AG-Essen.php die entsprechende Barkasse benutzt. Der Bearbeitungs-Lock verfällt nach spätestens 30 Minuten.') ?>
 
         <div class="dv-modal-split">
             <div><?= dv_file_preview($row['pfad']) ?></div>
@@ -1047,6 +1089,8 @@ function dv_modal_agessen(mysqli $conn, int $id): string
                     ['IBAN / Kasse', dv_h($ibanShow)],
                     ['Kontoinhaber', dv_h($row['full_name'])],
                     ['Teilnehmer', dv_h($row['teilnehmer_namen'])],
+                    ['Antragsteller', dv_h($submitter['name'] ?? ('UID ' . intval($row['uid'])))],
+                    ['E-Mail bei Ablehnung', dv_h($submitterMail ?? 'Keine gültige Benutzeradresse ermittelbar')],
                 ]) ?>
 
                 <div class="dv-copy-list">
@@ -1056,12 +1100,30 @@ function dv_modal_agessen(mysqli $conn, int $id): string
                     <button type="button" class="dv-copy-btn" data-copy="AG-Essen <?= dv_h($agName) ?>"><span>Zweck</span>AG-Essen <?= dv_h($agName) ?></button>
                 </div>
 
-                <button type="submit" class="dv-submit">Überwiesen</button>
+                <div class="dv-button-row dv-agessen-choice-buttons">
+                    <button type="submit" name="agessen_action" value="accept" class="dv-submit dv-green-submit">Überwiesen</button>
+                    <button type="button" class="dv-submit dv-red-submit" data-dv-agessen-show-decline="1" <?= $submitterMail === null ? 'disabled title="Keine gültige Empfängeradresse vorhanden"' : '' ?>>Ablehnen</button>
+                </div>
+
+                <?php if ($submitterMail === null): ?>
+                    <div class="dv-alert dv-alert-warn">Eine Ablehnung mit Mailversand ist nicht möglich, da beim Antragsteller keine gültige Zimmer-E-Mail-Adresse ermittelt werden konnte.</div>
+                <?php endif; ?>
+
+                <div class="dv-agessen-decline-panel" hidden>
+                    <label class="dv-full-label" for="dv-agessen-reason-<?= intval($id) ?>">Grund für die Ablehnung
+                        <textarea id="dv-agessen-reason-<?= intval($id) ?>" name="agessen_decline_reason" class="dv-input dv-agessen-reason" rows="6" maxlength="4000" placeholder="Bitte begründe, warum der AG-Essen-Antrag abgelehnt wird. Der Text wird unverändert in die E-Mail übernommen." disabled></textarea>
+                    </label>
+                    <p class="dv-agessen-mail-info">Die E-Mail wird mit einer festen Einleitung und Grußformel an <strong><?= dv_h($submitterMail ?? '') ?></strong> verschickt. Die Begründung ist ein Pflichtfeld.</p>
+                    <div class="dv-button-row">
+                        <button type="button" class="dv-submit dv-small-btn" data-dv-agessen-cancel-decline="1">Zurück</button>
+                        <button type="submit" name="agessen_action" value="decline" class="dv-submit dv-red-submit">Ablehnung bestätigen und Mail senden</button>
+                    </div>
+                </div>
             </div>
         </div>
     </form>
     <?php
-    return dv_modal_shell('AG-Essen erstatten', ob_get_clean(), 'dv-wide-modal');
+    return dv_modal_shell('AG-Essen bearbeiten', ob_get_clean(), 'dv-wide-modal');
 }
 
 function dv_modal_erstattung(mysqli $conn, int $id): string
@@ -1564,19 +1626,20 @@ function dv_handle_agessen_action(mysqli $conn, array &$terminal): void
     global $ag_complete;
 
     $id = intval($_POST['id'] ?? 0);
+    $agessenAction = (string)($_POST['agessen_action'] ?? 'accept');
     $dummy_uid = 492;
     $zeit = time();
     $agent = intval($_SESSION['uid'] ?? 0);
     $lockCutoff = $zeit - 1800;
 
-    if ($id <= 0 || $agent <= 0) {
-        dv_json(['ok' => false, 'error' => 'Ungültiger AG-Essen-Antrag.'], 400);
+    if ($id <= 0 || $agent <= 0 || !in_array($agessenAction, ['accept', 'decline'], true)) {
+        dv_json(['ok' => false, 'error' => 'Ungültige AG-Essen-Aktion.'], 400);
     }
 
     // Aktuelle Werte ausschließlich aus der DB lesen.
-    // Die Bestätigung ist nur mit einem noch aktiven, eigenen 30-Minuten-Lock erlaubt.
+    // Beide Entscheidungen verlangen einen aktiven, eigenen 30-Minuten-Lock.
     $stmt = mysqli_prepare($conn, "
-        SELECT pfad, betrag, iban, ag
+        SELECT pfad, betrag, iban, ag, uid
         FROM agessen
         WHERE id = ?
           AND status = 0
@@ -1587,7 +1650,7 @@ function dv_handle_agessen_action(mysqli $conn, array &$terminal): void
     ");
     mysqli_stmt_bind_param($stmt, 'iii', $id, $agent, $lockCutoff);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $pfad, $betrag, $iban, $ag);
+    mysqli_stmt_bind_result($stmt, $pfad, $betrag, $iban, $ag, $submitterUid);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
@@ -1602,6 +1665,88 @@ function dv_handle_agessen_action(mysqli $conn, array &$terminal): void
     $ag = intval($ag);
     $agName = $ag_complete[$ag]['name'] ?? dv_get_ag_name($conn, $ag);
     $insert_beschreibung = 'AG-Essen ' . $agName;
+
+    if ($agessenAction === 'decline') {
+        $reason = trim(str_replace(["\r\n", "\r"], "\n", (string)($_POST['agessen_decline_reason'] ?? '')));
+        // Nur Steuerzeichen außerhalb von Zeilenumbrüchen und Tabs entfernen.
+        $reason = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $reason);
+        $reason = trim((string)$reason);
+
+        if ($reason === '' || strlen($reason) > 16000) {
+            dv_json(['ok' => false, 'error' => 'Bitte einen Ablehnungsgrund mit maximal 4000 Zeichen eingeben.'], 400);
+        }
+        $reasonLength = function_exists('mb_strlen')
+            ? mb_strlen($reason, 'UTF-8')
+            : preg_match_all('/./us', $reason);
+        if ($reasonLength === false || $reasonLength > 4000) {
+            dv_json(['ok' => false, 'error' => 'Der Ablehnungsgrund darf maximal 4000 Zeichen enthalten und muss gültiges UTF-8 sein.'], 400);
+        }
+
+        $submitter = dv_agessen_submitter($conn, (int)$submitterUid);
+        $mailTo = dv_agessen_submitter_mail($submitter);
+        if ($mailTo === null) {
+            dv_json(['ok' => false, 'error' => 'Keine gültige E-Mail-Adresse für den Antragsteller vorhanden. Der Antrag bleibt offen.'], 409);
+        }
+
+        $submitterName = trim((string)($submitter['name'] ?? ''));
+        $greetingName = $submitterName !== '' ? preg_split('/\s+/u', $submitterName)[0] : '';
+        $greeting = $greetingName !== '' ? 'Hallo ' . $greetingName . ',' : 'Hallo,';
+
+        $subject = 'AG-Essen-Antrag abgelehnt (#' . $id . ')';
+        $message = $greeting . "\n\n"
+            . "dein Antrag auf Erstattung eines AG-Essens wurde vom Vorstand abgelehnt.\n\n"
+            . "Antrag: #{$id}\n"
+            . "AG: {$agName}\n"
+            . 'Betrag: ' . dv_money((float)$betrag) . "\n\n"
+            . "Begründung:\n{$reason}\n\n"
+            . "Falls du Fragen hast oder den Antrag korrigieren möchtest, wende dich bitte an vorstand@weh.rwth-aachen.de.\n\n"
+            . "Viele Grüße\nVorstand WEH e.V.\n\n"
+            . "Diese Nachricht wurde automatisch vom WEH-Backend versendet.";
+
+        // Datenbankstatus und Mail-Einlieferung gemeinsam absichern:
+        // Scheitert mail(), wird das UPDATE zurückgerollt und der Antrag bleibt offen.
+        // status: 0 = offen, 1 = bestätigt, 2 = abgelehnt.
+        try {
+            mysqli_begin_transaction($conn);
+
+            $stmt = mysqli_prepare($conn, "
+                UPDATE agessen
+                SET status = 2,
+                    lock_tstamp = NULL,
+                    lock_uid = NULL
+                WHERE id = ?
+                  AND status = 0
+                  AND lock_uid = ?
+                  AND lock_tstamp IS NOT NULL
+                  AND lock_tstamp >= ?
+            ");
+            mysqli_stmt_bind_param($stmt, 'iii', $id, $agent, $lockCutoff);
+            mysqli_stmt_execute($stmt);
+            $updated = mysqli_stmt_affected_rows($stmt);
+            mysqli_stmt_close($stmt);
+
+            if ($updated !== 1) {
+                mysqli_rollback($conn);
+                dv_json(['ok' => false, 'error' => 'AG-Essen konnte nicht abgelehnt werden: Der Lock ist abgelaufen oder der Antrag wurde bereits bearbeitet.'], 409);
+            }
+
+            if (!dv_send_plain_mail($mailTo, $subject, $message, 'vorstand@weh.rwth-aachen.de')) {
+                mysqli_rollback($conn);
+                dv_json(['ok' => false, 'error' => 'Die E-Mail konnte nicht an den Mailserver übergeben werden. Der Antrag bleibt offen und kann erneut bearbeitet werden.'], 502);
+            }
+
+            mysqli_commit($conn);
+        } catch (Throwable $e) {
+            mysqli_rollback($conn);
+            error_log('AG-Essen-Ablehnung #' . $id . ': ' . $e->getMessage());
+            dv_json(['ok' => false, 'error' => 'Die Ablehnung konnte nicht vollständig verarbeitet werden. Bitte das Server-Log prüfen.'], 500);
+        }
+
+        $terminal[] = "AG-Essen #{$id} durch UID {$agent} abgelehnt (Status 2).";
+        $terminal[] = "Ablehnungs-E-Mail an {$mailTo} an den Mailserver übergeben.";
+        $terminal[] = 'Es wurde kein Transfer erstellt.';
+        dv_json(['ok' => true, 'message' => 'AG-Essen abgelehnt und E-Mail versendet.', 'terminal' => implode("\n", $terminal), 'refresh' => true]);
+    }
 
     if ($insert_betrag >= 0 || $ag <= 0) {
         dv_json(['ok' => false, 'error' => 'Ungültiger AG-Essen-Antrag.'], 400);
@@ -2497,6 +2642,37 @@ $initialData = dv_collect_dashboard_data($conn);
             font: inherit;
         }
 
+        .dv-agessen-decline-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 14px;
+            border: 1px solid rgba(255,95,95,0.5);
+            border-radius: 14px;
+            background: rgba(132,13,10,0.16);
+        }
+
+        .dv-agessen-decline-panel[hidden],
+        .dv-agessen-choice-buttons[hidden] {
+            display: none;
+        }
+
+        .dv-agessen-reason {
+            display: block;
+            min-height: 135px;
+            width: 100%;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
+        .dv-agessen-mail-info {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.76);
+            overflow-wrap: anywhere;
+        }
+
         .dv-full-label {
             color: rgba(255,255,255,0.75);
             font-size: 13px;
@@ -3077,6 +3253,37 @@ document.addEventListener("click", function(event) {
     return;
   }
 
+  const agessenShowDecline = event.target.closest("[data-dv-agessen-show-decline]");
+  if (agessenShowDecline) {
+    const form = agessenShowDecline.closest(".dv-agessen-form");
+    const panel = form?.querySelector(".dv-agessen-decline-panel");
+    const choices = form?.querySelector(".dv-agessen-choice-buttons");
+    const reason = panel?.querySelector(".dv-agessen-reason");
+    if (panel && reason) {
+      if (choices) choices.hidden = true;
+      panel.hidden = false;
+      reason.disabled = false;
+      reason.required = true;
+      reason.focus();
+    }
+    return;
+  }
+
+  const agessenCancelDecline = event.target.closest("[data-dv-agessen-cancel-decline]");
+  if (agessenCancelDecline) {
+    const form = agessenCancelDecline.closest(".dv-agessen-form");
+    const panel = form?.querySelector(".dv-agessen-decline-panel");
+    const choices = form?.querySelector(".dv-agessen-choice-buttons");
+    const reason = panel?.querySelector(".dv-agessen-reason");
+    if (panel && reason) {
+      if (choices) choices.hidden = false;
+      panel.hidden = true;
+      reason.disabled = true;
+      reason.required = false;
+    }
+    return;
+  }
+
   const docTab = event.target.closest("[data-dv-doc-tab]");
   if (docTab) {
     const modal = docTab.closest(".dv-modal");
@@ -3098,6 +3305,15 @@ document.addEventListener("submit", function(event) {
     const decision = form.querySelector("input[name='decision']:checked");
     if (decision && decision.value === "accept" && checkbox && !checkbox.checked) {
       alert("Bitte bestätige explizit, dass der vorhandene User aus dem Raum verdrängt werden darf.");
+      return;
+    }
+  }
+
+  if (form.classList.contains("dv-agessen-form") && event.submitter?.value === "decline") {
+    const reason = form.querySelector(".dv-agessen-reason");
+    if (!reason || !reason.value.trim()) {
+      alert("Bitte gib einen Grund für die Ablehnung ein.");
+      reason?.focus();
       return;
     }
   }
