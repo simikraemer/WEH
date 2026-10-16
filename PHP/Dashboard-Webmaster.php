@@ -2244,53 +2244,30 @@ function d2_handle_action(mysqli $conn): void
         $message = "Dear " . $firstname . ",\n\nyour registration was successful.\n\n"
             . "Credentials:\n\n House-Username: " . $username . "\n House-Password: " . $pwhausunhashed . "\n\n";
 
+        $message .= " WiFiOnly-Username: " . $username . "\n WiFiOnly-Password: " . $pwwifi . "\n\n";
+        $message .= "Connecting to the internet:\n"
+            . " 1. Connect your device to untenroam.\n"
+            . " 1.1. Wireless: Connect your device to the Wi-Fi network 'untenroam' with your Wi-Fi-Only credentials. Use your username without a domain and your WiFiOnly-Password, not your House-Password. untenroam works in both WEH and TvK.\n"
+            . " 1.2. Wired: Connect your device to the network socket in your room using a common ethernet cable. If you have two outlets; only one of these actually works. Most often it's the one closer to the window.\n";
+
         if ($turm != 'tvk') {
-            $message .= " WiFiOnly-Username: " . $username . "@weh.rwth-aachen.de\n WiFiOnly-Password: " . $pwwifi . "\n\n";
-            $message .= "Connecting to the internet:\n"
-                . " 1. Connect your device to tuermeroam.\n"
-                . " 1.1. Wireless: Connect your device to the Wi-Fi network 'tuermeroam' with your Wi-Fi-Only credentials.\n"
-                . " 1.2. Wired: Connect your device to the network socket in your room using a common ethernet cable. If you have two outlets; only one of these actually works. Most often it's the one closer to the window.\n"
-                . " 2. Open a web browser and navigate to the following web page: getnet.weh.ac\n"
+            $message .= " 2. Open a web browser and navigate to the following web page: getnet.weh.ac\n"
                 . " 3. Log in with your House credentials. These credentials are also used for every other login at a WEH service.\n"
                 . " 4. If this is the first device you're registering, you need to change your password. After you have changed it, please return to this web site: getnet.weh.ac. The Wi-Fi-Only password was not changed by this!\n"
-                . " 5. Choose any free IP address. Which one you choose is irrelevant, but you should use one device per IP address. After up to 10 minutes your device will be connected. If needed, you can ask the Netzwerk-AG for more IPs.\n\n"
-                . "We also want to point out:\n"
-                . " • It is not allowed to have your own Wi-Fi network in the tower. These networks interfere with the already existing tuermeroam network. Netzwerk-AG is always working on improving the connection for every room in the tower.\n"
-                . " • There are some Smart-Home devices and gaming consoles that don't support our security protocol WPA2 Enterprise. We set up the parallel network weh-pskonly for these. If you want to connect your device with this network, please use this page backend.weh.rwth-aachen.de/PSK.php\n"
-                . " • Before you ask, take a look at the FAQ on our website first! www2.weh.rwth-aachen.de/en/faq/\n"
-                . " • Sharing your login data with other residents is not allowed and may lead to a penalty of 150€.\n\n"
-                . "Paying your membership fees:\n"
-                . " • Your WEH account is also a prepaid account for all services within WEH. You can use the money to purchase washing coins, use the printer or pay your membership fees.\n"
-                . " • Membership fees are automatically debited from your WEH account on the 1st of each month. If you don't have sufficient funds, a warning email will be sent to you before the billing cycle.\n"
-                . " • So make sure there's always enough money on your account for your membership fees or you risk an internet ban.\n"
-                . " • You can top up your account via bank transfer or PayPal on this page: backend.weh.rwth-aachen.de/UserKonto.php\n\n";
+                . " 5. Choose any free IP address. Which one you choose is irrelevant, but you should use one device per IP address. After up to 10 minutes your device will be connected. If needed, you can ask the Netzwerk-AG for more IPs.\n\n";
         } else {
-            $message .= " WiFiOnly-Username: " . $username . "\n WiFiOnly-Password: " . $pwwifi . "\n\n"
-                . "=== IMPORTANT: Temporary Information for TvK Residents ===\n\n"
-                . "Your WiFiOnly-Username is only used for the temporary network 'fijiroam' - not for 'tuermeroam'!\n"
-                . "You will receive more information as soon as 'tuermeroam' becomes available in TvK. Until then, please use the 'fijiroam' WiFi network.\n\n"
-                . "=== END OF TEMPORARY MESSAGE FOR TvK RESIDENTS ===\n\n";
-            $message .= "Connecting to the internet:\n"
-                . " 1. Connect your device to fijiroam.\n"
-                . " 1.1. Wireless: Connect your device to the Wi-Fi network 'fijiroam' with your Wi-Fi-Only credentials.\n"
-                . " 1.2. Wired: Connect your device to the network socket in your room using a common ethernet cable. If you have two outlets; only one of these actually works. Most often it's the one closer to the window.\n"
-                . " 2. Open a web browser and navigate to the following web page: backend.weh.rwth-aachen.de/denied.php\n"
+            $message .= " 2. Open a web browser and navigate to the following web page: backend.weh.rwth-aachen.de/denied.php\n"
                 . " 3. Log in with your House credentials. These credentials are also used for every other login at a WEH service.\n"
                 . " 4. Enter the TAN that was sent to your E-Mail!\n"
                 . " 5. Navigate to 'Netz' -> 'IP Management'\n"
                 . " 6.1. Register the MAC-Address of your devices on your IPs. You can only use one device per IP at a time, so it's safe to register each device on a different IP!\n"
-                . " 6.2. After up to 10 minutes your device will be connected. If needed, you can ask the Netzwerk-AG for more IPs.\n\n"
-                . "We also want to point out:\n"
-                . " • It is not allowed to have your own Wi-Fi network in the tower. These networks interfere with the already existing tuermeroam network. Netzwerk-AG is always working on improving the connection for every room in the tower.\n"
-                . " • There are some Smart-Home devices and gaming consoles that don't support our security protocol WPA2 Enterprise. We set up the parallel network weh-pskonly for these. If you want to connect your device with this network, please use this page backend.weh.rwth-aachen.de/PSK.php\n"
-                . " • Before you ask, take a look at the FAQ on our website first! www2.weh.rwth-aachen.de/ags/netzag/faq/\n"
-                . " • Sharing your login data with other residents is not allowed and may lead to a penalty of 150€.\n\n"
-                . "Paying your membership fees:\n"
-                . " • Your WEH account is also a prepaid account for all services within WEH. You can use the money to purchase washing coins, use the printer or pay your membership fees.\n"
-                . " • Membership fees are automatically debited from your WEH account on the 1st of each month. If you don't have sufficient funds, a warning email will be sent to you before the billing cycle.\n"
-                . " • So make sure there's always enough money on your account for your membership fees or you risk an internet ban.\n"
-                . " • You can top up your account via bank transfer or PayPal on this page: backend.weh.rwth-aachen.de/UserKonto.php\n\n";
+                . " 6.2. After up to 10 minutes your device will be connected. If needed, you can ask the Netzwerk-AG for more IPs.\n\n";
         }
+
+        $message .= "We also want to point out:\n"
+            . " • It is not allowed to have your own Wi-Fi network in the tower. These networks interfere with the already existing untenroam network. Netzwerk-AG is always working on improving the connection for every room in the tower.\n"
+            . " • There are some Smart-Home devices and gaming consoles that don't support our security protocol WPA2 Enterprise. We set up the parallel network {$turm}-pskonly for these. If you want to connect your device with this network, please use this page backend.weh.rwth-aachen.de/PSK.php\n"
+            . " • Before you ask, take a look at the FAQ on our website first! www2.weh.rwth-aachen.de/en/faq/\n";
 
         if ($forwardemail != 1) {
             $message .= "Using your E-Mail account:\n"
