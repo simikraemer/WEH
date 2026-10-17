@@ -427,6 +427,7 @@ function load_menu() {
             echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Konten-Verlauf</button> ';
             echo '<button onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
             echo '<button onclick="window.location.href=\'/AG-Essen.php\';" style="white-space: nowrap;">AG-Essen Übersicht</button> ';
+            echo '<button onclick="window.location.href=\'/Wahlverhalten.php\';" style="white-space: nowrap;">Wahlverhalten</button> ';
             #echo '<button onclick="window.location.href=\'/EditEtagensprecher.php\';" style="white-space: nowrap;">Etagensprecher bearbeiten</button> ';
             #echo '<button onclick="window.location.href=\'/PayPalTest.php\';" style="white-space: nowrap;">PayPal Test</button> ';
             #echo '<button onclick="window.location.href=\'/Aushang.php\';" style="white-space: nowrap;">Aushang</button> ';
