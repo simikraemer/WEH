@@ -423,6 +423,7 @@ function load_menu() {
             echo '<div class="header-submenu">';
             echo '<button onclick="window.location.href=\'/Dashboard-Webmaster.php\';" style="white-space: nowrap;">Dashboard</button> ';
             echo '<button onclick="window.location.href=\'/SetSessions.php\';" style="white-space: nowrap;">Sessions verwalten</button> ';
+            echo '<button onclick="window.location.href=\'/KitchenChecker.php\';" style="white-space: nowrap;">Küchencheck</button> ';
             echo '<button onclick="window.location.href=\'/Kassenwart.php\';" style="white-space: nowrap;">Konten-Übersicht</button> ';
             echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Konten-Verlauf</button> ';
             echo '<button onclick="window.location.href=\'/Erstattung.php\';" style="white-space: nowrap;">Kostenerstattung</button>';
