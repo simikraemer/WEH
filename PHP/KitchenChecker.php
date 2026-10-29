@@ -379,7 +379,7 @@ if ($isAjax) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Küchenmonitor - 5. Etage</title>
+    <title>Küchenmonitor – 5. Etage</title>
     <link rel="stylesheet" href="WEH.css">
     <style>
         .km-page { width:min(720px,calc(100% - 30px)); margin:30px auto 60px; color:#fff; font-family:Arial,sans-serif; }
@@ -405,23 +405,30 @@ if ($isAjax) {
         .km-log { max-height:350px; overflow:auto; margin:10px 0 0; padding:12px; border-radius:6px; background:#151515; color:#ddd; font:12px/1.5 Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
         .km-log-tools { text-align:right; }
         .km-log-tools .km-button { padding:6px 10px; font-size:12px; }
+        .km-gate { position:fixed; inset:0; z-index:100000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.88); padding:18px; }
+        .km-gate[hidden] { display:none; }
+        .km-gate-dialog { width:min(390px,100%); padding:28px; background:#242323; border:1px solid #444; border-radius:12px; color:#fff; text-align:center; box-shadow:0 18px 60px #0009; }
+        .km-gate-title { margin:0 0 22px; font-size:25px; color:#fff; }
+        .km-gate-dialog .km-button { width:100%; font-size:17px; padding:14px; }
+        .km-gate-error { margin:16px 0 0; color:#ff9292; font-size:13px; }
+        .km-gate-error[hidden] { display:none; }
     </style>
 </head>
 <body>
 <?php if ($hasAccess): ?>
 <?php load_menu(); ?>
 <main class="km-page">
-    <h1 class="km-title">Küchenmonitor - 5. Etage</h1>
+    <h1 class="km-title">Küchenmonitor – 5. Etage</h1>
     <section class="km-panel">
         <h2 id="kmStatus" class="km-status" data-state="unknown" aria-live="polite">Prüfe …</h2>
         <p id="kmInfo" class="km-info">WLC-Abfrage läuft.</p>
         <div class="km-meta">
-            <span>Clients: <strong id="kmCount">-</strong></span>
-            <span>Letzter Check: <strong id="kmLast">-</strong></span>
-            <span>Nächster Check: <strong id="kmNext">-</strong></span>
+            <span>Clients: <strong id="kmCount">–</strong></span>
+            <span>Letzter Check: <strong id="kmLast">–</strong></span>
+            <span>Nächster Check: <strong id="kmNext">–</strong></span>
+            <span>Ton: <strong id="kmAudioState">nicht aktiviert</strong></span>
         </div>
         <div class="km-actions">
-            <button id="kmSound" class="km-button km-button-primary" type="button" aria-pressed="false">Ton aktivieren</button>
             <button id="kmTest" class="km-button" type="button">Ton testen</button>
             <button id="kmRefresh" class="km-button" type="button">Jetzt prüfen</button>
         </div>
@@ -434,6 +441,13 @@ if ($isAjax) {
         </div>
     </details>
 </main>
+<div id="kmAudioGate" class="km-gate" role="presentation">
+    <div class="km-gate-dialog" role="dialog" aria-modal="true" aria-labelledby="kmGateTitle">
+        <h2 class="km-gate-title" id="kmGateTitle">Alarm aktivieren</h2>
+        <button id="kmGateStart" class="km-button km-button-primary" type="button">Ton aktivieren &amp; starten</button>
+        <p id="kmGateError" class="km-gate-error" role="alert" hidden></p>
+    </div>
+</div>
 <script>
 (() => {
     'use strict';
@@ -448,7 +462,10 @@ if ($isAjax) {
     const count = el('kmCount');
     const last = el('kmLast');
     const next = el('kmNext');
-    const soundButton = el('kmSound');
+    const audioState = el('kmAudioState');
+    const audioGate = el('kmAudioGate');
+    const gateStart = el('kmGateStart');
+    const gateError = el('kmGateError');
     const refreshButton = el('kmRefresh');
     const logElement = el('kmLog');
     const logCounter = el('kmLogCounter');
@@ -459,6 +476,7 @@ if ($isAjax) {
     let checking = false;
     let audioContext = null;
     let soundArmed = false;
+    let monitoringStarted = false;
     const logLines = [];
 
     const clock = (date = new Date()) => date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -477,28 +495,39 @@ if ($isAjax) {
         info.textContent = subtitle;
     }
     function updateClock() {
-        next.textContent = checking ? 'läuft …' : (scheduledAt ? `${Math.max(0, Math.ceil((scheduledAt - Date.now()) / 1000 / 60))} min` : '-');
+        next.textContent = checking ? 'läuft …' : (scheduledAt ? `${Math.max(0, Math.ceil((scheduledAt - Date.now()) / 1000 / 60))} min` : '–');
+    }
+
+    function setAudioState(text) {
+        audioState.textContent = text;
     }
 
     async function enableSound() {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) {
-            log('Web Audio API wird von diesem Browser nicht unterstützt.', 'FEHLER');
-            return false;
+            throw new Error('Dieser Browser unterstützt die Web Audio API nicht.');
         }
-        try {
-            if (!audioContext) audioContext = new AudioContextClass();
+        if (!audioContext) audioContext = new AudioContextClass();
+        if (audioContext.state !== 'running') {
+            // Nur aus einem echten Nutzerklick aufrufen: Firefox blockiert sonst Audio.
             await audioContext.resume();
-            if (audioContext.state !== 'running') throw new Error('AudioContext ist nicht aktiv.');
-            soundArmed = true;
-            soundButton.textContent = 'Ton deaktivieren';
-            soundButton.setAttribute('aria-pressed', 'true');
-            log('Akustischer Alarm aktiviert.');
-            return true;
-        } catch (error) {
-            log(`Ton konnte nicht aktiviert werden: ${error.message || error}`, 'FEHLER');
-            return false;
         }
+        if (audioContext.state !== 'running') {
+            throw new Error('Firefox hat die Audiowiedergabe blockiert.');
+        }
+        soundArmed = true;
+        setAudioState('aktiv');
+        log('Akustischer Alarm freigeschaltet.');
+        return true;
+    }
+
+    function startMonitoring() {
+        if (monitoringStarted) return;
+        if (!soundArmed || !audioContext || audioContext.state !== 'running') return;
+        monitoringStarted = true;
+        audioGate.hidden = true;
+        log('Küchenmonitor gestartet. Prüfintervall: 5 Minuten, Ziel: <?php echo KM_AP; ?>.');
+        void checkNow();
     }
 
     async function playChime(force = false) {
@@ -507,9 +536,26 @@ if ($isAjax) {
             return;
         }
         if (!audioContext || audioContext.state !== 'running') {
-            log('AudioContext nicht aktiv, Wiedergabe möglicherweise blockiert.', 'WARNUNG');
-            try { await audioContext?.resume(); } catch (_) { /* Browser sperrt Audio */ }
-            if (!audioContext || audioContext.state !== 'running') return;
+            log('AudioContext pausiert; versuche Wiedergabe erneut.', 'WARNUNG');
+            if (audioContext) {
+                try {
+                    // Firefox kann resume() ohne Nutzerinteraktion unbegrenzt zurückhalten.
+                    await Promise.race([
+                        audioContext.resume(),
+                        new Promise((_, reject) => window.setTimeout(() => reject(new Error('Audiofreigabe erforderlich')), 2000))
+                    ]);
+                } catch (error) {
+                    setAudioState('blockiert');
+                    log('Alarm nicht abgespielt: ' + (error.message || error), 'FEHLER');
+                    return;
+                }
+            }
+            if (!audioContext || audioContext.state !== 'running') {
+                setAudioState('blockiert');
+                log('Alarm nicht abgespielt: AudioContext weiterhin pausiert.', 'FEHLER');
+                return;
+            }
+            setAudioState('aktiv');
         }
         const start = audioContext.currentTime + 0.02;
         for (const [index, frequency] of [659.25, 830.61, 1046.5, 830.61, 1046.5].entries()) {
@@ -519,7 +565,7 @@ if ($isAjax) {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(frequency, t);
             gain.gain.setValueAtTime(0.0001, t);
-            gain.gain.exponentialRampToValueAtTime(1, t + 0.025);
+            gain.gain.exponentialRampToValueAtTime(0.75, t + 0.025);
             gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
             osc.connect(gain).connect(audioContext.destination);
             osc.start(t);
@@ -571,7 +617,8 @@ if ($isAjax) {
                     log(`Zustandswechsel: ${previousCount} → 0 verbundene Geräte. Küche frei!`, 'ALARM');
                     void playChime();
                 } else if (previousCount === null) {
-                    log('Schon bei der ersten Prüfung frei - kein Übergangsalarm.');
+                    log('Bereits bei der ersten Prüfung frei. Alarm wird ausgelöst.', 'ALARM');
+                    void playChime();
                 }
             } else {
                 setState('occupied', 'Noch belegt', `${deviceCount} ${deviceCount === 1 ? 'Gerät ist' : 'Geräte sind'} mit dem AP verbunden.`, 'WLAN-Clients vorhanden');
@@ -580,7 +627,7 @@ if ($isAjax) {
             const reason = error.name === 'AbortError' ? 'Browser-Timeout nach 35 Sekunden.' : (error.message || String(error));
             const previous = lastKnownCount === null ? 'keine gültige Messung' : `${lastKnownCount} Geräte (veraltet)`;
             setState('error', 'Status unklar', 'Die WLC-Abfrage ist fehlgeschlagen. Keine Freimeldung aufgrund eines Fehlers.', 'Verbindungs- oder Auslesefehler');
-            count.textContent = '-';
+            count.textContent = '–';
             log(`Prüfung fehlgeschlagen: ${reason}. Vorheriger Messwert: ${previous}.`, 'FEHLER');
         } finally {
             window.clearTimeout(timeout);
@@ -590,20 +637,34 @@ if ($isAjax) {
         }
     }
 
-    soundButton.addEventListener('click', async () => {
-        if (soundArmed) {
-            soundArmed = false;
-            soundButton.textContent = 'Ton aktivieren';
-            soundButton.setAttribute('aria-pressed', 'false');
-            log('Akustischer Alarm deaktiviert.');
-        } else {
+    gateStart.addEventListener('click', async () => {
+        gateStart.disabled = true;
+        gateError.hidden = true;
+        try {
             await enableSound();
+            startMonitoring();
+            await playChime(true); // Hörbare Bestätigung, dass die Freigabe funktioniert.
+            log('Bestätigungston ausgelöst.');
+        } catch (error) {
+            const reason = error.message || String(error);
+            gateError.textContent = reason;
+            gateError.hidden = false;
+            log('Audioaktivierung fehlgeschlagen: ' + reason, 'FEHLER');
+        } finally {
+            gateStart.disabled = false;
         }
     });
+
     el('kmTest').addEventListener('click', async () => {
-        if (!soundArmed && !await enableSound()) return;
-        await playChime(true);
-        log('Testton ausgelöst.');
+        try {
+            if (!soundArmed || audioContext?.state !== 'running') await enableSound();
+            await playChime(true);
+            log('Testton ausgelöst.');
+        } catch (error) {
+            log('Testton blockiert: ' + (error.message || error), 'FEHLER');
+            setAudioState('blockiert');
+            audioGate.hidden = false;
+        }
     });
     refreshButton.addEventListener('click', checkNow);
     el('kmClearLog').addEventListener('click', () => {
@@ -619,8 +680,29 @@ if ($isAjax) {
     });
 
     window.setInterval(updateClock, 1000);
-    log('Küchenmonitor gestartet. Prüfintervall: 5 Minuten, Ziel: <?php echo KM_AP; ?>.');
-    void checkNow();
+    // Falls für diese Website Autoplay explizit erlaubt ist, ohne Dialog starten.
+    // Andernfalls bleibt der Startdialog sichtbar, bis der Nutzer die Freigabe anklickt.
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+        try {
+            audioContext = new AudioContextClass();
+            if (audioContext.state === 'running') {
+                soundArmed = true;
+                setAudioState('aktiv');
+                log('Audio von Firefox beim Seitenaufruf zugelassen.');
+                startMonitoring();
+            } else {
+                log('Warte auf Klick zur Audiofreigabe.');
+                gateStart.focus();
+            }
+        } catch (error) {
+            log('Web Audio API konnte nicht initialisiert werden: ' + (error.message || error), 'FEHLER');
+        }
+    } else {
+        gateError.textContent = 'Dieser Browser unterstützt die Web Audio API nicht.';
+        gateError.hidden = false;
+        gateStart.disabled = true;
+    }
 })();
 </script>
 <?php else: ?>

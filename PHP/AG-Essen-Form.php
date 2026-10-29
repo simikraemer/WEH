@@ -311,7 +311,7 @@ if (auth($conn) && ($_SESSION['valid'])) {
       $mindestteilnehmer_effektiv = 1;
     }
 
-    if ($ag == 7 || $ag == 9 || $ag == 11 || $ag == 25) {
+    if ($ag == 7 || $ag == 9 || $ag == 11 || $ag == 12) {
       $budgetpP = $budgetpP * 2;
     }
 
