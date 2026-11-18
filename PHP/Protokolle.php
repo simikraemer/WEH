@@ -1,150 +1,322 @@
 <?php
-  session_start();
-?>
-<!DOCTYPE html>
+ob_start(); // template.php und auth() erzeugen sonst HTML vor dem DOCTYPE.
+// Protokolle.php – getrennte Übersicht WEH (links) und TvK (rechts)
+require_once __DIR__ . '/template.php';
+mysqli_set_charset($conn, 'utf8');
 
-<html>
-    <head>
-    <link rel="stylesheet" href="WEH.css" media="screen">
-    </head>
+if (!auth($conn) || empty($_SESSION['valid'])) {
+    ob_end_clean();
+    http_response_code(403);
+    echo '<p style="color:white; text-align:center;">Kein Zugriff.</p>';
+    exit;
+}
 
-<?php
-require('template.php');
-mysqli_set_charset($conn, "utf8");
-if (auth($conn) && ($_SESSION['valid'])) {
-    load_menu();
+$templateOutput = str_replace('<title>WEH Backend</title>', '', ob_get_clean());
 
-    
-  if ($_SESSION["Schrift"]) {
-    if(isset($_POST['really_delete_protokoll'])){
-      $id = $_POST['id'];
-      $delete_sql = "DELETE FROM protokolle WHERE id=?";
-      $stmt = mysqli_prepare($conn, $delete_sql);
-      if (!$stmt) {
-          die('Error: ' . mysqli_error($conn));
-      }
-      mysqli_stmt_bind_param($stmt, "i", $id);
-      $execute_result = mysqli_stmt_execute($stmt);
-      if (!$execute_result) {
-          die('Execution failed: ' . mysqli_stmt_error($stmt));
-      }
-      mysqli_stmt_close($stmt);
-    } elseif (isset($_POST['delete_protokoll'])) {
-      $id = $_POST['delete_protokoll'];
-			echo('<div class="overlay"></div>
-			<div class="anmeldung-form-container form-container">
-			  <form method="post"">
-				<button type="submit" name="close" value="close" class="close-btn">X</button>
-			  </form>
-			  <br>
-			  <form method="post">
-				<span style="font-size:25px; color:white;">Protokoll wirklich löschen?</span>
-				<input type="hidden" name="id" class="form-input" value="'.$id.'">
-				<br><br>
-				<div class="center-container">		  
-				  <input type="hidden" name="reload" value=1>
-				  <input type="submit" name="really_delete_protokoll" value="Yeah!" class="center-btn">
-				</div>
-			  </form>
-			</div>');
-		}
-  }
-
-
-    
 $typeStrings = [
-    0 => "Ordentliche Vollversammlung",
-    1 => "Außerordentliche Vollversammlung",
-    2 => "Ordentlicher Haussenat",
-    3 => "Außerordentlicher Haussenat"
+    0 => 'Ordentliche Vollversammlung',
+    1 => 'Außerordentliche Vollversammlung',
+    2 => 'Ordentlicher Haussenat',
+    3 => 'Außerordentlicher Haussenat',
+    4 => 'Aktiventreffen',
 ];
 
-$sql = "SELECT id, type, versammlungszeit, pfad FROM protokolle ORDER BY versammlungszeit DESC";
-$stmt = mysqli_prepare($conn, $sql);
+$isSchrift = !empty($_SESSION['Schrift']);
+$isTvKSprecher = !empty($_SESSION['TvK-Sprecher']);
+$isWebmaster = !empty($_SESSION['Webmaster']);
+$isUploader = $isSchrift || $isTvKSprecher || $isWebmaster;
+$currentUid = (int)($_SESSION['uid'] ?? 0);
+
+// Schrift darf WEH-Protokolle löschen, TvK-Sprecher TvK-Protokolle.
+// Eigene Uploads in den jeweils anderen Turm dürfen ebenfalls gelöscht werden.
+// Webmaster dürfen beides verwalten.
+function canDeleteProtokoll(string $turm, int $uploadUid, bool $isSchrift, bool $isTvKSprecher, bool $isWebmaster, int $currentUid): bool
+{
+    return $isWebmaster
+        || ($isSchrift && $turm === 'weh')
+        || ($isTvKSprecher && $turm === 'tvk')
+        || (($isSchrift || $isTvKSprecher) && $uploadUid === $currentUid);
+}
+
+if (empty($_SESSION['protokoll_delete_csrf'])) {
+    $_SESSION['protokoll_delete_csrf'] = bin2hex(random_bytes(32));
+}
+
+$error = '';
+$notice = '';
+$confirmRow = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_protokoll'], $_POST['csrf_token'])) {
+    if (!hash_equals($_SESSION['protokoll_delete_csrf'], (string)$_POST['csrf_token'])) {
+        $error = 'Ungültige Anfrage. Bitte die Seite neu laden.';
+    } elseif (!$isUploader) {
+        $error = 'Keine Berechtigung zum Löschen.';
+    } else {
+        $id = filter_var($_POST['delete_protokoll'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($id === false) {
+            $error = 'Ungültige Protokoll-ID.';
+        } else {
+            $stmt = mysqli_prepare($conn, 'SELECT id, uid, turm, type, versammlungszeit FROM protokolle WHERE id = ? LIMIT 1');
+            mysqli_stmt_bind_param($stmt, 'i', $id);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $pId, $pUid, $pTurm, $pType, $pDate);
+            if (mysqli_stmt_fetch($stmt)) {
+                $turm = strtolower((string)$pTurm);
+                if (canDeleteProtokoll($turm, (int)$pUid, $isSchrift, $isTvKSprecher, $isWebmaster, $currentUid)) {
+                    $confirmRow = ['id' => (int)$pId, 'turm' => $turm, 'type' => (int)$pType, 'date' => (int)$pDate];
+                } else {
+                    $error = 'Keine Berechtigung, dieses Protokoll zu löschen.';
+                }
+            } else {
+                $error = 'Protokoll nicht gefunden.';
+            }
+            mysqli_stmt_close($stmt);
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['really_delete_protokoll'])) {
+    if (!hash_equals($_SESSION['protokoll_delete_csrf'], (string)($_POST['csrf_token'] ?? ''))) {
+        $error = 'Ungültige Anfrage. Bitte die Seite neu laden.';
+    } elseif (!$isUploader) {
+        $error = 'Keine Berechtigung zum Löschen.';
+    } else {
+        $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($id === false || $id === null) {
+            $error = 'Ungültige Protokoll-ID.';
+        } else {
+            // Berechtigung vor der endgültigen Löschung serverseitig erneut prüfen.
+            $stmt = mysqli_prepare($conn, 'SELECT uid, turm FROM protokolle WHERE id = ? LIMIT 1');
+            mysqli_stmt_bind_param($stmt, 'i', $id);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_bind_result($stmt, $pUid, $pTurm);
+            $found = mysqli_stmt_fetch($stmt);
+            mysqli_stmt_close($stmt);
+
+            if (!$found) {
+                $error = 'Protokoll nicht gefunden.';
+            } elseif (!canDeleteProtokoll(strtolower((string)$pTurm), (int)$pUid, $isSchrift, $isTvKSprecher, $isWebmaster, $currentUid)) {
+                $error = 'Keine Berechtigung, dieses Protokoll zu löschen.';
+            } else {
+                // Wie bisher wird der DB-Eintrag gelöscht; die Datei bleibt für vorhandene Links liegen.
+                $stmt = mysqli_prepare($conn, 'DELETE FROM protokolle WHERE id = ?');
+                mysqli_stmt_bind_param($stmt, 'i', $id);
+                if (mysqli_stmt_execute($stmt)) {
+                    $notice = 'Protokoll aus der Übersicht gelöscht.';
+                } else {
+                    $error = 'Fehler beim Löschen des Protokolls.';
+                }
+                mysqli_stmt_close($stmt);
+            }
+        }
+    }
+}
+
+$protokolle = ['weh' => [], 'tvk' => []];
+$stmt = mysqli_prepare($conn,
+    'SELECT id, uid, turm, type, versammlungszeit, pfad FROM protokolle ORDER BY versammlungszeit DESC, id DESC'
+);
 mysqli_stmt_execute($stmt);
-mysqli_stmt_bind_result($stmt, $id, $type, $vzeit, $path);
-?>
-
-<style>
-    .uploadproto-table {
-        width: 90%;
-        max-width: 900px;
-        margin: 40px auto;
-        border-collapse: collapse;
-        background-color: #1e1e1e;
-        color: white;
-        border: 2px solid #11a50d;
-        border-radius: 8px;
-        overflow: hidden;
+mysqli_stmt_bind_result($stmt, $id, $uid, $turm, $type, $vzeit, $path);
+while (mysqli_stmt_fetch($stmt)) {
+    $turm = strtolower((string)$turm);
+    if (!isset($protokolle[$turm])) {
+        continue;
     }
-
-    .uploadproto-table th,
-    .uploadproto-table td {
-        padding: 14px 20px;
-        text-align: left;
-        border-bottom: 1px solid #333;
-        font-size: 16px;
-    }
-
-    .uploadproto-table th {
-        background-color: #11a50d;
-        color: #1e1e1e;
-        font-size: 18px;
-    }
-
-    .uploadproto-table tr:hover {
-        background-color: #292929;
-    }
-
-    .uploadproto-trash-button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-    }
-
-    .uploadproto-trash-icon {
-        width: 24px;
-        height: 24px;
-    }
-</style>
-
-<table class="uploadproto-table">
-    <tr>
-        <th>Veranstaltung</th>
-        <th>Datum</th>
-        <?php if ($_SESSION["Schrift"]) echo '<th></th>'; ?>
-    </tr>
-
-    <?php while (mysqli_stmt_fetch($stmt)) : ?>
-        <tr onclick="window.open('<?php echo $path; ?>', '_blank')" style="cursor: pointer;">
-            <td><?php echo $typeStrings[$type]; ?></td>
-            <td><?php echo date('d.m.Y', $vzeit); ?></td>
-            <?php if ($_SESSION["Schrift"]) : ?>
-                <td>
-                    <form method="post" action="" onClick="event.stopPropagation();" style="margin: 0;">
-                        <button type="submit" name="delete_protokoll" value="<?php echo $id; ?>" class="uploadproto-trash-button">
-                            <img src="images/trash_white.png" class="uploadproto-trash-icon">
-                        </button>
-                    </form>
-                </td>
-            <?php endif; ?>
-        </tr>
-    <?php endwhile; ?>
-</table>
-
-<?php
+    $protokolle[$turm][] = [
+        'id' => (int)$id,
+        'uid' => (int)$uid,
+        'type' => (int)$type,
+        'date' => (int)$vzeit,
+        'path' => (string)$path,
+    ];
+}
 mysqli_stmt_close($stmt);
 
-}
-else {
-  header("Location: denied.php");
-}
-
-// Close the connection to the database
-$conn->close();
-
 ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Protokolle – WEH/TvK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="WEH.css" media="screen">
+    <style>
+        .protokolle-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 28px;
+            width: min(95%, 1700px);
+            margin: 40px auto;
+        }
+        .protokolle-panel {
+            --proto-accent: #11a50d;
+            min-width: 0;
+        }
+        .protokolle-panel.tvk { --proto-accent: #FFA500; }
+        .protokolle-panel h2 {
+            text-align: center;
+            color: var(--proto-accent);
+            font-size: 30px;
+            margin: 0 0 15px;
+        }
+        .uploadproto-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: #1e1e1e;
+            color: white;
+            border: 2px solid var(--proto-accent);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .uploadproto-table th,
+        .uploadproto-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+            font-size: 16px;
+        }
+        .uploadproto-table th {
+            background: var(--proto-accent);
+            color: #1e1e1e;
+            font-size: 18px;
+        }
+        .uploadproto-table tr:last-child td { border-bottom: none; }
+        .uploadproto-table tbody tr:hover { background: #292929; }
+        .uploadproto-table .date-cell { white-space: nowrap; }
+        .uploadproto-table .delete-cell { width: 30px; padding: 10px; }
+        .uploadproto-table a {
+            color: white;
+            text-decoration: none;
+            display: block;
+        }
+        .uploadproto-table a:hover { color: var(--proto-accent); }
+        .uploadproto-trash-button {
+            background: transparent;
+            border: 0;
+            padding: 0;
+            cursor: pointer;
+        }
+        .uploadproto-trash-button:hover { opacity: 0.65; }
+        .uploadproto-trash-icon { width: 24px; height: 24px; display: block; }
+        .protokolle-message { text-align: center; color: white; font-size: 18px; margin: 12px auto; }
+        .protokolle-error { color: #ff7777; }
+        .protokolle-empty { text-align: center !important; color: #aaa; }
+        .proto-confirm {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            width: min(90vw, 450px);
+            box-sizing: border-box;
+            text-align: center;
+            color: #fff;
+        }
+        .proto-confirm p { font-size: 23px; }
+        .proto-confirm-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .proto-confirm-actions button { font-size: 20px; }
+        @media (max-width: 1000px) {
+            .protokolle-grid { grid-template-columns: 1fr; width: min(95%, 750px); }
+        }
+        @media (max-width: 480px) {
+            .uploadproto-table th, .uploadproto-table td { padding: 10px 8px; font-size: 14px; }
+            .uploadproto-table th { font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+<?= $templateOutput ?>
+<?php load_menu(); ?>
+<?php if ($error !== ''): ?>
+    <p class="protokolle-message protokolle-error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
+<?php elseif ($notice !== ''): ?>
+    <p class="protokolle-message"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p>
+<?php endif; ?>
+
+<div class="protokolle-grid">
+    <?php foreach (['weh' => 'WEH', 'tvk' => 'TvK'] as $tower => $title): ?>
+        <section class="protokolle-panel <?= $tower ?>">
+            <h2><?= $title ?></h2>
+            <table class="uploadproto-table">
+                <thead>
+                    <tr>
+                        <th>Veranstaltung</th>
+                        <th>Datum</th>
+                        <?php if ($isUploader): ?><th aria-label="Aktionen"></th><?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!$protokolle[$tower]): ?>
+                        <tr><td class="protokolle-empty" colspan="<?= $isUploader ? 3 : 2 ?>">Keine Protokolle vorhanden.</td></tr>
+                    <?php endif; ?>
+                    <?php foreach ($protokolle[$tower] as $row): ?>
+                        <?php
+                            $typeLabel = $typeStrings[$row['type']] ?? 'Unbekannte Versammlungsart';
+                            $canDelete = canDeleteProtokoll($tower, $row['uid'], $isSchrift, $isTvKSprecher, $isWebmaster, $currentUid);
+                            // Nur im Protokollordner abgelegte PDFs verlinken.
+                            $hasValidPath = (bool)preg_match('~^protokolle/[a-zA-Z0-9_ .-]+\.pdf$~i', $row['path']);
+                        ?>
+                        <tr>
+                            <td>
+                                <?php if ($hasValidPath): ?>
+                                    <a href="<?= htmlspecialchars($row['path'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($typeLabel, ENT_QUOTES, 'UTF-8') ?></a>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($typeLabel, ENT_QUOTES, 'UTF-8') ?>
+                                <?php endif; ?>
+                            </td>
+                            <td class="date-cell">
+                                <?php if ($hasValidPath): ?>
+                                    <a href="<?= htmlspecialchars($row['path'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer"><?= date('d.m.Y', $row['date']) ?></a>
+                                <?php else: ?>
+                                    <?= date('d.m.Y', $row['date']) ?>
+                                <?php endif; ?>
+                            </td>
+                            <?php if ($isUploader): ?>
+                                <td class="delete-cell">
+                                    <?php if ($canDelete): ?>
+                                        <form method="post" style="margin:0;">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['protokoll_delete_csrf'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <button type="submit" name="delete_protokoll" value="<?= $row['id'] ?>" class="uploadproto-trash-button" title="Protokoll löschen" aria-label="Protokoll löschen">
+                                                <img src="images/trash_white.png" class="uploadproto-trash-icon" alt="">
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </section>
+    <?php endforeach; ?>
+</div>
+
+<?php if ($confirmRow !== null): ?>
+    <div class="overlay"></div>
+    <div class="anmeldung-form-container form-container proto-confirm">
+        <form method="get" action="Protokolle.php">
+            <button type="submit" class="close-btn" aria-label="Schließen">X</button>
+        </form>
+        <p>Protokoll wirklich löschen?</p>
+        <p style="font-size:17px;">
+            <?= $confirmRow['turm'] === 'tvk' ? 'TvK' : 'WEH' ?> –
+            <?= htmlspecialchars($typeStrings[$confirmRow['type']] ?? 'Protokoll', ENT_QUOTES, 'UTF-8') ?><br>
+            <?= date('d.m.Y', $confirmRow['date']) ?>
+        </p>
+        <div class="proto-confirm-actions">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['protokoll_delete_csrf'], ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="id" value="<?= $confirmRow['id'] ?>">
+                <button type="submit" name="really_delete_protokoll" value="1" class="red-center-btn">Löschen</button>
+            </form>
+            <form method="get" action="Protokolle.php">
+                <button type="submit" class="center-btn">Abbrechen</button>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
 </body>
 </html>
-
+<?php $conn->close(); ?>

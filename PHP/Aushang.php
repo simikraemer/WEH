@@ -3,10 +3,16 @@
 // - Ein Block mit 3 Switches (Turm, Format, Inhalt) + 1 Button
 // - Landscape-Fix via @page size UND Engine-API
 // - Mailto-Zeile bei Etagensprechern entfernt
+// - Zimmernummern global geschuetzt fuer Mitglieder der konfigurierten AGs
+// - Groesseres, responsives Generator-Interface
 
 session_start();
 require('template.php');
 mysqli_set_charset($conn, "utf8");
+
+// Zimmernummern dieser AG-Mitglieder im gesamten Aushang verbergen.
+// NetzAG (7), Vorstand (9). Weitere AG-IDs bei Bedarf hier ergaenzen.
+$AUSHANG_PROTECTED_GROUPS = [7, 9];
 
 /* ===================== PDF ENGINE ===================== */
 function _pdf_init(): array {
@@ -50,6 +56,21 @@ function normalize_ag_title(string $name): string {
 }
 $AG_TITLE_EXCLUDE = ['WEH-Hausmeister','TvK-Hausmeister','Vorsitz','Kasse','Schriftführer'];
 
+/**
+ * Zimmernummern fuer ALLE Fundstellen im Aushang ausblenden, sobald
+ * eine Person einer AG aus $AUSHANG_PROTECTED_GROUPS angehoert.
+ * Webmaster (8) ist keine Schutzgruppe und wird als AG nicht ausgegeben.
+ */
+function aushang_hide_room_for_groups(?string $groups): bool {
+    global $AUSHANG_PROTECTED_GROUPS;
+    foreach (explode(',', (string)$groups) as $id) {
+        if (in_array((int)trim($id), $AUSHANG_PROTECTED_GROUPS, true)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function build_ag_users(array &$ag_complete, mysqli $conn): void {
     foreach ($ag_complete as $id => &$data_user_erweiterung) {
         $data_user_erweiterung['users'] = [];
@@ -61,16 +82,19 @@ function build_ag_users(array &$ag_complete, mysqli $conn): void {
     $result = mysqli_query($conn, $sql);
     if ($result) {
         while ($row = mysqli_fetch_assoc($result)) {
-            $user_groups = explode(",", $row['groups']);
+            $user_groups = explode(',', (string)$row['groups']);
+            $hideRoom = aushang_hide_room_for_groups($row['groups']);
             foreach ($user_groups as $group_id) {
+                $group_id = (int)trim($group_id);
                 if (isset($ag_complete[$group_id])) {
                     $ag_complete[$group_id]['users'][] = [
-                        "room"     => $row['room'],
-                        "name"     => explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0],
-                        "turm"     => $row['turm'],
-                        "pid"      => $row['pid'],
-                        "username" => $row['username'],
-                        "sprecher" => $row['sprecher']
+                        'room'      => $row['room'],
+                        'name'      => explode(' ', $row['firstname'])[0] . ' ' . explode(' ', $row['lastname'])[0],
+                        'turm'      => $row['turm'],
+                        'pid'       => $row['pid'],
+                        'username'  => $row['username'],
+                        'sprecher'  => $row['sprecher'],
+                        'hide_room' => $hideRoom
                     ];
                 }
             }
@@ -80,6 +104,7 @@ function build_ag_users(array &$ag_complete, mysqli $conn): void {
 
 /* ============ PDF EXPORT: AG-Mitglieder ============ */
 function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, string $orientation = 'portrait'): void {
+    global $AUSHANG_PROTECTED_GROUPS;
     while (ob_get_level() > 0) { ob_end_clean(); }
 
     $pdf = _pdf_init();
@@ -104,7 +129,8 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
                     ? $GLOBALS['AG_TITLE_EXCLUDE'] : [];
 
     foreach ($ag_complete as $gid => $g) {
-        if ($gid === 26) continue;
+        // Webmaster-AG (8) komplett vom PDF ausschliessen.
+        if (in_array((int)$gid, [8, 26], true)) continue;
         if (!($g['turm'] === $turm || in_array($gid, $globalAGsSafe, true))) continue;
 
         $origName = isset($g['name']) ? (string)$g['name'] : '';
@@ -199,8 +225,11 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
                         foreach ($users as $user) {
                             $turm_label = ($user['turm'] === 'tvk') ? 'TvK' : 'WEH';
                             $isSpeaker  = ((string)$user['sprecher'] === (string)$group_id);
+                            // Zimmer nur personenbezogen ausblenden, Layout unveraendert.
                             $room_disp  = ($group_id === 24 || $group_id === 27 || $user['pid'] != 11) ? '-' : str_pad($user['room'], 4, "0", STR_PAD_LEFT);
-                            if ($group['name'] == "Netzwerk-AG" || $group['name'] == "Webmaster") { $room_disp = ""; }
+                            if (!empty($user['hide_room']) || in_array((int)$group_id, $AUSHANG_PROTECTED_GROUPS, true)) {
+                                $room_disp = '';
+                            }
                             $borderCol  = $getTurmColor((string)$user['turm']);
 
                             echo '<tr>';
@@ -276,14 +305,14 @@ function export_ag_pdf(array $ag_complete, string $turm, array $globalAGs, strin
 
 /* ============ PDF EXPORT: Etagensprecher ============ */
 function fetch_floor_speakers(mysqli $conn, string $turm, int $maxfloor): array {
-    $sql = "SELECT room, firstname, lastname 
+    $sql = "SELECT room, firstname, lastname, `groups`
             FROM users 
             WHERE turm = ? AND pid = 11 AND etagensprecher <> 0 
             ORDER BY room";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, 's', $turm);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $room, $firstname, $lastname);
+    mysqli_stmt_bind_result($stmt, $room, $firstname, $lastname, $userGroups);
 
     $by_floor = [];
     while (mysqli_stmt_fetch($stmt)) {
@@ -291,11 +320,10 @@ function fetch_floor_speakers(mysqli $conn, string $turm, int $maxfloor): array 
         $fn = strtok($firstname, ' ');
         $ln = strtok($lastname, ' ');
         $name = trim($fn . ' ' . $ln);
-        $room4 = str_pad((string)$room, 4, "0", STR_PAD_LEFT);
+        $hideRoom = aushang_hide_room_for_groups($userGroups);
         $by_floor[$etage][] = [
-            'room'   => $room4,
-            'name'   => $name,
-            'mailto' => 'z' . $room4 . '@' . $turm . '.rwth-aachen.de',
+            'room' => $hideRoom ? '' : str_pad((string)$room, 4, "0", STR_PAD_LEFT),
+            'name' => $name,
         ];
     }
     mysqli_stmt_close($stmt);
@@ -484,187 +512,239 @@ if (isset($_REQUEST['action']) && $_REQUEST['action'] === 'generate_pdf' && $can
 
 /* ================== HTML-AUSGABE ================== */
 load_menu();
-$turm = isset($_SESSION["ap_turm_var"]) ? $_SESSION["ap_turm_var"] : $_SESSION["turm"];
+$turm = ($_SESSION['ap_turm_var'] ?? $_SESSION['turm'] ?? 'weh') === 'tvk' ? 'tvk' : 'weh';
+$accent = ($turm === 'tvk') ? '#FFA500' : '#11a50d';
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Aushang</title>
     <link rel="stylesheet" href="WEH.css" media="screen">
     <style>
-        /* Dark-UI (Primary: #11a50d). Body-Styling bleibt in WEH.css */
-        .wrap { max-width: 400px; margin: 24px auto; padding: 12px; }
-        .panel { background:#121212; border:1px solid #1e1e1e; border-radius:14px; padding:18px; color:#e8e8e8; box-shadow:0 4px 16px rgba(0,0,0,.35); }
-        .heading { text-align:center; font-size:20px; font-weight:700; color:#cfcfcf; margin-bottom:16px; }
-        .accent { color:#11a50d; }
-
-        /* Switches */
-        .switches { display:grid; grid-template-columns: 1fr; gap:1px; }
-        .switch {
-            display:flex; align-items:center; justify-content:space-between;
-            background:#0f0f0f; border:1px solid #2a2a2a; border-radius:12px; padding:10px;
+        /* Nur fuer diesen Generator: keine Veraenderung an WEH.css. */
+        .aushang-wrap {
+            width: min(760px, calc(100% - 32px));
+            margin: 34px auto 64px;
         }
-        .switch .label { font-size:14px; color:#bdbdbd; margin-right:10px; min-width:40px; }
-        .segmented {
-            position:relative; display:inline-flex; background:#0a0a0a; border:1px solid #2a2a2a;
-            border-radius:9999px; overflow:hidden;
+        .aushang-panel {
+            --aushang-accent: #11a50d;
+            background: #242323;
+            border: 1px solid #424242;
+            border-radius: 18px;
+            padding: 34px;
+            color: #ededed;
+            box-shadow: 0 14px 38px rgba(0,0,0,.27);
+            box-sizing: border-box;
         }
-        .segmented button {
-            position:relative; z-index:2; appearance:none; border:0; background:transparent; color:#ddd;
-            padding:15px 20px; cursor:pointer; font-weight:600; transition:color .18s ease;
+        .aushang-heading {
+            font-size: 28px;
+            line-height: 1.2;
+            font-weight: 750;
+            text-align: center;
+            margin: 0 0 8px;
+            color: white;
         }
-        .segmented button.active { color:#fff; }
-        .segmented .thumb {
-            position:absolute; z-index:1; top:0px; bottom:0px; width:50%;
-            background:#11a50d; border-radius:9999px; transition:left .22s ease, width .22s ease;
-            box-shadow:0 2px 10px rgba(17,165,13,.35);
+        .aushang-heading span { color: var(--aushang-accent); }
+        .aushang-description {
+            font-size: 15px;
+            line-height: 1.5;
+            text-align: center;
+            color: #bcbcbc;
+            margin: 0 0 28px;
         }
-
-        .row-submit { margin-top: 16px; display:flex; justify-content:center; }
-        .btn {
-            background:#0e0e0e; color:#e8e8e8; border:1px solid #11a50d;
-            padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:700;
+        .aushang-switches { display: grid; gap: 14px; }
+        .aushang-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 22px;
+            min-height: 64px;
+            background: #1b1b1b;
+            border: 1px solid #383838;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-sizing: border-box;
         }
-        .btn:hover { background:#0f1f0f; }
-        .hint { text-align:center; margin-top:12px; color:#9e9e9e; font-size:13px; }
-        .lock { color:#ffb74d; }
+        .aushang-label {
+            font-size: 17px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .aushang-segmented {
+            position: relative;
+            display: flex;
+            flex: 0 1 450px;
+            min-width: 0;
+            border: 1px solid #414141;
+            border-radius: 10px;
+            background: #101010;
+            padding: 4px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .aushang-thumb {
+            position: absolute;
+            z-index: 0;
+            top: 4px;
+            bottom: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            border-radius: 7px;
+            background: var(--aushang-accent);
+            transition: left .2s ease, background-color .2s ease;
+        }
+        .aushang-segmented button {
+            flex: 1 1 50%;
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+            border: 0;
+            border-radius: 7px;
+            padding: 12px 10px;
+            background: transparent;
+            color: #c9c9c9;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: color .18s ease;
+        }
+        .aushang-segmented button.active { color: #101010; }
+        .aushang-segmented button:focus-visible,
+        .aushang-submit:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+        .aushang-submit-row { margin-top: 24px; }
+        .aushang-submit {
+            display: block;
+            width: 100%;
+            padding: 16px 24px;
+            background: var(--aushang-accent);
+            border: 0;
+            border-radius: 11px;
+            color: #101010;
+            font-size: 19px;
+            font-weight: 750;
+            cursor: pointer;
+            transition: filter .18s ease, transform .18s ease;
+        }
+        .aushang-submit:hover { filter: brightness(1.13); }
+        .aushang-submit:active { transform: translateY(1px); }
+        .aushang-hint {
+            margin: 18px 0 0;
+            color: #adadad;
+            font-size: 13px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .aushang-lock { color: #ffb74d; }
+        @media (max-width: 650px) {
+            .aushang-panel { padding: 22px 16px; }
+            .aushang-heading { font-size: 24px; }
+            .aushang-switch { flex-direction: column; align-items: stretch; gap: 10px; }
+            .aushang-segmented { flex: none; width: 100%; }
+            .aushang-segmented button { font-size: 14px; padding: 12px 5px; }
+        }
     </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="panel">
-        <div class="heading">Aushang-Generator <span class="accent">(PDF)</span></div>
+<div class="aushang-wrap">
+    <div class="aushang-panel" id="aushangPanel" style="--aushang-accent: <?= htmlspecialchars($accent, ENT_QUOTES, 'UTF-8') ?>;">
+        <h1 class="aushang-heading">Aushang-Generator <span>(PDF)</span></h1>
+        <p class="aushang-description">Erstelle einen druckfertigen Aushang für das WEH oder TvK.</p>
 
         <?php if ($canExport): ?>
-        <form id="aushangForm" method="post">
+        <form id="aushangForm" method="get">
             <input type="hidden" name="action" value="generate_pdf">
-            <!-- Hidden Werte, werden durch Switches gesetzt -->
-            <input type="hidden" name="tower" id="towerInput" value="<?= $turm==='tvk' ? 'tvk' : 'weh' ?>">
+            <input type="hidden" name="tower" id="towerInput" value="<?= htmlspecialchars($turm, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="orientation" id="orientationInput" value="portrait">
             <input type="hidden" name="content" id="contentInput" value="ag">
 
-            <div class="switches">
-                <!-- Turm -->
-                <div class="switch">
-                    <div class="label">Turm</div>
-                    <div class="segmented" data-name="tower">
-                        <div class="thumb" style="left:2px;"></div>
-                        <button type="button" data-value="weh" class="<?= $turm==='weh' ? 'active' : '' ?>">WEH</button>
-                        <button type="button" data-value="tvk" class="<?= $turm==='tvk' ? 'active' : '' ?>">TvK</button>
+            <div class="aushang-switches">
+                <div class="aushang-switch">
+                    <span class="aushang-label">Turm</span>
+                    <div class="aushang-segmented" data-name="tower" role="group" aria-label="Turm">
+                        <div class="aushang-thumb" aria-hidden="true"></div>
+                        <button type="button" data-value="weh" class="<?= $turm === 'weh' ? 'active' : '' ?>">WEH</button>
+                        <button type="button" data-value="tvk" class="<?= $turm === 'tvk' ? 'active' : '' ?>">TvK</button>
                     </div>
                 </div>
-
-                <!-- Format -->
-                <div class="switch">
-                    <div class="label">Format</div>
-                    <div class="segmented" data-name="orientation">
-                        <div class="thumb" style="left:2px;"></div>
+                <div class="aushang-switch">
+                    <span class="aushang-label">Format</span>
+                    <div class="aushang-segmented" data-name="orientation" role="group" aria-label="Seitenformat">
+                        <div class="aushang-thumb" aria-hidden="true"></div>
                         <button type="button" data-value="portrait" class="active">Senkrecht</button>
                         <button type="button" data-value="landscape">Waagerecht</button>
                     </div>
                 </div>
-
-                <!-- Inhalt -->
-                <div class="switch">
-                    <div class="label">Inhalt</div>
-                    <div class="segmented" data-name="content">
-                        <div class="thumb" style="left:2px;"></div>
+                <div class="aushang-switch">
+                    <span class="aushang-label">Inhalt</span>
+                    <div class="aushang-segmented" data-name="content" role="group" aria-label="Inhalt">
+                        <div class="aushang-thumb" aria-hidden="true"></div>
                         <button type="button" data-value="ag" class="active">AG-Mitglieder</button>
                         <button type="button" data-value="floors">Etagensprecher</button>
                     </div>
                 </div>
             </div>
 
-            <div class="row-submit">
-                <button id="openPdfBtn" type="button" class="btn">PDF erstellen</button>
+            <div class="aushang-submit-row">
+                <button id="openPdfBtn" type="button" class="aushang-submit">PDF erstellen</button>
             </div>
         </form>
+        <p class="aushang-hint">Zimmernummern von Mitgliedern aus Vorstand, NetzAG und DruckerAG sind turmübergreifend ausgeblendet.</p>
         <?php else: ?>
-            <div class="hint lock">Keine Berechtigung für PDF-Export. (NetzAG / Vorstand / TvK-Sprecher)</div>
+            <p class="aushang-hint aushang-lock">Keine Berechtigung für den PDF-Export (NetzAG / Vorstand / TvK-Sprecher).</p>
         <?php endif; ?>
     </div>
 </div>
 
 <script>
-/* Segmented Switch Logic + Animation */
-(function() {
+(function () {
     const form = document.getElementById('aushangForm');
+    if (!form) return;
+
     const inputs = {
         tower: document.getElementById('towerInput'),
         orientation: document.getElementById('orientationInput'),
-        content: document.getElementById('contentInput'),
+        content: document.getElementById('contentInput')
     };
+    const panel = document.getElementById('aushangPanel');
 
-    document.querySelectorAll('.segmented').forEach(seg => {
+    document.querySelectorAll('.aushang-segmented').forEach(seg => {
         const name = seg.dataset.name;
         const buttons = Array.from(seg.querySelectorAll('button'));
-        const thumb = seg.querySelector('.thumb');
+        const thumb = seg.querySelector('.aushang-thumb');
 
-        // initialize thumb position based on active button
-        const setThumb = () => {
-            const activeIdx = buttons.findIndex(b => b.classList.contains('active'));
+        function setThumb() {
+            const selected = Math.max(0, buttons.findIndex(b => b.classList.contains('active')));
             const count = buttons.length;
-            const width = 100 / count;
-            thumb.style.width = `calc(${width}% - 4px)`;
-            thumb.style.left = `calc(${activeIdx * width}% + 2px)`;
-        };
+            thumb.style.width = `calc(${100 / count}% - 4px)`;
+            thumb.style.left = `calc(${selected * (100 / count)}% + 4px)`;
+            buttons.forEach(b => b.setAttribute('aria-pressed', String(b.classList.contains('active'))));
+        }
+
         setThumb();
+        buttons.forEach(btn => btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            inputs[name].value = btn.dataset.value;
+            if (name === 'tower') {
+                panel.style.setProperty('--aushang-accent', btn.dataset.value === 'tvk' ? '#FFA500' : '#11a50d');
+            }
+            setThumb();
+        }));
+    });
 
-        buttons.forEach((btn, idx) => {
-            btn.addEventListener('click', () => {
-                buttons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                setThumb();
-                // write hidden input
-                if (inputs[name]) inputs[name].value = btn.dataset.value;
-            });
+    document.getElementById('openPdfBtn').addEventListener('click', () => {
+        const params = new URLSearchParams({
+            action: 'generate_pdf',
+            tower: inputs.tower.value,
+            orientation: inputs.orientation.value,
+            content: inputs.content.value
         });
+        window.open(location.pathname + '?' + params.toString(), '_blank', 'noopener');
     });
-})();
-</script>
-
-<script>
-(function() {
-  const inputs = {
-    tower: document.getElementById('towerInput'),
-    orientation: document.getElementById('orientationInput'),
-    content: document.getElementById('contentInput'),
-  };
-
-  // bestehende Switch-Logik (lassen)
-  document.querySelectorAll('.segmented').forEach(seg => {
-    const name = seg.dataset.name;
-    const buttons = Array.from(seg.querySelectorAll('button'));
-    const thumb = seg.querySelector('.thumb');
-    const setThumb = () => {
-      const i = buttons.findIndex(b => b.classList.contains('active'));
-      const w = 100 / buttons.length;
-      thumb.style.width = `calc(${w}% - 4px)`;
-      thumb.style.left  = `calc(${i * w}% + 2px)`;
-    };
-    setThumb();
-    buttons.forEach(btn => btn.addEventListener('click', () => {
-      buttons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      setThumb();
-      if (inputs[name]) inputs[name].value = btn.dataset.value;
-    }));
-  });
-
-  // Statt submit: GET-URL bauen und per window.open in NEUEM Tab öffnen,
-  // ohne die aktuelle Seite zu verlassen (kein zusätzliches leeres Tab).
-  document.getElementById('openPdfBtn').addEventListener('click', () => {
-    const params = new URLSearchParams({
-      action: 'generate_pdf',
-      tower: inputs.tower.value,
-      orientation: inputs.orientation.value,
-      content: inputs.content.value,
-    });
-    window.open(location.pathname + '?' + params.toString(), '_blank', 'noopener');
-    // Fokus auf aktueller Seite behalten
-    try { window.focus(); } catch(e){}
-  });
 })();
 </script>
 
