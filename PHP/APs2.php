@@ -548,9 +548,9 @@ function ap2_collect_nagios_states(?array $nagiosconfig): array
             continue;
         }
 
+        // Der tatsächliche Nagios-Status entscheidet; Downtime beeinflusst die Anzeige nicht.
         $isHardDown = isset($info['status'])
-            && (int)$info['status'] === 4
-            && (int)($info['scheduled_downtime_depth'] ?? 0) === 0;
+            && (int)$info['status'] === 4;
 
         $states[$hostname] = $isHardDown ? 'offline' : 'online';
     }

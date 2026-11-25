@@ -1117,12 +1117,13 @@ function unixtime2semesteragessen(int $unixtime): string
     return 'WS ' . ($year - 1) . '/' . substr((string)$year, -2);
 }
 
+
 function displayRundmails($conn) {
     echo '<br><br><br><hr><br><br><br>';
     #echo '<h1 style="font-size: 40px; color: white; text-align: center;">Übersicht aktuelle Rundmails</h1><br><br>';
 
     // Berechne den Unix-Timestamp für vor einem Monat
-    $one_month_ago = time() - (30 * 24 * 60 * 60); // 30 Tage in Sekunden
+    $one_month_ago = time() - (30 * 24 * 60 * 60);
 
     // Erstelle die SQL-Abfrage basierend auf den Bedingungen
     $sql_users = "SELECT r.id, u.name, u.turm, u.room, u.groups, r.subject, r.nachricht, r.tstamp, r.address
@@ -1152,7 +1153,6 @@ function displayRundmails($conn) {
     OR r.address = 'tvk-important'
     OR r.address = 'tvk-community'";
 
-
     if ($_SESSION['aktiv'] == true) {
         $sql_users .= " OR r.address LIKE '%" . $_SESSION["turm"] . "-ags%' OR r.address = 'ags'";
     }
@@ -1162,16 +1162,15 @@ function displayRundmails($conn) {
     $stmt_users = mysqli_prepare($conn, $sql_users);
 
     // Binde den Parameter $one_month_ago
-    mysqli_stmt_bind_param($stmt_users, 'i', $one_month_ago); // 'i' steht für einen Ganzzahl-Parameter
+    mysqli_stmt_bind_param($stmt_users, 'i', $one_month_ago);
 
     mysqli_stmt_execute($stmt_users);
     mysqli_stmt_bind_result($stmt_users, $id, $name, $turm, $room, $groups, $subject, $nachricht, $tstamp, $address);
 
-
     // Generiere die Tabelle
     echo '<table class="grey-table" style="margin: 0 auto; margin-bottom:60px; text-align: center;">';
     echo "<tr>
-            <th>Turm</th> <!-- Neue Spalte für Turm -->
+            <th>Turm</th>
             <th>Name</th>
             <th>Betreff</th>
             <th>Datum & Uhrzeit</th>
@@ -1180,6 +1179,7 @@ function displayRundmails($conn) {
     while (mysqli_stmt_fetch($stmt_users)) {
         $date_time = date('d.m.Y H:i', $tstamp);
         $ags_icons = getAgsIcons($groups, 20);
+
         if ($name == "Simon Krämer" || $name == "Simon Fiji Krämer") {
             $icon_size = 20;
             $icon = "fiji";
@@ -1192,7 +1192,7 @@ function displayRundmails($conn) {
         }
 
         // Bestimme den Turm-Wert
-        $display_turm = 'Türme'; // Default
+        $display_turm = 'Türme';
         if (strpos($address, 'weh') !== false) {
             $display_turm = 'WEH';
         } elseif (strpos($address, 'tvk') !== false) {
@@ -1230,7 +1230,7 @@ function displayRundmails($conn) {
 
         // Inline style für jedes td
         echo "<tr onclick='document.getElementById(\"form_$id\").submit();' style='cursor: pointer;'>";
-        echo "<td style='background-color: $row_color; font-size: $text_size;'>$display_turm</td>"; // Zeige den Turm-Wert an
+        echo "<td style='background-color: $row_color; font-size: $text_size;'>$display_turm</td>";
         echo "<td style='background-color: $row_color; font-size: $text_size;'>$name_out $ags_icons</td>";
         echo "<td style='background-color: $row_color; font-size: $text_size;'>$display_subject</td>";
         echo "<td style='background-color: $row_color; font-size: $text_size;'>$date_time</td>";
@@ -1238,14 +1238,18 @@ function displayRundmails($conn) {
     }
     echo "</table>";
 
-
-
     // Anzeige des ausgewählten Mails
     if (isset($_POST['selected_mail'])) {
         $selected_name = htmlspecialchars($_POST['name']);
         $selected_turm = htmlspecialchars($_POST['turm']);
         $formatted_turm = ($selected_turm == 'tvk') ? 'TvK' : strtoupper($selected_turm);
         $selected_room = htmlspecialchars($_POST['room']);
+
+        // Sonderbezeichnung für Hausmeister
+        $formatted_room = ($selected_room === '18992')
+            ? 'Hausmeister'
+            : str_pad($selected_room, 4, '0', STR_PAD_LEFT);
+
         $selected_groups = htmlspecialchars($_POST['groups']);
         $selected_subject = htmlspecialchars($_POST['subject']);
         $selected_nachricht = nl2br(htmlspecialchars($_POST['nachricht']));
@@ -1258,12 +1262,12 @@ function displayRundmails($conn) {
         <div class="anmeldung-form-container form-container">
             <form method="post">
                 <button type="submit" name="close" value="close" class="close-btn">X</button>
-                </form>
+            </form>
             <div class="mail-details" style="color: white; text-align: center; padding: 20px;">
                 <h2 style="margin-bottom: 10px; font-size: 40px;">' . $selected_subject . '</h2>
                 <div style="display: flex; flex-direction: column; justify-content: space-around; margin-bottom: 20px;">
                     <span>' . $selected_name . '</span>
-                    <span>' . $formatted_turm . ' - ' . str_pad($selected_room, 4, '0', STR_PAD_LEFT) . '</span>
+                    <span>' . $formatted_turm . ' - ' . $formatted_room . '</span>
                     <span>' . $selected_tstamp . '</span>
                     <span>Verteiler: ' . $selected_address . '</span>
                 </div>
@@ -1276,6 +1280,7 @@ function displayRundmails($conn) {
 
     mysqli_stmt_close($stmt_users);
 }
+
 
 function display_ba_results($conn, $id, $anzahl_kandidaten, $formatted_turm, $room, $starttime, $endtime, $pfad) {
     // SQL-Abfrage, um die Summe der Punkte (count) für jeden Kandidaten zu ermitteln
