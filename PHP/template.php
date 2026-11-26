@@ -586,8 +586,9 @@ function load_menu() {
                     echo '<button onclick="window.location.href=\'/mailblacklist.php\';" style="white-space: nowrap;">E-Mail Blacklist</button> ';
                     echo '<button onclick="window.location.href=\'/IPs.php\';" style="white-space: nowrap;">IP Übersicht</button> ';
                     echo '<button onclick="window.location.href=\'/IPhistory.php\';" style="white-space: nowrap;">IP Historie</button> ';
-                    echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
-                    echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
+                    #echo '<button onclick="window.location.href=\'/KontoJahresÜbersicht.php\';" style="white-space: nowrap;">Kassenverlauf</button> ';
+                    echo '<button onclick="window.location.href=\'/NetzCheck.php\';" style="white-space: nowrap;">NetzAG Checkliste</button> ';
+                    #echo '<button onclick="window.location.href=\'/WohnzimmerNoise.php\';" style="white-space: nowrap;">Lautstärke Wohnzimmer</button> ';
                 }
                 if ($agName === 'Vorstand') {                                        
                     echo '<button onclick="window.location.href=\'/Dashboard-Vorstand.php\';" style="white-space: nowrap;">Dashboard</button> ';
