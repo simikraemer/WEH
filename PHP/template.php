@@ -1119,167 +1119,217 @@ function unixtime2semesteragessen(int $unixtime): string
 }
 
 
+function rundmailOverviewEscape($value): string {
+    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+// Empfängerverteiler und Absendergruppe sind zwei voneinander unabhängige Dinge.
+function rundmailOverviewAddresses(string $turm, bool $aktiv): array {
+    $addresses = ['essential', 'important', 'community',
+        'weh-essential', 'weh-important', 'weh-community',
+        'tvk-essential', 'tvk-important', 'tvk-community'];
+    if ($aktiv) {
+        $addresses[] = 'ags';
+        if (in_array($turm, ['weh', 'tvk'], true)) {
+            $addresses[] = $turm . '-ags';
+        }
+    }
+    return $addresses;
+}
+
+// Bewusst aktuelle DB-Mitgliedschaften prüfen, nicht nur den Session-Cache.
+function rundmailOverviewAccess($conn): array {
+    if (empty($_SESSION['valid']) || empty($_SESSION['uid'])) {
+        return [];
+    }
+    $uid = (int)$_SESSION['uid'];
+    $stmt = $conn->prepare('SELECT turm, `groups` FROM users WHERE uid = ?');
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $stmt->bind_result($turm, $groups);
+    $found = $stmt->fetch();
+    $stmt->close();
+    if (!$found) return [];
+
+    $memberships = array_map('trim', explode(',', (string)$groups));
+    $aktiv = false;
+    $result = $conn->query("SELECT id FROM `groups` WHERE active = 1 AND id NOT IN (1, 24, 27) AND COALESCE(`session`, '') <> '' AND COALESCE(mail, '') <> ''");
+    while ($row = $result->fetch_assoc()) {
+        if (in_array((string)$row['id'], $memberships, true)) {
+            $aktiv = true;
+            break;
+        }
+    }
+    $result->free();
+    return rundmailOverviewAddresses(strtolower(trim((string)$turm)), $aktiv);
+}
+
+function rundmailOverviewQuery($conn, string $sql, string $types, array $params): array {
+    $stmt = $conn->prepare($sql);
+    if ($types !== '') $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $rows = get_result($stmt);
+    $stmt->close();
+    return $rows;
+}
+
+function rundmailOverviewUrl(int $mail = 0): string {
+    $path = basename($_SERVER['SCRIPT_NAME'] ?? '') === 'Rundmail.php' ? 'Rundmail.php' : 'start.php';
+    return $path . ($mail > 0 ? '?selected_mail=' . $mail : '');
+}
+
 function displayRundmails($conn) {
-    echo '<br><br><br><hr><br><br><br>';
-    #echo '<h1 style="font-size: 40px; color: white; text-align: center;">Übersicht aktuelle Rundmails</h1><br><br>';
+    $addresses = rundmailOverviewAccess($conn);
+    if (!$addresses) return;
 
-    // Berechne den Unix-Timestamp für vor einem Monat
-    $one_month_ago = time() - (30 * 24 * 60 * 60);
+    $h = 'rundmailOverviewEscape';
+    $timezone = new DateTimeZone('Europe/Berlin');
+    $formatDate = static function ($timestamp) use ($timezone): string {
+        return (new DateTimeImmutable('@' . (int)$timestamp))->setTimezone($timezone)->format('d.m.Y H:i');
+    };
+    $from = ' FROM rundmails r JOIN users u ON r.uid = u.uid';
+    $where = ' WHERE r.address IN (' . implode(',', array_fill(0, count($addresses), '?')) . ')';
+    $types = str_repeat('s', count($addresses));
+    $params = $addresses;
+    $where .= ' AND r.tstamp >= ?';
+    $types .= 'i';
+    $params[] = time() - 30 * 24 * 60 * 60;
 
-    // Erstelle die SQL-Abfrage basierend auf den Bedingungen
-    $sql_users = "SELECT r.id, u.name, u.turm, u.room, u.groups, r.subject, r.nachricht, r.tstamp, r.address
-                  FROM rundmails r 
-                  JOIN users u ON r.uid = u.uid 
-                  WHERE r.tstamp >= ? AND r.address NOT LIKE '%fiji%' AND (
-                    (r.address = 'essential' OR r.address = 'important' OR r.address = 'community')";
+    // Der Inhalt wird erst beim Öffnen einer Mail geladen.
+    $rows = rundmailOverviewQuery($conn, 'SELECT r.id, u.name, u.`groups`, r.subject, r.tstamp, r.address' . $from . $where . ' ORDER BY r.id DESC', $types, $params);
+    $accent = strtolower((string)($_SESSION['turm'] ?? '')) === 'tvk' ? '#FFA500' : '#11a50d';
+    echo '<br><br><br><hr><br><br>';
+    ?>
+    <style>
+    .rm-overview { width: 94%; max-width: 1500px; margin: 0 auto 60px; color: #fff; --rm-accent: <?= $h($accent) ?>; }
+    .rm-overview * { box-sizing: border-box; }
+    .rm-overview .rm-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin:0 auto 18px; }
+    .rm-overview.rm-recent .rm-toolbar { justify-content:center; }
+    .rm-overview.rm-recent .rm-archive-link { display:inline-flex; align-items:center; justify-content:center; gap:11px; padding:12px 24px; border:1px solid var(--rm-accent); border-radius:8px; background:#272727; color:#fff; font-size:19px; font-weight:600; text-decoration:none; transition:background .18s, color .18s, border-color .18s; }
+    .rm-overview.rm-recent .rm-archive-link svg { width:21px; height:21px; color:var(--rm-accent); flex-shrink:0; }
+    .rm-overview.rm-recent .rm-archive-link:hover, .rm-overview.rm-recent .rm-archive-link:focus-visible { background:var(--rm-accent); color:#111; }
+    .rm-overview.rm-recent .rm-archive-link:hover svg, .rm-overview.rm-recent .rm-archive-link:focus-visible svg { color:inherit; }
 
-    // Filtere basierend auf dem Turm - aktuell auskommentiert, sodass alle alles sehen können
-    // if ($_SESSION['turm'] == 'weh' || $_SESSION["Vorstand"] || $_SESSION['sprecher'] != 0 || $_SESSION["NetzAG"] || $_SESSION["Webmaster"]) {
-    //     $sql_users .= " OR r.address = 'weh-essential'
-    //     OR r.address = 'weh-important'
-    //     OR r.address = 'weh-community'";
-    // }
-
-    // if ($_SESSION['turm'] == 'tvk' || $_SESSION["Vorstand"] || $_SESSION['sprecher'] != 0 || $_SESSION["NetzAG"] || $_SESSION["Webmaster"]) {
-    //     $sql_users .= " OR r.address = 'tvk-essential'
-    //     OR r.address = 'tvk-important'
-    //     OR r.address = 'tvk-community'";
-    // }
-
-    // Alle User sehen alle Rundmails. Falls Änderung gewünscht, Code oben wieder einschieben und Code unten löschen
-    $sql_users .= " OR r.address = 'weh-essential'
-    OR r.address = 'weh-important'
-    OR r.address = 'weh-community'
-    OR r.address = 'tvk-essential'
-    OR r.address = 'tvk-important'
-    OR r.address = 'tvk-community'";
-
-    if ($_SESSION['aktiv'] == true) {
-        $sql_users .= " OR r.address LIKE '%" . $_SESSION["turm"] . "-ags%' OR r.address = 'ags'";
-    }
-    $sql_users .= ") ORDER BY r.id DESC";
-
-    // Bereite die Abfrage vor
-    $stmt_users = mysqli_prepare($conn, $sql_users);
-
-    // Binde den Parameter $one_month_ago
-    mysqli_stmt_bind_param($stmt_users, 'i', $one_month_ago);
-
-    mysqli_stmt_execute($stmt_users);
-    mysqli_stmt_bind_result($stmt_users, $id, $name, $turm, $room, $groups, $subject, $nachricht, $tstamp, $address);
-
-    // Generiere die Tabelle
-    echo '<table class="grey-table" style="margin: 0 auto; margin-bottom:60px; text-align: center;">';
-    echo "<tr>
-            <th>Turm</th>
-            <th>Name</th>
-            <th>Betreff</th>
-            <th>Datum & Uhrzeit</th>
-        </tr>";
-
-    while (mysqli_stmt_fetch($stmt_users)) {
-        $date_time = date('d.m.Y H:i', $tstamp);
-        $ags_icons = getAgsIcons($groups, 20);
-
-        if ($name == "Simon Krämer" || $name == "Simon Fiji Krämer") {
-            $icon_size = 20;
-            $icon = "fiji";
-            $name = "Fiji";
-            $name_out = "<span style='font-family: \"Lucida Console\", \"Consolas\", monospace; font-weight: bold;'>FIJI</span>";
-        } elseif ($ags_icons != "") {
-            $name_out = $name;
-        } else {
-            $name_out = $name;
-        }
-
-        // Bestimme den Turm-Wert
-        $display_turm = 'Türme';
-        if (strpos($address, 'weh') !== false) {
-            $display_turm = 'WEH';
-        } elseif (strpos($address, 'tvk') !== false) {
-            $display_turm = 'TvK';
-        }
-
-        $display_subject = (strlen($subject) > 80) ? substr($subject, 0, 80) . ' [...]' : $subject;
-
-        if (strpos($address, 'community') !== false) { # Community
-            $row_color = ' #333333';
-            $text_size = '16px';
-        } elseif (strpos($address, 'important') !== false) { # Important
-            $row_color = ' #1f531e';
-            $text_size = '22px';
-        } elseif (strpos($address, 'ags') !== false) {
-            $row_color = ' #000099';
-            $text_size = '22px';
-        } else { # Essential
-            $row_color = ' #0b7309';
-            $text_size = '28px';
-        }
-
-        // Hidden form for each mail
-        echo "<form method='POST' style='display: none;' id='form_$id'>
-        <input type='hidden' name='selected_mail' value='$id'>
-        <input type='hidden' name='name' value='$name'>
-        <input type='hidden' name='turm' value='$turm'>
-        <input type='hidden' name='room' value='$room'>
-        <input type='hidden' name='groups' value='$groups'>
-        <input type='hidden' name='subject' value='$subject'>
-        <input type='hidden' name='nachricht' value='".htmlspecialchars($nachricht)."'>
-        <input type='hidden' name='tstamp' value='$date_time'>
-        <input type='hidden' name='address' value='$address'>
-        </form>";
-
-        // Inline style für jedes td
-        echo "<tr onclick='document.getElementById(\"form_$id\").submit();' style='cursor: pointer;'>";
-        echo "<td style='background-color: $row_color; font-size: $text_size;'>$display_turm</td>";
-        echo "<td style='background-color: $row_color; font-size: $text_size;'>$name_out $ags_icons</td>";
-        echo "<td style='background-color: $row_color; font-size: $text_size;'>$display_subject</td>";
-        echo "<td style='background-color: $row_color; font-size: $text_size;'>$date_time</td>";
-        echo "</tr>";
-    }
-    echo "</table>";
-
-    // Anzeige des ausgewählten Mails
-    if (isset($_POST['selected_mail'])) {
-        $selected_name = htmlspecialchars($_POST['name']);
-        $selected_turm = htmlspecialchars($_POST['turm']);
-        $formatted_turm = ($selected_turm == 'tvk') ? 'TvK' : strtoupper($selected_turm);
-        $selected_room = htmlspecialchars($_POST['room']);
-
-        // Sonderbezeichnung für Hausmeister
-        $formatted_room = ($selected_room === '18992')
-            ? 'Hausmeister'
-            : str_pad($selected_room, 4, '0', STR_PAD_LEFT);
-
-        $selected_groups = htmlspecialchars($_POST['groups']);
-        $selected_subject = htmlspecialchars($_POST['subject']);
-        $selected_nachricht = nl2br(htmlspecialchars($_POST['nachricht']));
-        $selected_tstamp = htmlspecialchars($_POST['tstamp']);
-        $selected_address = htmlspecialchars($_POST['address']);
-
-        echo ('
-        <div class="overlay">
+    .rm-overview .rm-action { display:inline-flex; justify-content:center; align-items:center; border:1px solid #777; border-radius:5px; padding:9px 17px; background:#f2f2f2; color:#111; cursor:pointer; text-decoration:none; font-size:16px; font-weight:bold; line-height:1.2; }
+    .rm-overview .rm-action:hover, .rm-overview .rm-action:focus-visible { background:var(--rm-accent); color:#111; }
+    .rm-overview .rm-table-wrap { overflow-x:auto; }
+    .rm-overview .rm-table { margin:0 auto; text-align:center; }
+    .rm-overview .rm-row { cursor:pointer; }
+    .rm-overview .rm-row:hover td { filter:brightness(1.2); }
+    .rm-overview .rm-date, .rm-overview .rm-building { white-space:nowrap; }
+    .rm-overview .rm-subject-link { color:inherit; text-decoration:none; display:block; overflow-wrap:anywhere; }
+    .rm-overview .rm-subject-link:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+    .rm-overview .rm-empty { color:#ccc; text-align:center; padding:25px; }
+    .rm-overview .rm-modal { color:#fff; background:#202020; border:1px solid #777; border-radius:10px; width:min(900px, 94vw); max-height:88vh; overflow:auto; padding:24px; position:fixed; inset:0; margin:auto; z-index:10001; box-shadow:0 15px 60px #0008; }
+    .rm-overview .rm-modal::backdrop { background:rgba(0,0,0,.72); }
+    .rm-overview .rm-modal h2 { margin:0 0 14px; padding-right:44px; font-size:clamp(22px, 3vw, 34px); overflow-wrap:anywhere; }
+    .rm-overview .rm-modal-close { position:absolute; right:15px; top:15px; }
+    .rm-overview .rm-meta { color:#ccc; line-height:1.6; text-align:left; }
+    .rm-overview .rm-message { margin-top:20px; background:#303030; border-radius:7px; padding:16px; text-align:left; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.5; }
+    @media(max-width:700px) { .rm-overview { width:95%; } .rm-overview .rm-toolbar { justify-content:center; text-align:center; } .rm-overview .rm-modal { padding:16px; } }
+    </style>
+    <section class="rm-overview rm-recent">
+        <div class="rm-toolbar">
+                <a class="rm-archive-link" href="RundmailArchiv.php">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="5" rx="1"/><path d="M5 8v12h14V8M10 12h4"/></svg>
+                    Rundmail-Archiv
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+                </a>
         </div>
-        <div class="anmeldung-form-container form-container">
-            <form method="post">
-                <button type="submit" name="close" value="close" class="close-btn">X</button>
-            </form>
-            <div class="mail-details" style="color: white; text-align: center; padding: 20px;">
-                <h2 style="margin-bottom: 10px; font-size: 40px;">' . $selected_subject . '</h2>
-                <div style="display: flex; flex-direction: column; justify-content: space-around; margin-bottom: 20px;">
-                    <span>' . $selected_name . '</span>
-                    <span>' . $formatted_turm . ' - ' . $formatted_room . '</span>
-                    <span>' . $selected_tstamp . '</span>
-                    <span>Verteiler: ' . $selected_address . '</span>
-                </div>
-                <div style="margin-top: 20px; text-align: left; padding: 10px; background-color: #333; border-radius: 10px;">
-                    <p>' . $selected_nachricht . '</p>
-                </div>
-            </div>
-        </div>');
-    }
+        <div class="rm-table-wrap">
+        <table class="rm-table grey-table">
+            <thead><tr><th>Turm</th><th>Name</th><th>Betreff</th><th>Datum &amp; Uhrzeit</th></tr></thead>
+            <tbody>
+            <?php if (!$rows): ?><tr><td colspan="4" class="rm-empty">Keine Rundmails vorhanden.</td></tr><?php endif; ?>
+            <?php foreach ($rows as $row):
+                $address = (string)$row['address'];
+                $building = str_starts_with($address, 'weh-') ? 'WEH' : (str_starts_with($address, 'tvk-') ? 'TvK' : 'Türme');
+                $isFiji = in_array($row['name'], ['Simon Krämer', 'Simon Fiji Krämer'], true);
+                $name = $isFiji ? '<span style="font-family:Consolas,monospace;font-weight:bold">FIJI</span>' : $h($row['name']);
+                $icons = getAgsIcons((string)$row['groups'], 20);
+                $subject = (string)$row['subject'];
+                if (preg_match('/^(.{80})./us', $subject, $match)) $subject = $match[1] . ' [...]';
+                if (str_contains($address, 'community')) { $color = '#333333'; $size = 16; }
+                elseif (str_contains($address, 'important')) { $color = '#1f531e'; $size = 22; }
+                elseif (str_contains($address, 'ags')) { $color = '#000099'; $size = 22; }
+                else { $color = '#0b7309'; $size = 28; }
+                $style = 'background-color:' . $color . ';font-size:' . $size . 'px;';
+                $url = rundmailOverviewUrl((int)$row['id']);
+            ?>
+                <tr class="rm-row" data-mail-url="<?= $h($url) ?>">
+                    <td class="rm-building" style="<?= $style ?>"><?= $h($building) ?></td>
+                    <td style="<?= $style ?>"><?= $name ?> <?= $icons ?></td>
+                    <td class="rm-subject" style="<?= $style ?>"><a class="rm-subject-link" href="<?= $h($url) ?>"><?= $h($subject) ?></a></td>
+                    <td class="rm-date" style="<?= $style ?>"><?= $h($formatDate($row['tstamp'])) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        </div>
+        <?php
+        // Keine POST-Inhalte übernehmen. Detailabfrage unter identischen Berechtigungen und Filtern.
+        $requestedMail = $_GET['selected_mail'] ?? $_POST['selected_mail'] ?? null;
+        if ($requestedMail !== null):
+            $mailId = filter_var($requestedMail, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+            $detail = [];
+            if ($mailId !== false) {
+                $detailParams = [...$params, $mailId];
+                $detail = rundmailOverviewQuery($conn, 'SELECT r.id, u.name, u.turm, u.room, r.subject, r.nachricht, r.tstamp, r.address' . $from . $where . ' AND r.id = ?', $types . 'i', $detailParams);
+            }
+            $closeUrl = rundmailOverviewUrl();
+            ?>
+            <dialog class="rm-modal" id="rm-mail-dialog" aria-labelledby="rm-mail-title">
+                <a class="rm-action rm-modal-close" href="<?= $h($closeUrl) ?>" aria-label="Schließen">X</a>
+                <?php if ($detail):
+                    $mail = $detail[0];
+                    $sender = in_array($mail['name'], ['Simon Krämer', 'Simon Fiji Krämer'], true) ? 'Fiji' : $mail['name'];
+                    $room = (string)$mail['room'] === '18992' ? 'Hausmeister' : str_pad((string)$mail['room'], 4, '0', STR_PAD_LEFT);
+                    $turm = strtolower((string)$mail['turm']) === 'tvk' ? 'TvK' : strtoupper((string)$mail['turm']);
+                ?>
+                    <h2 id="rm-mail-title"><?= $h($mail['subject']) ?></h2>
+                    <div class="rm-meta"><?= $h($sender) ?><br><?= $h($turm . ' - ' . $room) ?><br><?= $h($formatDate($mail['tstamp'])) ?><br>Verteiler: <?= $h($mail['address']) ?></div>
+                    <div class="rm-message"><?= $h($mail['nachricht']) ?></div>
+                <?php else: ?>
+                    <h2 id="rm-mail-title">Rundmail nicht verfügbar</h2>
+                    <p>Diese Rundmail ist nicht vorhanden oder für dich nicht sichtbar.</p>
+                <?php endif; ?>
+            </dialog>
+            <noscript><style>#rm-mail-dialog { display:block; position:relative; inset:auto; margin:20px auto; }</style></noscript>
+            <script>
+            (() => {
+                const d = document.getElementById('rm-mail-dialog');
+                const close = () => { location.href = d.querySelector('.rm-modal-close').href; };
+                if (typeof d.showModal === 'function') d.showModal();
+                else d.setAttribute('open', '');
 
-    mysqli_stmt_close($stmt_users);
+                const isBackdrop = event => {
+                    const rect = d.getBoundingClientRect();
+                    return event.target === d && (
+                        event.clientX < rect.left || event.clientX >= rect.right ||
+                        event.clientY < rect.top || event.clientY >= rect.bottom
+                    );
+                };
+                let backdropPressed = false;
+                d.addEventListener('pointerdown', event => { backdropPressed = isBackdrop(event); });
+                d.addEventListener('pointercancel', () => { backdropPressed = false; });
+                d.addEventListener('click', event => {
+                    if (backdropPressed && isBackdrop(event)) close();
+                    backdropPressed = false;
+                });
+                d.addEventListener('cancel', event => { event.preventDefault(); close(); });
+            })();
+            </script>
+        <?php endif; ?>
+    </section>
+    <script>
+    document.querySelectorAll('.rm-overview .rm-row').forEach(row => {
+        row.addEventListener('click', event => {
+            if (event.target.closest('a') || window.getSelection().toString()) return;
+            location.href = row.dataset.mailUrl;
+        });
+    });
+    </script>
+    <?php
 }
 
 
