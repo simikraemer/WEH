@@ -4,7 +4,7 @@ session_start();
 require_once('conn.php');
 mysqli_set_charset($conn, "utf8");
 
-$fijionlyaccess = true;
+$fijionlyaccess = false;
 
 $bannerMessage = '';
 $redirectAfterSubmit = false;

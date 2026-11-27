@@ -113,7 +113,7 @@ def warnmail(uid, rest, monatsbeitrag, name, username, turm):
         "Transfer Reference: W"+str(uid)+"H\n" +
         "Please make sure to use this exact reference, so we can assign the transfer to your account.\n\n" +
         "It takes a few days for bank transfers to appear in your WEH account!\n" +
-        "For faster processing, consider using the PayPal option on the Backend-Website.\n\n" +
+        "DO NOT CONTACT NETZWERK-AG OR VORSTAND REGARDING PENDING PAYMENTS, IF YOU DIDN'T WAIT FOR AT LEAST ONE WEEK.\n\n" +
         "If you have any questions or concerns, feel free to contact us.\n\n" +
         "Best regards,\nNetzwerk-AG WEH e.V."
     )     

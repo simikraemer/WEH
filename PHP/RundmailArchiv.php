@@ -13,15 +13,19 @@ if (!$authenticated || empty($_SESSION['valid'])) {
 }
 header('Cache-Control: private, no-store');
 
-function rundmailArchivUrl(int $year, int $mail = 0): string {
+function rundmailArchivUrl(int $year, int $mail = 0, string $search = ''): string {
     $query = ['year' => $year];
+    if ($search !== '') $query['q'] = $search;
     if ($mail > 0) $query['selected_mail'] = $mail;
     return 'RundmailArchiv.php' . ($query ? '?' . http_build_query($query) : '');
 }
 
-function displayRundmailArchiv($conn) {
+function displayRundmailArchiv($conn, bool $ajax = false) {
     $addresses = rundmailOverviewAccess($conn);
-    if (!$addresses) return;
+    if (!$addresses) {
+        if ($ajax) http_response_code(403);
+        return;
+    }
 
     $h = 'rundmailOverviewEscape';
     $timezone = new DateTimeZone('Europe/Berlin');
@@ -46,20 +50,42 @@ function displayRundmailArchiv($conn) {
     rsort($years, SORT_NUMERIC);
     $requestedYear = filter_var($_GET['year'] ?? null, FILTER_VALIDATE_INT);
     $year = in_array($requestedYear, $years, true) ? $requestedYear : $years[0];
-    $start = new DateTimeImmutable(sprintf('%04d-01-01 00:00:00', $year), $timezone);
-    $where .= ' AND r.tstamp >= ? AND r.tstamp < ?';
-    $types .= 'ii';
-    $params[] = $start->getTimestamp();
-    $params[] = $start->modify('+1 year')->getTimestamp();
+    $search = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
+    $search = trim(preg_replace('/[\s\p{Z}]+/u', ' ', $search) ?? $search);
+    if ($search === '') {
+        $start = new DateTimeImmutable(sprintf('%04d-01-01 00:00:00', $year), $timezone);
+        $where .= ' AND r.tstamp >= ? AND r.tstamp < ?';
+        $types .= 'ii';
+        $params[] = $start->getTimestamp();
+        $params[] = $start->modify('+1 year')->getTimestamp();
+    } else {
+        // Alle Suchwörter müssen vorkommen; die Reihenfolge und Leerzeichen
+        // im gespeicherten Namen spielen keine Rolle. Jedes Wort darf in
+        // einem der vier durchsuchten Felder stehen.
+        foreach (array_unique(explode(' ', $search)) as $word) {
+            $where .= ' AND (LOCATE(LOWER(?), LOWER(r.subject)) > 0
+                             OR LOCATE(LOWER(?), LOWER(r.nachricht)) > 0
+                             OR LOCATE(LOWER(?), LOWER(u.name)) > 0
+                             OR LOCATE(LOWER(?), LOWER(u.username)) > 0)';
+            $types .= 'ssss';
+            array_push($params, $word, $word, $word, $word);
+        }
+    }
 
     // Keine historischen Absendergruppen vorhanden. Keine aktuellen Gruppen nachladen.
     $rows = rundmailOverviewQuery($conn, 'SELECT r.id, u.name, r.subject, r.tstamp, r.address' . $from . $where . ' ORDER BY r.tstamp DESC, r.id DESC', $types, $params);
     $months = [];
     foreach ($rows as $row) {
-        $month = (int)(new DateTimeImmutable('@' . (int)$row['tstamp']))->setTimezone($timezone)->format('n');
+        $month = (new DateTimeImmutable('@' . (int)$row['tstamp']))->setTimezone($timezone)->format('Y-m');
         $months[$month][] = $row;
     }
     $monthNames = [1 => 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    if ($ajax) {
+        echo '<div id="rm-results" data-count="' . count($rows) . '">';
+        rundmailArchivRenderMonths($months, $monthNames, $year, $search, $formatDate);
+        echo '</div>';
+        return;
+    }
     $accent = strtolower((string)($_SESSION['turm'] ?? '')) === 'tvk' ? '#FFA500' : '#11a50d';
     ?>
     <style>
@@ -69,6 +95,13 @@ function displayRundmailArchiv($conn) {
     .rm-overview .rm-heading { margin:0; font-size:30px; }
     .rm-overview .rm-filters { display:flex; gap:10px; align-items:center; margin:0; }
     .rm-overview .rm-filter { display:flex; align-items:center; gap:10px; min-width:0; }
+    .rm-overview .rm-search { display:flex; flex-direction:column; gap:7px; margin:0 0 22px; }
+    .rm-overview .rm-search label { font-size:15px; color:#ddd; text-align:left; }
+    .rm-overview .rm-search input { display:block; width:100%; min-width:0; max-width:none; min-height:46px; padding:10px 15px; border:1px solid #777; border-radius:7px; background:#303030; color:#fff; font:inherit; font-size:18px; text-align:left; }
+    .rm-overview .rm-search input:focus { outline:2px solid var(--rm-accent); outline-offset:1px; border-color:var(--rm-accent); }
+    .rm-overview .rm-search input::placeholder { color:#aaa; }
+    .rm-overview .rm-search-status { min-height:20px; color:#bbb; font-size:14px; }
+    .rm-overview .rm-filter select:disabled { opacity:.5; cursor:not-allowed; }
     .rm-overview .rm-filter label { color:#ddd; font-size:14px; text-align:left; }
     .rm-overview .rm-filter select { max-width:100%; min-height:42px; min-width:120px; padding:6px 14px; font-size:19px; color:#fff; background:#303030; border:1px solid #777; border-radius:5px; }
     .rm-overview .rm-action { display:inline-flex; justify-content:center; align-items:center; border:1px solid #777; border-radius:5px; padding:9px 17px; background:#f2f2f2; color:#111; cursor:pointer; text-decoration:none; font-size:16px; font-weight:bold; line-height:1.2; }
@@ -112,7 +145,7 @@ function displayRundmailArchiv($conn) {
             <form class="rm-filters" method="get" action="RundmailArchiv.php">
                 <div class="rm-filter">
                     <label for="rm-year">Jahr</label>
-                    <select id="rm-year" name="year" onchange="this.form.submit()">
+                    <select id="rm-year" name="year" onchange="this.form.submit()" <?= $search !== '' ? 'disabled' : '' ?>>
                         <?php foreach ($years as $optionYear): ?>
                         <option value="<?= $optionYear ?>" <?= $year === $optionYear ? 'selected' : '' ?>><?= $optionYear ?></option>
                         <?php endforeach; ?>
@@ -121,40 +154,14 @@ function displayRundmailArchiv($conn) {
                 <noscript><button class="rm-action" type="submit">Anzeigen</button></noscript>
             </form>
         </div>
-        <?php if (!$months): ?><p class="rm-empty">Keine Rundmails in diesem Jahr vorhanden.</p><?php endif; ?>
-        <?php foreach ($months as $month => $monthRows): ?>
-        <section class="rm-month" aria-labelledby="rm-month-<?= $month ?>">
-        <h2 class="rm-month-heading" id="rm-month-<?= $month ?>"><?= $h($monthNames[$month]) ?> <?= $year ?> <span><?= count($monthRows) ?> <?= count($monthRows) === 1 ? 'Rundmail' : 'Rundmails' ?></span></h2>
-        <div class="rm-table-wrap">
-        <table class="rm-table">
-            <colgroup><col style="width:10%"><col style="width:23%"><col style="width:49%"><col style="width:18%"></colgroup>
-            <thead><tr><th>Turm</th><th>Name</th><th>Betreff</th><th>Datum &amp; Uhrzeit</th></tr></thead>
-            <tbody>
-            <?php foreach ($monthRows as $row):
-                $address = (string)$row['address'];
-                $building = str_starts_with($address, 'weh-') ? 'WEH' : (str_starts_with($address, 'tvk-') ? 'TvK' : 'Türme');
-                $isFiji = in_array($row['name'], ['Simon Krämer', 'Simon Fiji Krämer'], true);
-                $name = $isFiji ? '<span style="font-family:Consolas,monospace;font-weight:bold">FIJI</span>' : $h($row['name'] ?? 'Unbekannter Absender');
-                $subject = (string)$row['subject'];
-                if (str_contains($address, 'community')) { $color = '#333333'; }
-                elseif (str_contains($address, 'important')) { $color = '#1f531e'; }
-                elseif (str_contains($address, 'ags')) { $color = '#000099'; }
-                else { $color = '#0b7309'; }
-                $style = 'background-color:' . $color . ';font-size:' . 16 . 'px;';
-                $url = rundmailArchivUrl($year, (int)$row['id']);
-            ?>
-                <tr class="rm-row" data-mail-url="<?= $h($url) ?>">
-                    <td class="rm-building" style="<?= $style ?>"><?= $h($building) ?></td>
-                    <td class="rm-sender" style="<?= $style ?>"><?= $name ?></td>
-                    <td class="rm-subject" style="<?= $style ?>"><a class="rm-subject-link" href="<?= $h($url) ?>"><?= $h($subject) ?></a></td>
-                    <td class="rm-date" style="<?= $style ?>"><?= $h($formatDate($row['tstamp'])) ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+        <div class="rm-search">
+            <label for="rm-search">Alle Jahre durchsuchen</label>
+            <input id="rm-search" type="search" value="<?= $h($search) ?>" placeholder="Nach Betreff, Nachrichtentext, Name oder Username suchen …" autocomplete="off" aria-controls="rm-results">
+            <div class="rm-search-status" id="rm-search-status" role="status" aria-live="polite"><?= $search !== '' ? count($rows) . ' Treffer in allen Jahren' : '' ?></div>
         </div>
-        </section>
-        <?php endforeach; ?>
+        <div id="rm-results" data-count="<?= count($rows) ?>">
+            <?php rundmailArchivRenderMonths($months, $monthNames, $year, $search, $formatDate); ?>
+        </div>
         <?php
         // Keine POST-Inhalte übernehmen. Detailabfrage unter identischen Berechtigungen und Filtern.
         $requestedMail = $_GET['selected_mail'] ?? null;
@@ -165,7 +172,7 @@ function displayRundmailArchiv($conn) {
                 $detailParams = [...$params, $mailId];
                 $detail = rundmailOverviewQuery($conn, 'SELECT r.id, u.name, u.turm, u.room, r.subject, r.nachricht, r.tstamp, r.address' . $from . $where . ' AND r.id = ?', $types . 'i', $detailParams);
             }
-            $closeUrl = rundmailArchivUrl($year);
+            $closeUrl = rundmailArchivUrl($year, 0, $search);
             ?>
             <dialog class="rm-modal" id="rm-mail-dialog" aria-labelledby="rm-mail-title">
                 <a class="rm-action rm-modal-close" href="<?= $h($closeUrl) ?>" aria-label="Schließen">X</a>
@@ -211,14 +218,114 @@ function displayRundmailArchiv($conn) {
         <?php endif; ?>
     </section>
     <script>
-    document.querySelectorAll('.rm-overview .rm-row').forEach(row => {
-        row.addEventListener('click', event => {
-            if (event.target.closest('a') || window.getSelection().toString()) return;
+    (() => {
+        const input = document.getElementById('rm-search');
+        const year = document.getElementById('rm-year');
+        const results = document.getElementById('rm-results');
+        const status = document.getElementById('rm-search-status');
+        let timer;
+        let controller;
+        let revision = 0;
+
+        // Event delegation: bleibt auch nach dem AJAX-Austausch der Tabellen aktiv.
+        results.addEventListener('click', event => {
+            const row = event.target.closest('.rm-row');
+            if (!row || event.target.closest('a') || window.getSelection().toString()) return;
             location.href = row.dataset.mailUrl;
         });
-    });
+
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            if (controller) controller.abort();
+            const current = ++revision;
+            const q = input.value.trim();
+            year.disabled = q !== '';
+            status.textContent = 'Suche läuft …';
+            results.setAttribute('aria-busy', 'true');
+            timer = setTimeout(async () => {
+                controller = new AbortController();
+                const params = new URLSearchParams({year: year.value});
+                if (q) params.set('q', q);
+                const pageUrl = 'RundmailArchiv.php?' + params.toString();
+                params.set('ajax', '1');
+                try {
+                    const response = await fetch('RundmailArchiv.php?' + params.toString(), {
+                        signal: controller.signal,
+                        cache: 'no-store',
+                        credentials: 'same-origin'
+                    });
+                    if (current !== revision) return;
+                    if (response.redirected) { location.href = response.url; return; }
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    const html = await response.text();
+                    if (current !== revision) return;
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const next = doc.getElementById('rm-results');
+                    if (!next) throw new Error('Ungültige Antwort');
+                    results.replaceChildren(...next.childNodes);
+                    results.dataset.count = next.dataset.count;
+                    status.textContent = q ? next.dataset.count + ' Treffer in allen Jahren' : '';
+                    history.replaceState(null, '', pageUrl);
+                } catch (error) {
+                    if (current !== revision || error.name === 'AbortError') return;
+                    results.replaceChildren();
+                    status.textContent = 'Suche fehlgeschlagen. Bitte versuche es erneut.';
+                } finally {
+                    if (current === revision) results.removeAttribute('aria-busy');
+                }
+            }, 200);
+        });
+    })();
     </script>
     <?php
+}
+
+function rundmailArchivRenderMonths(array $months, array $monthNames, int $year, string $search, callable $formatDate): void {
+    $h = 'rundmailOverviewEscape';
+    ?>
+        <?php if (!$months): ?><p class="rm-empty"><?= $search !== '' ? 'Keine passenden Rundmails gefunden.' : 'Keine Rundmails in diesem Jahr vorhanden.' ?></p><?php endif; ?>
+        <?php foreach ($months as $month => $monthRows): ?>
+        <?php [$monthYear, $monthNumber] = explode('-', $month); ?>
+        <section class="rm-month" aria-labelledby="rm-month-<?= $month ?>">
+        <h2 class="rm-month-heading" id="rm-month-<?= $month ?>"><?= $h($monthNames[(int)$monthNumber]) ?> <?= $h($monthYear) ?> <span><?= count($monthRows) ?> <?= count($monthRows) === 1 ? 'Rundmail' : 'Rundmails' ?></span></h2>
+        <div class="rm-table-wrap">
+        <table class="rm-table">
+            <colgroup><col style="width:10%"><col style="width:23%"><col style="width:49%"><col style="width:18%"></colgroup>
+            <thead><tr><th>Turm</th><th>Name</th><th>Betreff</th><th>Datum &amp; Uhrzeit</th></tr></thead>
+            <tbody>
+            <?php foreach ($monthRows as $row):
+                $address = (string)$row['address'];
+                $building = str_starts_with($address, 'weh-') ? 'WEH' : (str_starts_with($address, 'tvk-') ? 'TvK' : 'Türme');
+                $isFiji = in_array($row['name'], ['Simon Krämer', 'Simon Fiji Krämer'], true);
+                $name = $isFiji ? '<span style="font-family:Consolas,monospace;font-weight:bold">FIJI</span>' : $h($row['name'] ?? 'Unbekannter Absender');
+                $subject = (string)$row['subject'];
+                if (str_contains($address, 'community')) { $color = '#333333'; }
+                elseif (str_contains($address, 'important')) { $color = '#1f531e'; }
+                elseif (str_contains($address, 'ags')) { $color = '#000099'; }
+                else { $color = '#0b7309'; }
+                $style = 'background-color:' . $color . ';font-size:' . 16 . 'px;';
+                $url = rundmailArchivUrl($year, (int)$row['id'], $search);
+            ?>
+                <tr class="rm-row" data-mail-url="<?= $h($url) ?>">
+                    <td class="rm-building" style="<?= $style ?>"><?= $h($building) ?></td>
+                    <td class="rm-sender" style="<?= $style ?>"><?= $name ?></td>
+                    <td class="rm-subject" style="<?= $style ?>"><a class="rm-subject-link" href="<?= $h($url) ?>"><?= $h($subject) ?></a></td>
+                    <td class="rm-date" style="<?= $style ?>"><?= $h($formatDate($row['tstamp'])) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        </div>
+        </section>
+        <?php endforeach; ?>
+    <?php
+}
+
+if (($_GET['ajax'] ?? '') === '1') {
+    header('Content-Type: text/html; charset=UTF-8');
+    displayRundmailArchiv($conn, true);
+    $conn->close();
+    exit;
 }
 
 
